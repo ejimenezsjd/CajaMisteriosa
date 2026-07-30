@@ -1,2 +1,38 @@
-# CajaMisteriosa
-Whats in the box?
+# GymRival
+
+App social de gimnasio: crea tu rutina, comparte con amigos, anota series/peso y compite por superar sus marcas.
+
+## Características
+
+- Registro e inicio de sesión
+- Crear rutinas con ejercicios (series y reps objetivo)
+- Anotar series: número de serie, repeticiones y peso (kg)
+- Sistema de amigos (solicitudes y acceso mutuo a rutinas)
+- Ranking de competencia por ejercicio (mejor peso entre tú y tus amigos)
+
+## Stack
+
+- Next.js (App Router) + TypeScript
+- Prisma + SQLite
+- Tailwind CSS
+
+## Arranque
+
+```bash
+npm install
+npx prisma migrate dev --name init
+npm run db:seed
+npm run dev
+```
+
+Abre [http://localhost:3000](http://localhost:3000).
+
+### Usuarios demo
+
+| Usuario | Contraseña |
+|---------|------------|
+| alex    | demo1234   |
+| maria   | demo1234   |
+| luis    | demo1234   |
+
+Alex, María y Luis ya son amigos y tienen rutinas con levantamientos de ejemplo.
