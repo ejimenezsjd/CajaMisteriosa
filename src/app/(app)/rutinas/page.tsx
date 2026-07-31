@@ -40,7 +40,8 @@ export default async function RutinasPage() {
           <p className="text-sm uppercase tracking-[0.2em] text-accent">Tu entrenamiento</p>
           <h1 className="font-display text-5xl sm:text-6xl">Mis rutinas</h1>
           <p className="mt-2 max-w-xl text-muted">
-            Crea tu plan, anota series y peso, y mira cuánto te falta para superar a tus amigos.
+            Crea tu plan, consulta la técnica de cada ejercicio, anota series y peso,
+            y mira cuánto te falta para superar a tus amigos.
           </p>
         </div>
         <CreateRoutineForm />

@@ -1,6 +1,7 @@
 import { getPrsForExerciseName } from "@/lib/competition";
 import { areFriends, getFriendIds, requireUser } from "@/lib/friends";
 import { prisma } from "@/lib/prisma";
+import { ExerciseGuideCard } from "@/components/ExerciseGuideCard";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -132,6 +133,10 @@ export default async function FriendRoutinePage({ params }: Props) {
                           </div>
                         )}
                       </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <ExerciseGuideCard exerciseName={ex.name} compact />
                     </div>
 
                     {ex.setLogs.length > 0 && (

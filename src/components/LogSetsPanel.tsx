@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ExerciseGuideCard } from "@/components/ExerciseGuideCard";
 
 type Rival = {
   userId: string;
@@ -81,6 +82,10 @@ export function LogSetsPanel({
             )}
           </div>
         )}
+      </div>
+
+      <div className="mt-4">
+        <ExerciseGuideCard exerciseName={exerciseName} />
       </div>
 
       <form onSubmit={onSubmit} className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
