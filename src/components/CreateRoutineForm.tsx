@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { catalogNames, EXERCISE_CATALOG } from "@/lib/exerciseCatalog";
 
 type ExerciseDraft = {
   name: string;
@@ -20,11 +21,21 @@ export function CreateRoutineForm() {
   ]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const suggestions = useMemo(() => catalogNames(), []);
 
   const canSubmit = useMemo(
     () => name.trim() && exercises.every((e) => e.name.trim()),
     [name, exercises],
   );
+
+  function addFromCatalog(exerciseName: string) {
+    if (exercises.length === 1 && !exercises[0].name.trim()) {
+      setExercises([{ name: exerciseName, targetSets: 3, targetReps: 10 }]);
+      return;
+    }
+    if (exercises.some((e) => e.name === exerciseName)) return;
+    setExercises([...exercises, { name: exerciseName, targetSets: 3, targetReps: 10 }]);
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -68,7 +79,9 @@ export function CreateRoutineForm() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="font-display text-3xl">Nueva rutina</h2>
-          <p className="text-sm text-muted">Añade ejercicios y objetivos.</p>
+          <p className="text-sm text-muted">
+            Elige ejercicios del catálogo (con imagen y técnica) o escribe uno nuevo.
+          </p>
         </div>
         <button type="button" className="btn btn-ghost text-sm" onClick={() => setOpen(false)}>
           Cerrar
@@ -99,12 +112,37 @@ export function CreateRoutineForm() {
         </label>
       </div>
 
+      <div className="mt-5">
+        <p className="text-sm font-medium text-ink">Catálogo rápido</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {EXERCISE_CATALOG.map((ex) => (
+            <button
+              key={ex.slug}
+              type="button"
+              className="rounded-lg border border-line bg-bg-soft px-2.5 py-1.5 text-xs text-muted transition hover:border-accent/40 hover:text-accent"
+              onClick={() => addFromCatalog(ex.name)}
+            >
+              {ex.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="mt-5 space-y-3">
         <p className="text-sm font-medium text-ink">Ejercicios</p>
+        <datalist id="exercise-catalog">
+          {suggestions.map((n) => (
+            <option key={n} value={n} />
+          ))}
+        </datalist>
         {exercises.map((ex, index) => (
-          <div key={index} className="grid gap-2 rounded-xl border border-line bg-bg-soft/50 p-3 sm:grid-cols-[1fr_5rem_5rem_auto]">
+          <div
+            key={index}
+            className="grid gap-2 rounded-xl border border-line bg-bg-soft/50 p-3 sm:grid-cols-[1fr_5rem_5rem_auto]"
+          >
             <input
               className="input"
+              list="exercise-catalog"
               placeholder="Press banca"
               value={ex.name}
               onChange={(e) => {

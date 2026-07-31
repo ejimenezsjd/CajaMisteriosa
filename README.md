@@ -6,6 +6,7 @@ App social de gimnasio: crea tu rutina, comparte con amigos, anota series/peso y
 
 - Registro e inicio de sesión
 - Crear rutinas con ejercicios (series y reps objetivo)
+- Guía visual por ejercicio: imagen, músculos, claves de ejecución y errores a evitar
 - Anotar series: número de serie, repeticiones y peso (kg)
 - Sistema de amigos (solicitudes y acceso mutuo a rutinas)
 - Ranking de competencia por ejercicio (mejor peso entre tú y tus amigos)
