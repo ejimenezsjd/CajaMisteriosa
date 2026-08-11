@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Caja Misteriosa</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/game.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <h1>Caja Misteriosa</h1>
+      </div>
+      <div id="run-stats" class="run-stats hidden">
+        <span id="stat-floor">Piso 1</span>
+        <span id="stat-hp">PV —</span>
+        <span id="stat-boxes">Cajas 0</span>
+      </div>
+    </header>
+
+    <main id="screens">
+      <!-- MENÚ -->
+      <section id="screen-menu" class="screen active">
+        <div class="hero-plane">
+          <div class="hero-copy">
+            <p class="brand-hero">Caja Misteriosa</p>
+            <h2>Abre. Combate. Evoluciona.</h2>
+            <p class="lede">Un roguelike de criaturas: explora mazmorras, captura monstruos de ocho tipos y llévalos hasta su forma final.</p>
+            <div class="cta-row">
+              <button id="btn-start" class="btn primary">Abrir la primera caja</button>
+              <button id="btn-howto" class="btn ghost">Cómo se juega</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CÓMO JUGAR -->
+      <section id="screen-howto" class="screen">
+        <div class="panel narrow">
+          <h2>Cómo se juega</h2>
+          <ul class="howto-list">
+            <li><strong>Moverte:</strong> flechas / WASD en PC, o el pad en el móvil.</li>
+            <li><strong>Cajas:</strong> pisa una caja brillante para reclutar una criatura.</li>
+            <li><strong>Combate:</strong> turnos con ataques; los tipos tienen ventajas y debilidades.</li>
+            <li><strong>Evolución:</strong> al subir de nivel, tus monstruos cambian de forma.</li>
+            <li><strong>Escaleras:</strong> llega a la escalera para bajar al siguiente piso.</li>
+            <li><strong>Roguelike:</strong> si tu equipo cae, la run termina.</li>
+          </ul>
+          <button id="btn-howto-back" class="btn primary">Volver</button>
+        </div>
+      </section>
+
+      <!-- ELEGIR INICIAL -->
+      <section id="screen-starter" class="screen">
+        <div class="panel">
+          <h2>Elige tu primera criatura</h2>
+          <p class="lede">Tres cajas se abren ante ti. Solo una puede acompañarte.</p>
+          <div id="starter-choices" class="starter-grid"></div>
+        </div>
+      </section>
+
+      <!-- JUEGO -->
+      <section id="screen-game" class="screen">
+        <div class="game-layout">
+          <div class="map-wrap">
+            <canvas id="dungeon" width="720" height="520"></canvas>
+            <div class="mobile-controls" aria-label="Controles táctiles">
+              <div class="dpad">
+                <button type="button" class="pad-btn" data-dx="0" data-dy="-1" aria-label="Arriba">▲</button>
+                <div class="dpad-mid">
+                  <button type="button" class="pad-btn" data-dx="-1" data-dy="0" aria-label="Izquierda">◀</button>
+                  <button type="button" class="pad-btn" data-dx="1" data-dy="0" aria-label="Derecha">▶</button>
+                </div>
+                <button type="button" class="pad-btn" data-dx="0" data-dy="1" aria-label="Abajo">▼</button>
+              </div>
+            </div>
+            <p class="hint">Flechas / WASD · pad táctil en móvil · 1–4 cambia líder</p>
+          </div>
+          <aside class="side">
+            <div class="side-block">
+              <h3>Equipo</h3>
+              <div id="party-list" class="party-list"></div>
+            </div>
+            <div class="side-block">
+              <h3>Registro</h3>
+              <div id="log" class="log"></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- BATALLA -->
+      <section id="screen-battle" class="screen">
+        <div class="battle-stage">
+          <div class="battle-arena">
+            <div class="fighter enemy" id="battle-enemy">
+              <div class="fighter-meta">
+                <span class="fighter-name" id="enemy-name">—</span>
+                <span class="fighter-type" id="enemy-type">—</span>
+              </div>
+              <div class="hp-bar"><div id="enemy-hp" class="hp-fill"></div></div>
+              <div class="sprite" id="enemy-sprite"></div>
+            </div>
+            <div class="fighter ally" id="battle-ally">
+              <div class="sprite" id="ally-sprite"></div>
+              <div class="fighter-meta">
+                <span class="fighter-name" id="ally-name">—</span>
+                <span class="fighter-type" id="ally-type">—</span>
+              </div>
+              <div class="hp-bar"><div id="ally-hp" class="hp-fill"></div></div>
+            </div>
+          </div>
+          <div class="battle-log" id="battle-log"></div>
+          <div class="battle-actions" id="battle-actions"></div>
+        </div>
+      </section>
+
+      <!-- EVOLUCIÓN -->
+      <section id="screen-evolve" class="screen">
+        <div class="panel evolve-panel">
+          <p class="evolve-label">¡Evolución!</p>
+          <div id="evolve-visual" class="evolve-visual"></div>
+          <h2 id="evolve-text">—</h2>
+          <button id="btn-evolve-ok" class="btn primary">Continuar</button>
+        </div>
+      </section>
+
+      <!-- GAME OVER / VICTORIA -->
+      <section id="screen-end" class="screen">
+        <div class="panel narrow end-panel">
+          <h2 id="end-title">Fin de la run</h2>
+          <p id="end-summary" class="lede"></p>
+          <div id="end-party" class="end-party"></div>
+          <button id="btn-retry" class="btn primary">Nueva run</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
