@@ -57,6 +57,16 @@ export function createGame() {
   function refreshUI() {
     renderParty(state.party, state.leaderIndex);
     renderRunStats(state);
+    // En móvil: tocar un miembro del equipo lo hace líder
+    document.querySelectorAll("#party-list .party-item").forEach((el, i) => {
+      el.style.cursor = "pointer";
+      el.onclick = () => {
+        if (!state.party[i] || state.party[i].hp <= 0) return;
+        state.leaderIndex = i;
+        refreshUI();
+        pushLog(`Líder: ${state.party[i].name}`);
+      };
+    });
   }
 
   function startMenu() {
@@ -538,6 +548,17 @@ export function createGame() {
         pushLog(`Líder: ${state.party[idx].name}`);
       }
     }
+  });
+
+  // Pad táctil (iPhone / móvil)
+  document.querySelectorAll(".pad-btn").forEach((btn) => {
+    const fire = (ev) => {
+      ev.preventDefault();
+      const dx = Number(btn.dataset.dx);
+      const dy = Number(btn.dataset.dy);
+      tryMove(dx, dy);
+    };
+    btn.addEventListener("pointerdown", fire);
   });
 
   // Botones UI

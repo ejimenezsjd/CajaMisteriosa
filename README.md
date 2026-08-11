@@ -12,6 +12,23 @@ python3 -m http.server 8080
 
 Luego visita `http://localhost:8080`.
 
+### Desde el iPhone (misma Wi‑Fi)
+
+1. En el ordenador, dentro de la carpeta del juego:
+   ```bash
+   python3 -m http.server 8080 --bind 0.0.0.0
+   ```
+2. Averigua la IP local del PC (ej. en Mac: Ajustes → Red; o `ipconfig getifaddr en0`).
+3. En Safari del iPhone abre: `http://IP:8080` (ejemplo: `http://192.168.1.20:8080`).
+4. Usa el **pad táctil** (▲◀▶▼) para moverte por la mazmorra.
+
+### Publicarlo en internet (GitHub Pages)
+
+En el repo de GitHub: **Settings → Pages → Branch: `main` (o esta rama) / root → Save**.  
+Cuando esté activo, la URL será algo como  
+`https://ejimenezsjd.github.io/CajaMisteriosa/`  
+y podrás abrirla desde cualquier iPhone con datos o Wi‑Fi.
+
 ## Cómo se juega
 
 - **Movimiento:** flechas o WASD

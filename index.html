@@ -45,7 +45,7 @@
         <div class="panel narrow">
           <h2>Cómo se juega</h2>
           <ul class="howto-list">
-            <li><strong>Moverte:</strong> flechas o WASD por la mazmorra.</li>
+            <li><strong>Moverte:</strong> flechas / WASD en PC, o el pad en el móvil.</li>
             <li><strong>Cajas:</strong> pisa una caja brillante para reclutar una criatura.</li>
             <li><strong>Combate:</strong> turnos con ataques; los tipos tienen ventajas y debilidades.</li>
             <li><strong>Evolución:</strong> al subir de nivel, tus monstruos cambian de forma.</li>
@@ -70,7 +70,17 @@
         <div class="game-layout">
           <div class="map-wrap">
             <canvas id="dungeon" width="720" height="520"></canvas>
-            <p class="hint">Flechas / WASD · 1–4 cambia líder</p>
+            <div class="mobile-controls" aria-label="Controles táctiles">
+              <div class="dpad">
+                <button type="button" class="pad-btn" data-dx="0" data-dy="-1" aria-label="Arriba">▲</button>
+                <div class="dpad-mid">
+                  <button type="button" class="pad-btn" data-dx="-1" data-dy="0" aria-label="Izquierda">◀</button>
+                  <button type="button" class="pad-btn" data-dx="1" data-dy="0" aria-label="Derecha">▶</button>
+                </div>
+                <button type="button" class="pad-btn" data-dx="0" data-dy="1" aria-label="Abajo">▼</button>
+              </div>
+            </div>
+            <p class="hint">Flechas / WASD · pad táctil en móvil · 1–4 cambia líder</p>
           </div>
           <aside class="side">
             <div class="side-block">
