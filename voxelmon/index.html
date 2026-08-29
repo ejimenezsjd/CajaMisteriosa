@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoxelMon — mundo de bloques y criaturas</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+
+  <!-- HUD en juego -->
+  <div id="hud" class="hidden">
+    <div id="crosshair">+</div>
+    <div id="target-prompt" class="hidden"></div>
+
+    <div id="team-strip"></div>
+
+    <div id="info-panel">
+      <div class="info-line" id="info-clock">☀ Día</div>
+      <div class="info-line" id="info-balls">▣ Cubos: 10</div>
+      <div class="info-line" id="info-dex">◆ Dex: 0/8</div>
+    </div>
+
+    <div id="hotbar"></div>
+    <div id="hotbar-hint">Clic izq: minar / desafiar · Clic der: colocar · 1–6: bloque · Tab: Dex · Esc: menú</div>
+
+    <div id="toasts"></div>
+  </div>
+
+  <!-- Pantalla de título -->
+  <div id="screen-title" class="overlay">
+    <div class="title-card">
+      <p class="title-kicker">Un mundo de bloques infinito</p>
+      <h1 class="game-title">VOXEL<span>MON</span></h1>
+      <p class="title-lede">Explora, mina y construye… y captura las criaturas salvajes de las 8 familias para despertar al legendario <strong>Prismatón</strong>.</p>
+      <div class="title-buttons">
+        <button id="btn-continue" class="btn primary hidden">Continuar partida</button>
+        <button id="btn-new" class="btn primary">Nueva aventura</button>
+        <button id="btn-help-title" class="btn ghost">Cómo se juega</button>
+      </div>
+      <p class="title-foot">Del universo de <a href="../index.html">Caja Misteriosa</a> · se juega con ratón y teclado</p>
+    </div>
+  </div>
+
+  <!-- Selección de inicial -->
+  <div id="screen-starter" class="overlay hidden">
+    <div class="panel">
+      <h2>Elige a tu compañero</h2>
+      <p class="lede">Te acompañará desde el primer bloque. Los otros… tendrás que capturarlos.</p>
+      <div id="starter-cards" class="starter-grid"></div>
+    </div>
+  </div>
+
+  <!-- Pausa / ayuda -->
+  <div id="screen-pause" class="overlay hidden">
+    <div class="panel narrow">
+      <h2 id="pause-title">Pausa</h2>
+      <ul class="help-list">
+        <li><strong>Moverte:</strong> WASD · <strong>Saltar/nadar:</strong> Espacio · <strong>Sprint:</strong> Shift</li>
+        <li><strong>Minar:</strong> clic izquierdo sobre un bloque (la hierba suelta tierra).</li>
+        <li><strong>Construir:</strong> clic derecho con un bloque seleccionado en la barra (1–6).</li>
+        <li><strong>Combatir:</strong> apunta a una criatura y haz clic izquierdo.</li>
+        <li><strong>Capturar:</strong> en batalla, lanza un <em>cubo</em>. Debilítala primero para que sea más fácil. Ganas 2 cubos por victoria.</li>
+        <li><strong>Niveles:</strong> lejos del punto de aparición hay criaturas más fuertes (y evolucionadas).</li>
+        <li><strong>Noche:</strong> salen criaturas de tipo Sombra. De día, las de Luz.</li>
+        <li><strong>Objetivo:</strong> captura las 8 familias para invocar al legendario <strong>Prismatón</strong>.</li>
+        <li>Tu equipo se recupera poco a poco fuera de combate. La partida se guarda sola.</li>
+      </ul>
+      <div class="title-buttons">
+        <button id="btn-resume" class="btn primary">Reanudar</button>
+        <button id="btn-mute" class="btn ghost">Silenciar sonido</button>
+        <button id="btn-reset" class="btn danger">Borrar partida</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dex -->
+  <div id="screen-dex" class="overlay hidden">
+    <div class="panel">
+      <h2>VoxelDex</h2>
+      <p class="lede" id="dex-progress">Familias capturadas: 0/8</p>
+      <div id="dex-grid" class="dex-grid"></div>
+      <div class="title-buttons"><button id="btn-dex-close" class="btn primary">Cerrar (Tab)</button></div>
+    </div>
+  </div>
+
+  <!-- Batalla -->
+  <div id="battle-ui" class="hidden">
+    <div class="battle-bars">
+      <div class="bbar enemy">
+        <div class="bbar-head"><span id="b-enemy-name">—</span><span id="b-enemy-level">Nv 1</span></div>
+        <div class="hp-track"><div id="b-enemy-hp" class="hp-fill"></div></div>
+      </div>
+      <div class="bbar ally">
+        <div class="bbar-head"><span id="b-ally-name">—</span><span id="b-ally-level">Nv 1</span></div>
+        <div class="hp-track"><div id="b-ally-hp" class="hp-fill ally"></div></div>
+        <div class="xp-track"><div id="b-ally-xp" class="xp-fill"></div></div>
+      </div>
+    </div>
+    <div id="battle-panel">
+      <div id="battle-log"></div>
+      <div id="battle-actions"></div>
+    </div>
+  </div>
+
+  <!-- Victoria -->
+  <div id="screen-victory" class="overlay hidden">
+    <div class="panel narrow victory">
+      <p class="title-kicker">✦ Hazaña legendaria ✦</p>
+      <h2>¡Prismatón es tuyo!</h2>
+      <p class="lede" id="victory-text">Has completado la aventura de VoxelMon. El mundo sigue siendo tuyo: construye, explora y entrena sin límite.</p>
+      <div class="title-buttons"><button id="btn-victory-close" class="btn primary">Seguir jugando</button></div>
+    </div>
+  </div>
+
+  <!-- Carga -->
+  <div id="screen-loading" class="overlay hidden">
+    <div class="loading-box">
+      <div class="loading-cube"></div>
+      <p id="loading-text">Generando el mundo…</p>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
