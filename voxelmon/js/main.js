@@ -165,6 +165,11 @@ document.addEventListener("keydown", (e) => {
   }
   if (mode !== "play") return;
   keys.add(e.code);
+  if (e.code === "KeyE") {
+    const c = creatureInSight();
+    if (c) startBattle(c.entity);
+    return;
+  }
   const n = parseInt(e.key, 10);
   if (n >= 1 && n <= HOTBAR.length) {
     selectedSlot = n - 1;
@@ -205,38 +210,33 @@ canvas.addEventListener("mousedown", (e) => {
 });
 canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
-const raycaster = new THREE.Raycaster();
-
+/**
+ * Criatura bajo la mira, con asistencia de puntería generosa: se elige la
+ * criatura cuyo centro queda más cerca del rayo de visión (distancia
+ * perpendicular), visible y a menos de maxDist bloques.
+ */
 function creatureInSight(maxDist = 12) {
-  if (!spawner?.creatures.length) return null;
-
-  // 1) Rayo preciso desde el centro de la pantalla
-  raycaster.setFromCamera({ x: 0, y: 0 }, camera);
-  raycaster.far = maxDist;
-  const groups = spawner.creatures.filter((c) => !c.dead).map((c) => c.group);
-  const hits = raycaster.intersectObjects(groups, true);
-  for (const hit of hits) {
-    let o = hit.object;
-    while (o && !o.userData.entity) o = o.parent;
-    if (o?.userData.entity) return { entity: o.userData.entity, dist: hit.distance };
-  }
-
-  // 2) Asistencia de puntería: criatura cercana al centro de la mira y sin bloques en medio
+  if (!spawner?.creatures.length || !player) return null;
   const eye = player.eyePos();
   const look = player.lookDir();
   let best = null;
   for (const c of spawner.creatures) {
-    if (c.dead) continue;
+    if (c.dead || c.inBattle) continue;
     const center = c.group.position.clone();
     center.y += (c.group.userData.height ?? 1.5) * 0.5;
     const to = center.sub(eye);
     const dist = to.length();
-    if (dist > maxDist || dist < 0.5) continue;
-    to.normalize();
-    const angle = Math.acos(THREE.MathUtils.clamp(to.dot(look), -1, 1));
-    if (angle > 0.15) continue;
-    if (world.raycast(eye, to, dist)) continue; // ocluida por bloques
-    if (!best || angle < best.angle) best = { entity: c, dist, angle };
+    if (dist > maxDist || dist < 0.4) continue;
+    const along = to.dot(look);
+    if (along <= 0) continue; // detrás del jugador
+    const perp = Math.sqrt(Math.max(0, dist * dist - along * along));
+    const reach = 1.0 + dist * 0.14; // tolerancia creciente con la distancia
+    if (perp > reach) continue;
+    const dir = to.multiplyScalar(1 / dist);
+    const hit = world.raycast(eye, dir, dist);
+    if (hit && hit.dist < dist - 1.2) continue; // ocluida por terreno
+    const score = perp / reach;
+    if (!best || score < best.score) best = { entity: c, dist, score };
   }
   return best;
 }
@@ -523,7 +523,7 @@ function loop(now) {
       const blockHit = world.raycast(player.eyePos(), player.lookDir(), 6);
       if (c) {
         const m = c.entity.monster;
-        ui.setTargetPrompt(`⚔ ${m.name} · Nv ${m.level} — clic izquierdo para desafiar`);
+        ui.setTargetPrompt(`⚔ ${m.name} · Nv ${m.level} — clic izquierdo o E para desafiar`);
         highlight.visible = false;
       } else if (blockHit) {
         highlight.position.set(blockHit.x + 0.5, blockHit.y + 0.5, blockHit.z + 0.5);

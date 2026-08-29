@@ -7,7 +7,7 @@ Roguelike de criaturas con tipos y evoluciones. Explora criptas procedurales, ab
 En `voxelmon/` vive **VoxelMon**, un juego 3D estilo Minecraft ambientado en el mismo universo: un mundo vóxel infinito y procedural (biomas, lagos, montañas, bosques, ciclo día/noche) donde puedes minar, construir y capturar a las criaturas salvajes de las 8 familias en combates por turnos.
 
 - Juega abriéndolo en `voxelmon/index.html` (mismo servidor estático).
-- Controles: WASD + ratón (clic para bloquear el puntero), clic izquierdo mina o desafía criaturas, clic derecho construye, 1–6 selecciona bloque, Tab abre la VoxelDex.
+- Controles: WASD + ratón (clic para bloquear el puntero), clic izquierdo mina, E o clic izquierdo desafía criaturas, clic derecho construye, 1–6 selecciona bloque, Tab abre la VoxelDex.
 - Objetivo: captura las 8 familias para invocar al legendario **Prismatón**.
 - La partida se guarda sola en el navegador (equipo, mundo editado, dex e inventario).
 
