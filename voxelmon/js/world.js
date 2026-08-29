@@ -79,7 +79,7 @@ export class World {
     this.edits = { ...edits };
     this.meshQueue = [];
     this.solidMat = new THREE.MeshLambertMaterial({ vertexColors: true });
-    this.waterMat = new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.7 });
+    this.waterMat = new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.7, side: THREE.DoubleSide });
     this.viewRadius = 6;
   }
 

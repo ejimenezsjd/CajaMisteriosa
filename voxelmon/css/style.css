@@ -32,6 +32,14 @@ html, body {
 
 .hidden { display: none !important; }
 
+#water-overlay {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(40, 110, 210, 0.28), rgba(15, 50, 130, 0.5));
+  pointer-events: none;
+  z-index: 10;
+}
+
 /* ---------- Overlays ---------- */
 
 .overlay {

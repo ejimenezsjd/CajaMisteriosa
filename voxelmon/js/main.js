@@ -552,6 +552,18 @@ function loop(now) {
     }
   }
 
+  // Efecto submarino cuando la cámara está dentro del agua
+  const underwater = world.isWater(camera.position.x, camera.position.y, camera.position.z);
+  document.getElementById("water-overlay").classList.toggle("hidden", !underwater);
+  if (underwater) {
+    scene.fog.near = 1;
+    scene.fog.far = 22;
+    scene.fog.color.set(0x2a5fae);
+  } else {
+    scene.fog.near = 40;
+    scene.fog.far = 150;
+  }
+
   // Autoguardado
   saveTimer += dt;
   if (saveTimer > 8 && mode === "play") {
