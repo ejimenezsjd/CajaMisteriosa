@@ -207,8 +207,10 @@ canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
 const raycaster = new THREE.Raycaster();
 
-function creatureInSight(maxDist = 8) {
+function creatureInSight(maxDist = 12) {
   if (!spawner?.creatures.length) return null;
+
+  // 1) Rayo preciso desde el centro de la pantalla
   raycaster.setFromCamera({ x: 0, y: 0 }, camera);
   raycaster.far = maxDist;
   const groups = spawner.creatures.filter((c) => !c.dead).map((c) => c.group);
@@ -218,16 +220,34 @@ function creatureInSight(maxDist = 8) {
     while (o && !o.userData.entity) o = o.parent;
     if (o?.userData.entity) return { entity: o.userData.entity, dist: hit.distance };
   }
-  return null;
+
+  // 2) Asistencia de puntería: criatura cercana al centro de la mira y sin bloques en medio
+  const eye = player.eyePos();
+  const look = player.lookDir();
+  let best = null;
+  for (const c of spawner.creatures) {
+    if (c.dead) continue;
+    const center = c.group.position.clone();
+    center.y += (c.group.userData.height ?? 1.5) * 0.5;
+    const to = center.sub(eye);
+    const dist = to.length();
+    if (dist > maxDist || dist < 0.5) continue;
+    to.normalize();
+    const angle = Math.acos(THREE.MathUtils.clamp(to.dot(look), -1, 1));
+    if (angle > 0.15) continue;
+    if (world.raycast(eye, to, dist)) continue; // ocluida por bloques
+    if (!best || angle < best.angle) best = { entity: c, dist, angle };
+  }
+  return best;
 }
 
 function onPrimary() {
   const c = creatureInSight();
-  const blockHit = world.raycast(player.eyePos(), player.lookDir(), 6);
-  if (c && (!blockHit || c.dist < blockHit.dist)) {
+  if (c) {
     startBattle(c.entity);
     return;
   }
+  const blockHit = world.raycast(player.eyePos(), player.lookDir(), 6);
   if (!blockHit) return;
   const { x, y, z, block } = blockHit;
   if (block === B.BEDROCK) {
@@ -417,7 +437,7 @@ function checkLegendary() {
 
 const SKY_DAY = new THREE.Color(0x87ceeb);
 const SKY_SUNSET = new THREE.Color(0xf2a35c);
-const SKY_NIGHT = new THREE.Color(0x0a0e22);
+const SKY_NIGHT = new THREE.Color(0x141a36);
 
 function updateDayNight(dt) {
   dayTime = (dayTime + dt / DAY_LENGTH) % 1;
@@ -427,8 +447,8 @@ function updateDayNight(dt) {
 
   sun.position.set(Math.cos(angle) * 80, elev * 100, 30);
   sun.target.position.set(0, 0, 0);
-  sun.intensity = 0.25 + dayFactor * 0.85;
-  ambient.intensity = 0.22 + dayFactor * 0.42;
+  sun.intensity = 0.38 + dayFactor * 0.75;
+  ambient.intensity = 0.34 + dayFactor * 0.34;
 
   const sky = new THREE.Color();
   if (elev > 0.18) sky.copy(SKY_DAY);
@@ -501,7 +521,7 @@ function loop(now) {
     if (playing && locked) {
       const c = creatureInSight();
       const blockHit = world.raycast(player.eyePos(), player.lookDir(), 6);
-      if (c && (!blockHit || c.dist < blockHit.dist)) {
+      if (c) {
         const m = c.entity.monster;
         ui.setTargetPrompt(`⚔ ${m.name} · Nv ${m.level} — clic izquierdo para desafiar`);
         highlight.visible = false;
@@ -548,3 +568,14 @@ window.addEventListener("beforeunload", saveGame);
 
 ui.showTitle(!!loadSave());
 requestAnimationFrame(loop);
+
+// Ganchos de depuración/pruebas (no afectan al juego)
+window.__vm = {
+  get world() { return world; },
+  get player() { return player; },
+  get spawner() { return spawner; },
+  get state() { return state; },
+  get mode() { return mode; },
+  creatureInSight,
+  startBattle,
+};
