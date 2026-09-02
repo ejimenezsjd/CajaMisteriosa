@@ -590,4 +590,5 @@ window.__vm = {
   get mode() { return mode; },
   creatureInSight,
   startBattle,
+  setDayTime(v) { dayTime = ((v % 1) + 1) % 1; },
 };
