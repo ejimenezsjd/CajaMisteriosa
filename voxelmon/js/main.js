@@ -13,7 +13,7 @@ import { FAMILY_STARTERS, createMonster } from "./data.js";
 import { sfx, toggleMute } from "./audio.js";
 
 const SAVE_KEY = "voxelmon.save.v1";
-const DAY_LENGTH = 300; // segundos por ciclo completo
+const DAY_LENGTH = 600; // segundos por ciclo completo
 const HOTBAR = [B.DIRT, B.STONE, B.SAND, B.WOOD, B.LEAVES, B.SNOW];
 
 // ---------- Escena ----------
