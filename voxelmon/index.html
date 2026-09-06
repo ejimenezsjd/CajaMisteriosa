@@ -36,8 +36,13 @@
       <div class="info-line" id="info-dex">◆ Dex: 0/8</div>
     </div>
 
+    <div id="quest-tracker" class="hidden">
+      <div id="qt-title"></div>
+      <div id="qt-obj"></div>
+    </div>
+
     <div id="hotbar"></div>
-    <div id="hotbar-hint">Clic izq: minar · E o clic: desafiar · Clic der: colocar · 1–6: bloque · Tab: Dex · Esc: menú</div>
+    <div id="hotbar-hint">Clic izq: minar / desafiar · E: hablar / curar / desafiar · Clic der: colocar · 1–6: bloque · Tab: Dex · Esc: menú</div>
 
     <div id="toasts"></div>
   </div>
@@ -80,9 +85,11 @@
         <li><strong>Niveles:</strong> lejos del punto de aparición hay criaturas más fuertes (y evolucionadas).</li>
         <li><strong>Noche:</strong> salen criaturas de tipo Sombra. De día, las de Luz.</li>
         <li><strong>Explora:</strong> cada bioma tiene criaturas y recursos propios (menas, apricornos, hierbas…). Encontrarás campamentos, ruinas y santuarios que curan a tu equipo (E).</li>
+        <li><strong>Asentamiento:</strong> busca el asentamiento y habla con sus habitantes (E). Alba da misiones, Bruno cambia 3 apricornos por 1 cubo y Sena cura a tu equipo.</li>
         <li><strong>Objetivo:</strong> captura las 8 familias para invocar al legendario <strong>Prismatón</strong>.</li>
         <li>Tu equipo se recupera poco a poco fuera de combate. La partida se guarda sola.</li>
       </ul>
+      <div id="pause-quests" class="pause-quests hidden"></div>
       <div id="pause-stats" class="pause-stats hidden"></div>
       <div class="title-buttons">
         <button id="btn-resume" class="btn primary">Reanudar</button>
@@ -101,6 +108,15 @@
       <h3 class="dex-subtitle">Habilidades de familia</h3>
       <div id="dex-perks" class="perk-grid"></div>
       <div class="title-buttons"><button id="btn-dex-close" class="btn primary">Cerrar (Tab)</button></div>
+    </div>
+  </div>
+
+  <!-- Diálogo con NPC -->
+  <div id="dialogue-ui" class="hidden">
+    <div class="dialogue-box">
+      <div id="dialogue-name"></div>
+      <p id="dialogue-text"></p>
+      <div id="dialogue-options"></div>
     </div>
   </div>
 

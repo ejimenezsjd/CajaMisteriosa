@@ -23,10 +23,7 @@ import { columnHash, mulberry32 } from "./noise.js";
 import { getBiomeDefinition } from "./biomes.js";
 import { WATER_Y } from "./world.js";
 
-const SALT = { camp: 11001, ruin: 22002, healing_shrine: 33003 };
-
-/** Radio máximo entre todos los tipos: margen de solape chunk/estructura */
-export const MAX_STRUCT_RADIUS = 4;
+const SALT = { camp: 11001, ruin: 22002, healing_shrine: 33003, settlement: 44004 };
 
 export const STRUCTURE_TYPES = {
   camp: {
@@ -59,7 +56,42 @@ export const STRUCTURE_TYPES = {
     maxSlope: 2,
     build: buildShrine,
   },
+  settlement: {
+    id: "settlement",
+    name: "Asentamiento",
+    icon: "🏘",
+    cell: 220, // hub poco frecuente: como mucho uno por celda de 220×220
+    chance: 0.55,
+    radius: 12,
+    maxSlope: 3,
+    build: buildSettlement,
+    /**
+     * Puntos de anclaje de NPC en coordenadas locales (dx, dz) respecto al
+     * centro. La altura se resuelve en runtime con world.surfaceY.
+     */
+    npcAnchors: [
+      { role: "researcher", local: [3, 6] },  // frente a la casa de la investigadora
+      { role: "merchant", local: [-4, 4] },   // frente al puesto del comerciante
+      { role: "healer", local: [3, -6] },     // frente a la casa de la sanadora
+    ],
+  },
 };
+
+/** Radio máximo entre todos los tipos: margen de solape chunk/estructura */
+export const MAX_STRUCT_RADIUS = Math.max(...Object.values(STRUCTURE_TYPES).map((d) => d.radius));
+
+/** Anchors de NPC de una estructura, resueltos a coordenadas de mundo (x,z) */
+export function npcAnchorsFor(s) {
+  const def = STRUCTURE_TYPES[s.type];
+  if (!def?.npcAnchors) return [];
+  return def.npcAnchors.map((a) => ({
+    id: `${s.id}:${a.role}`,
+    role: a.role,
+    structureId: s.id,
+    x: s.x + a.local[0],
+    z: s.z + a.local[1],
+  }));
+}
 
 // ---------- Plantillas (deterministas: usan solo el rng recibido) ----------
 
@@ -135,6 +167,85 @@ function buildRuin(stamp, x, y, z, rng, ground) {
   }
 }
 
+/**
+ * Cabaña sencilla: muros huecos, tejado, suelo con soporte y puerta de 1×2.
+ * (cx, cz) = centro local; half = semiancho; doorSide = [-1|1, 0] o [0, -1|1].
+ */
+function buildHut(stamp, ground, x, y, z, cx, cz, half, wallBlock, roofBlock, doorSide) {
+  for (let dx = -half; dx <= half; dx++) {
+    for (let dz = -half; dz <= half; dz++) {
+      const wx = cx + dx;
+      const wz = cz + dz;
+      fillFloor(stamp, ground, x, y, z, wx, wz, B.STONE);
+      const isWall = Math.abs(dx) === half || Math.abs(dz) === half;
+      if (isWall) {
+        const isDoor = dx === doorSide[0] * half && dz === doorSide[1] * half &&
+          (doorSide[0] === 0 ? dx === 0 : dz === 0);
+        for (let dy = 1; dy <= 3; dy++) {
+          if (isDoor && dy <= 2) continue; // hueco de puerta
+          stamp(x + wx, y + dy, z + wz, wallBlock);
+        }
+      }
+      stamp(x + wx, y + 4, z + wz, roofBlock);
+    }
+  }
+}
+
+/**
+ * Asentamiento: plaza central con farola de cristal, caminos en cruz,
+ * casa de la investigadora, casa de la sanadora, puesto del comerciante,
+ * cobertizo y un pequeño huerto. Los NPC se anclan vía npcAnchors.
+ */
+function buildSettlement(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 12, 10);
+
+  // Caminos en cruz de tierra
+  for (let d = -11; d <= 11; d++) {
+    fillFloor(stamp, ground, x, y, z, d, 0, B.DIRT);
+    fillFloor(stamp, ground, x, y, z, 0, d, B.DIRT);
+  }
+
+  // Plaza central de piedra 5×5 con farola
+  for (let dx = -2; dx <= 2; dx++) {
+    for (let dz = -2; dz <= 2; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.STONE);
+    }
+  }
+  stamp(x, y + 1, z, B.WOOD);
+  stamp(x, y + 2, z, B.WOOD);
+  stamp(x, y + 3, z, B.CRYSTAL);
+
+  // Casa de la investigadora (piedra, tejado de madera), puerta hacia la plaza
+  buildHut(stamp, ground, x, y, z, 7, 6, 2, B.STONE, B.WOOD, [-1, 0]);
+  // Casa de la sanadora (madera, tejado de hojas), puerta hacia la plaza
+  buildHut(stamp, ground, x, y, z, 7, -6, 2, B.WOOD, B.LEAVES, [-1, 0]);
+
+  // Puesto del comerciante: 4 postes, techo de hojas y mostrador
+  for (const [px, pz] of [[-9, 2], [-9, 6], [-5, 2], [-5, 6]]) {
+    fillFloor(stamp, ground, x, y, z, px, pz, B.WOOD);
+    stamp(x + px, y + 1, z + pz, B.WOOD);
+    stamp(x + px, y + 2, z + pz, B.WOOD);
+  }
+  for (let dx = -9; dx <= -5; dx++) {
+    for (let dz = 2; dz <= 6; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.DIRT);
+      stamp(x + dx, y + 3, z + dz, B.LEAVES);
+    }
+  }
+  for (let dz = 3; dz <= 5; dz++) stamp(x - 5, y + 1, z + dz, B.WOOD); // mostrador
+
+  // Cobertizo pequeño
+  buildHut(stamp, ground, x, y, z, -7, -6, 1, B.WOOD, B.STONE, [1, 0]);
+
+  // Huerto decorativo con hierbas medicinales
+  for (let dx = -3; dx <= -1; dx++) {
+    for (let dz = -10; dz <= -8; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.DIRT);
+      if (rng() < 0.45) stamp(x + dx, y + 1, z + dz, B.HERB);
+    }
+  }
+}
+
 /** Santuario curativo: plataforma de piedra con columna de cristal */
 function buildShrine(stamp, x, y, z, rng, ground) {
   clearAir(stamp, x, y, z, 2, 8);
@@ -184,8 +295,9 @@ export class StructureIndex {
       let ok = getBiomeDefinition(biome).structures.includes(type) && t.h > WATER_Y + 1;
       if (ok) {
         // Terreno razonablemente plano y sin agua en el contorno
+        // (esquinas + puntos medios: importante para footprints grandes)
         const r = def.radius;
-        for (const [dx, dz] of [[r, r], [r, -r], [-r, r], [-r, -r]]) {
+        for (const [dx, dz] of [[r, r], [r, -r], [-r, r], [-r, -r], [r, 0], [-r, 0], [0, r], [0, -r]]) {
           const hc = this.world.terrainAt(x + dx, z + dz).h;
           if (Math.abs(hc - t.h) > def.maxSlope || hc <= WATER_Y) { ok = false; break; }
         }

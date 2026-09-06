@@ -18,12 +18,17 @@
  *  - structureDiscovered { structureId, structureType, biomeId, x, y, z }
  *  - resourceCollected   { resourceId, amount, source, biomeId, x, y, z }
  *  - partyHealed     { source, structureId }
+ *  - npcTalked       { npcId, role, name, structureId }
+ *  - tradeCompleted  { traderId, tradeId, cost, rewards }
+ *  - questStarted    { questId }
+ *  - questUpdated    { questId, objectiveIndex, label, current, required }
+ *  - questCompleted  { questId, title }
  *  - moneyChanged    { money, delta }
  *  - progressUnlocked{ id }
  *  - flagSet         { id }
  *  - badgeEarned     { id }
- * (futuros: itemCrafted, itemCollected, npcTalked, trainerDefeated,
- *  gymEntered, questStarted/Updated/Completed, regionUnlocked)
+ * (futuros: itemCrafted, itemCollected, trainerDefeated, gymEntered,
+ *  regionUnlocked)
  */
 
 const handlers = new Map();

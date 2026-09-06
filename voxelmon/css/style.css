@@ -539,6 +539,122 @@ html, body {
   margin-bottom: 14px;
 }
 
+/* ---------- Fase 3: tracker de misiones ---------- */
+
+#quest-tracker {
+  position: absolute;
+  top: 132px;
+  right: 14px;
+  max-width: 260px;
+  background: rgba(10, 13, 22, 0.75);
+  border: 1px solid var(--panel-border);
+  border-left: 3px solid #f0b040;
+  border-radius: 10px;
+  padding: 8px 12px;
+  text-align: right;
+}
+
+#qt-title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #ffd98a;
+}
+
+#qt-obj {
+  font-size: 0.8rem;
+  color: var(--text-dim, #9aa3b8);
+  margin-top: 2px;
+}
+
+/* ---------- Fase 3: diálogo con NPC ---------- */
+
+#dialogue-ui {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 16px 42px;
+  pointer-events: none;
+}
+
+#dialogue-ui.hidden { display: none; }
+
+.dialogue-box {
+  pointer-events: auto;
+  width: min(640px, 100%);
+  background: rgba(12, 15, 26, 0.94);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  padding: 18px 22px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+
+#dialogue-name {
+  font-family: "Syne", sans-serif;
+  font-weight: 700;
+  color: #8fdcff;
+  font-size: 1rem;
+  margin-bottom: 6px;
+}
+
+#dialogue-text {
+  margin: 0 0 14px;
+  line-height: 1.5;
+  font-size: 0.98rem;
+}
+
+#dialogue-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dialogue-option {
+  text-align: left;
+  font-size: 0.9rem;
+  padding: 9px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dialogue-option:hover {
+  background: rgba(143, 220, 255, 0.14);
+  border-color: rgba(143, 220, 255, 0.4);
+}
+
+/* ---------- Fase 3: panel de misiones en pausa ---------- */
+
+.pause-quests {
+  margin: 14px 0 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  text-align: left;
+  font-size: 0.82rem;
+}
+
+.quests-heading {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  color: #ffd98a;
+}
+
+.quest-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.quest-row .quest-title { font-weight: 700; }
+.quest-row.active .quest-title { color: #ffd98a; }
+.quest-row.done .quest-title { color: var(--text-dim, #9aa3b8); }
+.quest-obj { color: var(--text-dim, #9aa3b8); }
+
 .pause-stats {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));

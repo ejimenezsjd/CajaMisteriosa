@@ -7,7 +7,7 @@ import { WATER_Y } from "./world.js";
 import { getBiomeDefinition } from "./biomes.js";
 import { events } from "./events.js";
 
-function makeLabel(text, color = "#ffffff") {
+export function makeLabel(text, color = "#ffffff") {
   const canvas = document.createElement("canvas");
   canvas.width = 256;
   canvas.height = 64;
