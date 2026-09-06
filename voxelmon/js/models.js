@@ -186,6 +186,50 @@ export function animateModel(g, t, mode = "idle", speed = 0) {
   }
 }
 
+/**
+ * Humanoide vóxel sencillo para NPC. Mira hacia -Z.
+ * def.colors: { skin, outfit, accent } · def.role: accesorio distintivo.
+ */
+export function buildNpcModel(def) {
+  const g = new THREE.Group();
+  const { skin, outfit, accent } = def.colors;
+
+  // Piernas
+  box(g, 0.2, 0.7, 0.24, -0.14, 0.35, 0, accent);
+  box(g, 0.2, 0.7, 0.24, 0.14, 0.35, 0, accent);
+  // Torso (túnica)
+  box(g, 0.6, 0.72, 0.34, 0, 1.06, 0, outfit);
+  // Brazos
+  box(g, 0.16, 0.6, 0.2, -0.4, 1.08, 0, outfit);
+  box(g, 0.16, 0.6, 0.2, 0.4, 1.08, 0, outfit);
+  box(g, 0.14, 0.14, 0.16, -0.4, 0.74, 0, skin);
+  box(g, 0.14, 0.14, 0.16, 0.4, 0.74, 0, skin);
+  // Cabeza
+  box(g, 0.44, 0.44, 0.44, 0, 1.66, 0, skin);
+  // Ojos
+  box(g, 0.08, 0.09, 0.04, -0.1, 1.7, -0.23, "#1a1a24");
+  box(g, 0.08, 0.09, 0.04, 0.1, 1.7, -0.23, "#1a1a24");
+
+  // Accesorio por rol
+  switch (def.role) {
+    case "researcher": // gafas + bata clara
+      box(g, 0.36, 0.05, 0.05, 0, 1.7, -0.24, "#20242c");
+      box(g, 0.5, 0.2, 0.3, 0, 0.78, 0.04, "#e8ecf2");
+      break;
+    case "merchant": // sombrero de ala ancha
+      box(g, 0.62, 0.07, 0.62, 0, 1.9, 0, accent);
+      box(g, 0.34, 0.18, 0.34, 0, 2.0, 0, accent);
+      break;
+    case "healer": // capucha y emblema luminoso
+      box(g, 0.5, 0.16, 0.5, 0, 1.9, 0.02, outfit);
+      box(g, 0.12, 0.12, 0.05, 0, 1.14, -0.19, accent, { emissive: accent, emissiveIntensity: 0.9 });
+      break;
+  }
+
+  g.userData = { height: 2.0, role: def.role };
+  return g;
+}
+
 /** Cubo de captura (la "cubo-ball" de VoxelMon) */
 export function buildCubeBall() {
   const g = new THREE.Group();

@@ -36,6 +36,9 @@ class StatsSystem {
     events.on("structureDiscovered", ({ structureId }) => {
       if (this.s) this.s.structuresDiscovered[structureId] = true;
     });
+    events.on("npcTalked", inc("npcsTalked"));
+    events.on("questCompleted", inc("questsCompleted"));
+    events.on("tradeCompleted", inc("tradesCompleted"));
   }
 
   /** Distancia horizontal recorrida; llamar desde el bucle con el delta del frame. */

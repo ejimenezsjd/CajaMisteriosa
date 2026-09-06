@@ -200,8 +200,43 @@ export class UI {
       <span>💀 Derrotas: <b>${st.battlesLost}</b></span>
       <span>🥾 Distancia: <b>${km}</b></span>
       <span>🧭 Biomas: <b>${Object.keys(st.biomesDiscovered).length}</b></span>
-      <span>🏛 Estructuras: <b>${Object.keys(st.structuresDiscovered ?? {}).length}</b></span>` +
+      <span>🏛 Estructuras: <b>${Object.keys(st.structuresDiscovered ?? {}).length}</b></span>
+      <span>📜 Misiones: <b>${st.questsCompleted ?? 0}</b></span>
+      <span>🤝 Tratos: <b>${st.tradesCompleted ?? 0}</b></span>
+      <span>💬 Charlas: <b>${st.npcsTalked ?? 0}</b></span>` +
       (resources ? `<span class="stats-wide">🎒 Recursos: ${resources}</span>` : "");
+    box.classList.remove("hidden");
+  }
+
+  /**
+   * Tracker de misión activa en el HUD.
+   * info = { title, label, current, required } o null para ocultarlo.
+   */
+  updateQuestTracker(info) {
+    const box = $("quest-tracker");
+    if (!info) { box.classList.add("hidden"); return; }
+    $("qt-title").textContent = info.title;
+    $("qt-obj").textContent = info.required > 1
+      ? `${info.label} · ${info.current}/${info.required}`
+      : info.label;
+    box.classList.remove("hidden");
+  }
+
+  /** Sección de misiones del menú de pausa. summary = { active, completed } */
+  renderQuests(summary) {
+    const box = $("pause-quests");
+    if (!summary || (!summary.active.length && !summary.completed.length)) {
+      box.classList.add("hidden");
+      return;
+    }
+    const active = summary.active.map((q) => `
+      <div class="quest-row active">
+        <span class="quest-title">◈ ${q.title}</span>
+        ${q.objectives.map((o) => `<span class="quest-obj">${o.label} · <b>${o.current}/${o.required}</b></span>`).join("")}
+      </div>`).join("");
+    const completed = summary.completed.map((q) =>
+      `<div class="quest-row done"><span class="quest-title">✓ ${q.title}</span></div>`).join("");
+    box.innerHTML = `<h3 class="quests-heading">Misiones</h3>${active}${completed}`;
     box.classList.remove("hidden");
   }
 

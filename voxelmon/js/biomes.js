@@ -43,7 +43,7 @@ export const BIOMES = {
       { id: "copper", chance: 0.04 },
       { id: "iron", chance: 0.02 },
     ],
-    structures: ["camp", "healing_shrine"],
+    structures: ["camp", "healing_shrine", "settlement"],
     ambience: {},
   },
 
@@ -67,7 +67,7 @@ export const BIOMES = {
       { id: "copper", chance: 0.035 },
       { id: "iron", chance: 0.02 },
     ],
-    structures: ["camp", "ruin", "healing_shrine"],
+    structures: ["camp", "ruin", "healing_shrine", "settlement"],
     ambience: {},
   },
 

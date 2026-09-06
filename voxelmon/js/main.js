@@ -18,6 +18,11 @@ import { events } from "./events.js";
 import { SAVE_KEY, defaultState, loadSave, persistSave } from "./state.js";
 import { progression } from "./progression.js";
 import { stats } from "./stats.js";
+import { interaction } from "./interaction.js";
+import { npcs } from "./npcs.js";
+import { dialogue } from "./dialogue.js";
+import { quests, QUESTS } from "./quests.js";
+import { executeTrade } from "./trading.js";
 
 const DAY_LENGTH = 600; // segundos por ciclo completo
 const HOTBAR = [B.DIRT, B.STONE, B.SAND, B.WOOD, B.LEAVES, B.SNOW];
@@ -62,7 +67,7 @@ let spawner = null;
 let battle = null;
 let state = null;
 
-let mode = "title"; // title | starter | play | battle | pause | dex | victory
+let mode = "title"; // title | starter | play | battle | pause | dex | dialogue | victory
 let locked = false;
 let perks = activePerks({});
 
@@ -78,7 +83,6 @@ let regenTimer = 0;
 let saveTimer = 0;
 let pollTimer = 0; // sondeo periódico de bioma + estructuras cercanas
 let lastBiome = null;
-let nearShrine = null; // santuario curativo a distancia de interacción
 const shrineCooldowns = new Map(); // structureId -> timestamp fin de cooldown
 const lastPos = new THREE.Vector2();
 const particles = [];
@@ -91,9 +95,12 @@ events.on("structureDiscovered", ({ structureType }) => {
   const def = STRUCTURE_TYPES[structureType];
   ui.toast(`${def?.icon ?? "🏛"} Has descubierto: ${def?.name ?? structureType}`, "good");
   if (structureType === "healing_shrine") progression.setFlag("discovered_healing_shrine");
+  if (structureType === "settlement") progression.unlock("first_settlement_discovered");
 });
-events.on("partyHealed", () => {
-  ui.toast("✨ El santuario restaura por completo a tu equipo.", "good");
+events.on("partyHealed", ({ source }) => {
+  ui.toast(source === "healer"
+    ? "💚 Sena cura por completo a tu equipo."
+    : "✨ El santuario restaura por completo a tu equipo.", "good");
 });
 events.on("resourceCollected", ({ resourceId, amount }) => {
   const res = RESOURCES[resourceId];
@@ -104,6 +111,77 @@ events.on("resourceCollected", ({ resourceId, amount }) => {
 events.on("badgeEarned", ({ id }) => {
   ui.toast(`🏅 ¡Insignia conseguida: ${id}!`, "legendary");
 });
+events.on("questStarted", ({ questId }) => {
+  ui.toast(`◈ Nueva misión: ${QUESTS[questId]?.title ?? questId}`, "good");
+  ui.updateQuestTracker(quests.trackerInfo());
+});
+events.on("questUpdated", ({ label, current, required }) => {
+  if (required > 1) ui.toast(`◈ ${label}: ${current}/${required}`);
+  ui.updateQuestTracker(quests.trackerInfo());
+});
+events.on("questCompleted", ({ title }) => {
+  ui.toast(`✅ Misión completada: ${title}`, "legendary");
+  ui.updateQuestTracker(quests.trackerInfo());
+});
+events.on("tradeCompleted", () => {
+  progression.unlock("first_trade_completed");
+});
+
+// ---------- Diálogos: acciones controladas, condiciones y modo de juego ----------
+
+quests.setRewardHandler((rewards) => {
+  if (rewards.money) addMoney(rewards.money);
+  if (rewards.balls) state.balls += rewards.balls;
+  if (rewards.badge) progression.addBadge(rewards.badge);
+  if (rewards.unlock) progression.unlock(rewards.unlock);
+  const parts = [];
+  if (rewards.money) parts.push(`+${rewards.money} ⌾`);
+  if (rewards.balls) parts.push(`+${rewards.balls} ▣`);
+  if (parts.length) ui.toast(`🎁 Recompensa: ${parts.join(" · ")}`, "good");
+  ui.refreshHud();
+});
+
+dialogue.setConditions({
+  questAvailable: (id) => quests.isAvailable(id),
+  questActive: (id) => quests.isActive(id),
+  questCompleted: (id) => quests.isCompleted(id),
+  flag: (id) => progression.hasFlag(id),
+});
+
+dialogue.registerAction("startQuest", (a) => { quests.start(a.questId); });
+dialogue.registerAction("setFlag", (a) => { progression.setFlag(a.id); });
+dialogue.registerAction("trade", (a) => {
+  const r = executeTrade(state, a.tradeId);
+  if (!r.ok) {
+    ui.toast(r.error, "bad");
+    return false; // el diálogo permanece en el nodo actual
+  }
+  sfx.select();
+  ui.toast(`▣ +${r.trade.gives.balls} cubo (tienes ${state.balls})`, "good");
+  ui.refreshHud();
+  saveGame();
+});
+dialogue.registerAction("heal", (a, ctx) => {
+  for (const m of state.team) m.hp = m.maxHp;
+  sfx.heal();
+  events.emit("partyHealed", { source: "healer", structureId: ctx?.npc?.structureId });
+  ui.refreshHud();
+});
+
+dialogue.onOpen = () => {
+  if (mode !== "play") return;
+  mode = "dialogue";
+  document.exitPointerLock();
+  ui.setTargetPrompt(null);
+  highlight.visible = false;
+  keys.clear();
+};
+dialogue.onClose = () => {
+  if (mode !== "dialogue") return;
+  mode = "play";
+  canvas.requestPointerLock();
+  saveGame();
+};
 
 function saveGame() {
   if (!state || !player) return;
@@ -139,6 +217,9 @@ async function startWorld(saved) {
   refreshPerks();
   progression.attach(state);
   stats.attach(state);
+  interaction.clear();
+  npcs.init(scene, world, interaction);
+  quests.attach(state);
   // El bioma inicial cuenta como descubierto (sin toast en la carga)
   state.stats.biomesDiscovered[world.biomeAt(px, pz)] = true;
   lastBiome = world.biomeAt(px, pz);
@@ -158,6 +239,7 @@ async function startWorld(saved) {
   ui.refreshHud();
   ui.hideLoading();
   ui.show(ui.el.hud);
+  ui.updateQuestTracker(quests.trackerInfo());
   mode = "play";
   ui.setTargetPrompt("Haz clic para tomar el control");
 }
@@ -184,12 +266,17 @@ document.addEventListener("keydown", (e) => {
     if (mode === "play" || mode === "dex") toggleDex();
     return;
   }
+  if (mode === "dialogue" && (e.code === "Escape" || e.code === "KeyE")) {
+    dialogue.close();
+    return;
+  }
   if (mode !== "play") return;
   keys.add(e.code);
   if (e.code === "KeyE") {
+    // Prioridad: interactuable cercano (NPC, santuario…) > criatura en la mira
+    if (interaction.interact(player.pos)) return;
     const c = creatureInSight();
     if (c) startBattle(c.entity);
-    else if (nearShrine) useShrine(nearShrine);
     return;
   }
   const n = parseInt(e.key, 10);
@@ -379,6 +466,7 @@ function spawnBreakParticles(x, y, z, block) {
 function showPause() {
   if (mode !== "play") return;
   mode = "pause";
+  ui.renderQuests(quests.summary());
   ui.renderStats();
   ui.show(ui.el.pause);
   saveGame();
@@ -605,23 +693,41 @@ function loop(now) {
       }
     }
 
-    nearShrine = null;
-    for (const s of world.structures.near(px, pz, 14)) {
+    // Descubrimiento + registro de interactuables de estructura cercanos
+    const wantedShrines = new Set();
+    for (const s of world.structures.near(px, pz, 20)) {
       if (!state.stats.structuresDiscovered[s.id]) {
         events.emit("structureDiscovered", {
           structureId: s.id, structureType: s.type, biomeId: s.biome, x: s.x, y: s.y, z: s.z,
         });
       }
-      if (s.type === "healing_shrine" &&
-          Math.hypot(s.x + 0.5 - px, s.z + 0.5 - pz) <= 4.5 &&
-          Math.abs(s.y - player.pos.y) < 6) {
-        nearShrine = s;
+      if (s.type === "healing_shrine") {
+        const id = `shrine:${s.id}`;
+        wantedShrines.add(id);
+        if (!interaction.has(id)) {
+          interaction.register({
+            id,
+            type: "shrine",
+            x: s.x + 0.5, y: s.y + 2, z: s.z + 0.5,
+            range: 4.5,
+            prompt: "Curar a tu equipo (santuario)",
+            data: s,
+            onInteract: () => useShrine(s),
+          });
+        }
       }
     }
+    for (const id of interaction.ids("shrine")) {
+      if (!wantedShrines.has(id)) interaction.unregister(id);
+    }
+
+    // NPC de asentamientos: reconciliación por distancia, sin duplicados
+    npcs.sync(px, pz);
   }
 
   world.update(player.pos.x, player.pos.z, 2);
   spawner.update(dt, player, dayFactor, elapsed);
+  npcs.update(dt, player.pos, elapsed);
 
   // Partículas de minado
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -647,22 +753,24 @@ function loop(now) {
     camera.rotation.y = player.yaw;
     camera.rotation.x = player.pitch;
 
-    // Objetivo bajo el punto de mira
+    // Objetivo bajo el punto de mira / interactuable cercano
     if (playing && locked) {
+      const inter = interaction.current(player.pos);
       const c = creatureInSight();
       const blockHit = world.raycast(player.eyePos(), player.lookDir(), 6);
-      if (c) {
+      if (blockHit && !c) {
+        highlight.position.set(blockHit.x + 0.5, blockHit.y + 0.5, blockHit.z + 0.5);
+        highlight.visible = true;
+      } else {
+        highlight.visible = false;
+      }
+      if (inter) {
+        ui.setTargetPrompt(`E — ${inter.prompt}`);
+      } else if (c) {
         const m = c.entity.monster;
         ui.setTargetPrompt(`⚔ ${m.name} · Nv ${m.level} — clic izquierdo o E para desafiar`);
-        highlight.visible = false;
       } else {
-        if (blockHit) {
-          highlight.position.set(blockHit.x + 0.5, blockHit.y + 0.5, blockHit.z + 0.5);
-          highlight.visible = true;
-        } else {
-          highlight.visible = false;
-        }
-        ui.setTargetPrompt(nearShrine ? "✨ Santuario curativo — pulsa E para curar a tu equipo" : null);
+        ui.setTargetPrompt(null);
       }
     } else {
       highlight.visible = false;
@@ -726,6 +834,10 @@ window.__vm = {
   progression,
   stats,
   addMoney,
+  questSystem: quests,
+  npcSystem: npcs,
+  dialogueSystem: dialogue,
+  interactionSystem: interaction,
   /** Herramientas de inspección del mundo vivo (Fase 2) */
   debug: {
     pos() {
@@ -766,8 +878,45 @@ window.__vm = {
       };
     },
     mine(x, y, z) { mineBlockAt(x, y, z); },
-    get nearShrine() { return nearShrine; },
-    useShrine() { if (nearShrine) useShrine(nearShrine); },
+    get nearShrine() {
+      const it = player ? interaction.current(player.pos) : null;
+      return it?.type === "shrine" ? it.data : null;
+    },
+    useShrine() {
+      const s = this.nearShrine;
+      if (s) useShrine(s);
+    },
     save() { saveGame(); },
+    // ---- Fase 3 ----
+    /** NPC actualmente activos (cercanos) */
+    npcs() { return npcs.list(); },
+    /** Asentamientos cercanos (centro a menos de r bloques) */
+    settlements(r = 400) {
+      return world && player
+        ? world.structures.near(player.pos.x, player.pos.z, r).filter((s) => s.type === "settlement")
+        : [];
+    },
+    /** Interactuable válido más cercano ahora mismo */
+    interaction() {
+      const it = player ? interaction.current(player.pos) : null;
+      return it ? { id: it.id, type: it.type, prompt: it.prompt, x: it.x, y: it.y, z: it.z } : null;
+    },
+    /** Estado completo de misiones */
+    questState() {
+      return state ? {
+        active: JSON.parse(JSON.stringify(state.quests.active)),
+        completed: Object.keys(state.quests.completed),
+        available: Object.keys(state.quests.available),
+      } : null;
+    },
+    /** [debug] fuerza el inicio de una quest disponible */
+    startQuest(id) { quests.start(id); },
+    /** [debug] abre el diálogo con un NPC activo por rol */
+    talk(role) {
+      const npc = npcs.list().find((n) => n.role === role);
+      if (npc) interaction.items.get(`npc:${npc.id}`)?.onInteract();
+    },
+    /** [debug] ejecuta un intercambio directamente (sin diálogo) */
+    trade(id = "apricorn_balls") { return executeTrade(state, id); },
   },
 };

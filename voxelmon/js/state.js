@@ -24,6 +24,10 @@ export function defaultStats() {
     biomesDiscovered: {},
     // id de estructura → true (Fase 2; los saves previos lo reciben por fillDefaults)
     structuresDiscovered: {},
+    // Fase 3 (también rellenados por fillDefaults en saves previos)
+    npcsTalked: 0,
+    questsCompleted: 0,
+    tradesCompleted: 0,
   };
 }
 
@@ -51,6 +55,8 @@ export function defaultState(seed) {
     victoryShown: false,
     stats: defaultStats(),
     progression: defaultProgression(),
+    // Fase 3: misiones (questId → {progress:[...]} en active; sets en el resto)
+    quests: { active: {}, completed: {}, available: {} },
   };
 }
 

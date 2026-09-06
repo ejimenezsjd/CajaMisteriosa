@@ -11,7 +11,8 @@ En `voxelmon/` vive **VoxelMon**, un juego 3D estilo Minecraft ambientado en el 
 - Objetivo: captura las 8 familias para invocar al legendario **Prismatón**.
 - Cada familia capturada otorga una habilidad pasiva permanente (nadar más rápido, saltar más alto, minar bloques dobles, visión nocturna…). Se consultan en la VoxelDex (Tab).
 - Mundo vivo: cada bioma tiene sus propias criaturas, recursos especiales (carbón, cobre, hierro, cristal, apricornos, hierbas medicinales) y estructuras procedurales (campamentos, ruinas y santuarios que curan a tu equipo con E).
-- La partida se guarda sola en el navegador (equipo, mundo editado, dex, inventario y descubrimientos).
+- Asentamientos con NPC: busca el asentamiento procedural y habla (E) con sus habitantes. Alba, la investigadora, da la primera cadena de misiones; Bruno cambia 3 apricornos por 1 cubo de captura; Sena cura a tu equipo. Las misiones se siguen en el HUD y en el menú de pausa.
+- La partida se guarda sola en el navegador (equipo, mundo editado, dex, inventario, descubrimientos y misiones).
 
 Requiere un navegador moderno con WebGL; usa Three.js desde CDN, sin paso de build.
 
