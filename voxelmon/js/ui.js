@@ -140,6 +140,7 @@ export class UI {
     const s = this.state;
     if (!s) return;
     this.el.infoBalls.textContent = `▣ Cubos: ${s.balls}`;
+    $("info-money").textContent = `⌾ Monedas: ${s.money ?? 0}`;
     const fams = FAMILY_STARTERS.filter((f) => this.familyCaught(f)).length;
     this.el.infoDex.textContent = `◆ Dex: ${fams}/8${s.dex.caught.prismaton ? " ✦" : ""}`;
 
@@ -174,6 +175,26 @@ export class UI {
       id = SPECIES[id].evolvesTo;
     }
     return false;
+  }
+
+  /** Bloque de estadísticas del menú de pausa */
+  renderStats() {
+    const box = $("pause-stats");
+    const st = this.state?.stats;
+    if (!st) { box.classList.add("hidden"); return; }
+    const km = st.distanceTraveled >= 1000
+      ? `${(st.distanceTraveled / 1000).toFixed(1)} km`
+      : `${Math.round(st.distanceTraveled)} m`;
+    box.innerHTML = `
+      <span>⛏ Minados: <b>${st.blocksMined}</b></span>
+      <span>🧱 Colocados: <b>${st.blocksPlaced}</b></span>
+      <span>👁 Vistas: <b>${st.creaturesSeen}</b></span>
+      <span>▣ Capturas: <b>${st.creaturesCaught}</b></span>
+      <span>⚔ Victorias: <b>${st.battlesWon}</b></span>
+      <span>💀 Derrotas: <b>${st.battlesLost}</b></span>
+      <span>🥾 Distancia: <b>${km}</b></span>
+      <span>🧭 Biomas: <b>${Object.keys(st.biomesDiscovered).length}</b></span>`;
+    box.classList.remove("hidden");
   }
 
   setClock(dayFactor) {

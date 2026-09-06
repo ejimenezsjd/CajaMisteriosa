@@ -34,6 +34,17 @@ export const BLOCK_NAMES = {
   [B.SNOW]: "Nieve",
 };
 
+/** Nombres visibles de los biomas (los ids los devuelve World.biomeAt) */
+export const BIOME_NAMES = {
+  plains: "Llanuras",
+  forest: "Bosque",
+  desert: "Desierto",
+  mountain: "Montaña",
+  snow: "Cumbres nevadas",
+  beach: "Playa",
+  ocean: "Océano",
+};
+
 /** Qué suelta cada bloque al minarlo */
 export const BLOCK_DROPS = {
   [B.GRASS]: B.DIRT,
@@ -95,6 +106,18 @@ export class World {
     h += mountain * fbm2(x * 0.02, z * 0.02, s + 310, 4) * 30;
     h = Math.min(HEIGHT - 6, Math.floor(h));
     return { h, mountain, desert, treeDensity: desert ? 0 : 0.015 + smoothstep(0.5, 0.75, forest) * 0.075 };
+  }
+
+  /** Identificador del bioma en una columna (ver BIOME_NAMES) */
+  biomeAt(x, z) {
+    const t = this.terrainAt(Math.floor(x), Math.floor(z));
+    if (t.h <= WATER_Y - 3) return "ocean";
+    if (t.h <= WATER_Y + 1) return "beach";
+    if (t.h > 34) return "snow";
+    if (t.mountain > 0.55) return "mountain";
+    if (t.desert) return "desert";
+    if (t.treeDensity > 0.05) return "forest";
+    return "plains";
   }
 
   hasTreeAt(x, z) {
