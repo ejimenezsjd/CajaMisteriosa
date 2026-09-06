@@ -6,67 +6,18 @@
 
 import * as THREE from "three";
 import { fbm2, columnHash } from "./noise.js";
+import { B, BLOCK_NAMES, BLOCK_DROPS, COLORS } from "./blocks.js";
+import { BIOME_NAMES, getBiomeDefinition } from "./biomes.js";
+import { RESOURCES } from "./resources.js";
+import { StructureIndex } from "./structures.js";
+
+// Reexportados para los consumidores existentes (main.js, ui.js…)
+export { B, BLOCK_NAMES, BLOCK_DROPS } from "./blocks.js";
+export { BIOME_NAMES } from "./biomes.js";
 
 export const CHUNK = 16;
 export const HEIGHT = 64;
 export const WATER_Y = 12;
-
-export const B = {
-  AIR: 0,
-  GRASS: 1,
-  DIRT: 2,
-  STONE: 3,
-  SAND: 4,
-  WATER: 5,
-  WOOD: 6,
-  LEAVES: 7,
-  SNOW: 8,
-  BEDROCK: 9,
-};
-
-export const BLOCK_NAMES = {
-  [B.GRASS]: "Hierba",
-  [B.DIRT]: "Tierra",
-  [B.STONE]: "Piedra",
-  [B.SAND]: "Arena",
-  [B.WOOD]: "Madera",
-  [B.LEAVES]: "Hojas",
-  [B.SNOW]: "Nieve",
-};
-
-/** Nombres visibles de los biomas (los ids los devuelve World.biomeAt) */
-export const BIOME_NAMES = {
-  plains: "Llanuras",
-  forest: "Bosque",
-  desert: "Desierto",
-  mountain: "Montaña",
-  snow: "Cumbres nevadas",
-  beach: "Playa",
-  ocean: "Océano",
-};
-
-/** Qué suelta cada bloque al minarlo */
-export const BLOCK_DROPS = {
-  [B.GRASS]: B.DIRT,
-  [B.DIRT]: B.DIRT,
-  [B.STONE]: B.STONE,
-  [B.SAND]: B.SAND,
-  [B.WOOD]: B.WOOD,
-  [B.LEAVES]: B.LEAVES,
-  [B.SNOW]: B.SNOW,
-};
-
-const COLORS = {
-  [B.GRASS]: { top: [0.42, 0.72, 0.29], side: [0.48, 0.4, 0.25], bottom: [0.48, 0.37, 0.23] },
-  [B.DIRT]: { top: [0.54, 0.4, 0.26], side: [0.54, 0.4, 0.26], bottom: [0.5, 0.37, 0.24] },
-  [B.STONE]: { top: [0.56, 0.56, 0.59], side: [0.55, 0.55, 0.58], bottom: [0.5, 0.5, 0.53] },
-  [B.SAND]: { top: [0.89, 0.82, 0.58], side: [0.86, 0.79, 0.55], bottom: [0.82, 0.75, 0.52] },
-  [B.WATER]: { top: [0.25, 0.46, 0.9], side: [0.23, 0.43, 0.85], bottom: [0.2, 0.4, 0.8] },
-  [B.WOOD]: { top: [0.62, 0.47, 0.26], side: [0.49, 0.35, 0.19], bottom: [0.62, 0.47, 0.26] },
-  [B.LEAVES]: { top: [0.28, 0.63, 0.24], side: [0.26, 0.58, 0.22], bottom: [0.22, 0.5, 0.19] },
-  [B.SNOW]: { top: [0.93, 0.95, 0.97], side: [0.88, 0.91, 0.94], bottom: [0.82, 0.85, 0.9] },
-  [B.BEDROCK]: { top: [0.22, 0.22, 0.24], side: [0.22, 0.22, 0.24], bottom: [0.22, 0.22, 0.24] },
-};
 
 // [dx,dy,dz, sombreado, 4 vértices de la cara] — orden CCW visto desde fuera
 const FACES = [
@@ -92,6 +43,8 @@ export class World {
     this.solidMat = new THREE.MeshLambertMaterial({ vertexColors: true });
     this.waterMat = new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.7, side: THREE.DoubleSide });
     this.viewRadius = 6;
+    /** Índice determinista de estructuras procedurales (por celdas) */
+    this.structures = new StructureIndex(this);
   }
 
   // ---------- Generación ----------
@@ -108,9 +61,8 @@ export class World {
     return { h, mountain, desert, treeDensity: desert ? 0 : 0.015 + smoothstep(0.5, 0.75, forest) * 0.075 };
   }
 
-  /** Identificador del bioma en una columna (ver BIOME_NAMES) */
-  biomeAt(x, z) {
-    const t = this.terrainAt(Math.floor(x), Math.floor(z));
+  /** Clasificación geométrica de bioma a partir de los datos de terrainAt */
+  biomeFromTerrain(t) {
     if (t.h <= WATER_Y - 3) return "ocean";
     if (t.h <= WATER_Y + 1) return "beach";
     if (t.h > 34) return "snow";
@@ -118,6 +70,11 @@ export class World {
     if (t.desert) return "desert";
     if (t.treeDensity > 0.05) return "forest";
     return "plains";
+  }
+
+  /** Identificador del bioma en una columna (ver biomes.js para su metadata) */
+  biomeAt(x, z) {
+    return this.biomeFromTerrain(this.terrainAt(Math.floor(x), Math.floor(z)));
   }
 
   hasTreeAt(x, z) {
@@ -161,6 +118,31 @@ export class World {
           for (let y = Math.max(1, h - 2); y < h; y++) data[idx(lx, y, lz)] = B.SAND;
         }
         for (let y = h + 1; y <= WATER_Y; y++) data[idx(lx, y, lz)] = B.WATER;
+
+        // Recursos especiales según las reglas del bioma (hash determinista
+        // por columna: mismo seed → mismas vetas, sin coste apreciable).
+        const rules = getBiomeDefinition(this.biomeFromTerrain(t)).resources;
+        for (let ri = 0; ri < rules.length; ri++) {
+          const rule = rules[ri];
+          if (columnHash(wx, wz, this.seed + 90210 + ri * 7919) >= rule.chance) continue;
+          const res = RESOURCES[rule.id];
+          if (res.surface) {
+            // Brote superficial (apricorno, hierba medicinal) sobre hierba
+            if (h > WATER_Y + 1 && h + 1 < HEIGHT && data[idx(lx, h, lz)] === B.GRASS) {
+              data[idx(lx, h + 1, lz)] = res.block;
+            }
+          } else {
+            // Veta subterránea dentro de la banda de profundidad del recurso
+            const d = res.depth;
+            const lo = d.minY;
+            const hi = Math.min(d.maxY ?? HEIGHT - 1, h - d.belowSurface);
+            if (hi >= lo) {
+              const y = Math.min(hi, lo + Math.floor(columnHash(wx, wz, this.seed + 131071 + ri * 101) * (hi - lo + 1)));
+              const i = idx(lx, y, lz);
+              if (data[i] === B.STONE) data[i] = res.block;
+            }
+          }
+        }
       }
     }
 
@@ -193,6 +175,15 @@ export class World {
         for (let y = baseY; y <= topY; y++) stamp(tx, y, tz, B.WOOD);
       }
     }
+
+    // Estructuras procedurales deterministas que intersectan este chunk
+    const stampStruct = (wx, wy, wz, b) => {
+      const lx = wx - x0;
+      const lz = wz - z0;
+      if (lx < 0 || lx >= CHUNK || lz < 0 || lz >= CHUNK || wy < 1 || wy >= HEIGHT) return;
+      data[idx(lx, wy, lz)] = b;
+    };
+    this.structures.stampChunk(x0, z0, CHUNK, stampStruct);
 
     // Ediciones del jugador
     for (const key in this.edits) {

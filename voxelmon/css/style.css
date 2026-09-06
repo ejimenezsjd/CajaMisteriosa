@@ -556,6 +556,9 @@ html, body {
 .pause-stats b {
   color: #fff;
 }
+.pause-stats .stats-wide {
+  grid-column: 1 / -1;
+}
 
 .dex-subtitle {
   font-family: "Syne", sans-serif;

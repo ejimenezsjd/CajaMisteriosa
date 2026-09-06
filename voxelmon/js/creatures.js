@@ -1,9 +1,10 @@
 /** Criaturas salvajes: spawner por bioma/hora, IA de deambulación y etiquetas */
 
 import * as THREE from "three";
-import { SPECIES, FAMILY_STARTERS, createMonster } from "./data.js";
+import { SPECIES, createMonster } from "./data.js";
 import { buildCreatureModel, animateModel } from "./models.js";
 import { WATER_Y } from "./world.js";
+import { getBiomeDefinition } from "./biomes.js";
 import { events } from "./events.js";
 
 function makeLabel(text, color = "#ffffff") {
@@ -114,16 +115,25 @@ export class Spawner {
     this.cooldown = 0;
   }
 
-  /** dayFactor: 1 = mediodía, 0 = medianoche */
-  pickSpecies(dist, dayFactor) {
-    const weights = FAMILY_STARTERS.map((fam) => {
-      const type = SPECIES[fam].type;
-      let w = 1;
-      if (type === "sombra") w = 0.5 + (1 - dayFactor) * 2.2;
-      if (type === "luz") w = 0.5 + dayFactor * 1.6;
-      return { fam, w };
-    });
-    const total = weights.reduce((s, e) => s + e.w, 0);
+  /**
+   * Elige especie según las reglas de spawn del bioma (biomes.js).
+   * dayFactor: 1 = mediodía, 0 = medianoche. Las reglas con time "day"/"night"
+   * se ponderan con él, así los cambios de hora siguen siendo graduales.
+   * Devuelve null si el bioma no admite criaturas en este momento.
+   */
+  pickSpecies(biomeId, dist, dayFactor) {
+    const weights = [];
+    let total = 0;
+    for (const rule of getBiomeDefinition(biomeId).creatures) {
+      let w = rule.weight;
+      if (rule.time === "day") w *= dayFactor;
+      else if (rule.time === "night") w *= 1 - dayFactor;
+      if (w > 0.01) {
+        weights.push({ fam: rule.family, w });
+        total += w;
+      }
+    }
+    if (!total) return null;
     let r = Math.random() * total;
     let fam = weights[0].fam;
     for (const e of weights) {
@@ -164,11 +174,13 @@ export class Spawner {
       const y = this.world.surfaceY(x, z);
       if (y <= WATER_Y) return; // no spawnear en agua
       const distOrigin = Math.hypot(x, z);
-      const id = this.pickSpecies(distOrigin, dayFactor);
+      const biomeId = this.world.biomeAt(x, z);
+      const id = this.pickSpecies(biomeId, distOrigin, dayFactor);
+      if (!id) return; // el bioma no admite criaturas ahora mismo
       const level = Math.max(1, Math.min(15,
         1 + Math.floor(distOrigin / 55) + Math.floor(Math.random() * 3) + (SPECIES[id].stage - 1) * 2));
       this.creatures.push(new WildCreature(this.scene, id, level, x, z, this.world));
-      events.emit("creatureSpawned", { speciesId: id, level });
+      events.emit("creatureSpawned", { speciesId: id, level, biomeId });
     }
   }
 

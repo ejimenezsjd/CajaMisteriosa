@@ -5,6 +5,9 @@
 
 import * as THREE from "three";
 import { World, B, BLOCK_DROPS, BIOME_NAMES } from "./world.js";
+import { getBiomeName, getBiomeDefinition } from "./biomes.js";
+import { RESOURCES, resourceForBlock } from "./resources.js";
+import { STRUCTURE_TYPES } from "./structures.js";
 import { Player } from "./player.js";
 import { Spawner } from "./creatures.js";
 import { Battle } from "./battle.js";
@@ -73,14 +76,30 @@ let selectedSlot = 0;
 let dayTime = 0.3;
 let regenTimer = 0;
 let saveTimer = 0;
-let biomeTimer = 0;
+let pollTimer = 0; // sondeo periódico de bioma + estructuras cercanas
 let lastBiome = null;
+let nearShrine = null; // santuario curativo a distancia de interacción
+const shrineCooldowns = new Map(); // structureId -> timestamp fin de cooldown
 const lastPos = new THREE.Vector2();
 const particles = [];
 
 // Avisos de gameplay desacoplados mediante el bus de eventos
-events.on("biomeDiscovered", ({ biome }) => {
-  ui.toast(`🧭 Nuevo bioma descubierto: ${BIOME_NAMES[biome] ?? biome}`, "good");
+events.on("biomeDiscovered", ({ biome, biomeName }) => {
+  ui.toast(`🧭 Nuevo bioma descubierto: ${biomeName ?? BIOME_NAMES[biome] ?? biome}`, "good");
+});
+events.on("structureDiscovered", ({ structureType }) => {
+  const def = STRUCTURE_TYPES[structureType];
+  ui.toast(`${def?.icon ?? "🏛"} Has descubierto: ${def?.name ?? structureType}`, "good");
+  if (structureType === "healing_shrine") progression.setFlag("discovered_healing_shrine");
+});
+events.on("partyHealed", () => {
+  ui.toast("✨ El santuario restaura por completo a tu equipo.", "good");
+});
+events.on("resourceCollected", ({ resourceId, amount }) => {
+  const res = RESOURCES[resourceId];
+  if (!res) return;
+  const total = state?.inventory[res.block] ?? 0;
+  ui.toast(`${res.icon} +${amount} ${res.name} (${total})`, "good");
 });
 events.on("badgeEarned", ({ id }) => {
   ui.toast(`🏅 ¡Insignia conseguida: ${id}!`, "legendary");
@@ -170,6 +189,7 @@ document.addEventListener("keydown", (e) => {
   if (e.code === "KeyE") {
     const c = creatureInSight();
     if (c) startBattle(c.entity);
+    else if (nearShrine) useShrine(nearShrine);
     return;
   }
   const n = parseInt(e.key, 10);
@@ -251,7 +271,13 @@ function onPrimary() {
   }
   const blockHit = world.raycast(player.eyePos(), player.lookDir(), 6);
   if (!blockHit) return;
-  const { x, y, z, block } = blockHit;
+  mineBlockAt(blockHit.x, blockHit.y, blockHit.z);
+}
+
+/** Mina un bloque: drop al inventario y eventos (blockMined / resourceCollected) */
+function mineBlockAt(x, y, z) {
+  const block = world.getBlock(x, y, z);
+  if (block === B.AIR || block === B.WATER) return;
   if (block === B.BEDROCK) {
     ui.toast("La roca madre es indestructible.");
     return;
@@ -260,13 +286,42 @@ function onPrimary() {
   sfx.break();
   spawnBreakParticles(x, y, z, block);
   const drop = BLOCK_DROPS[block];
+  let amount = 0;
   if (drop) {
     const bonus = Math.random() < perks.doubleDrop ? 1 : 0;
-    state.inventory[drop] = (state.inventory[drop] ?? 0) + 1 + bonus;
+    amount = 1 + bonus;
+    state.inventory[drop] = (state.inventory[drop] ?? 0) + amount;
     if (bonus) ui.toast("🪨 ¡Manos de roca: bloque doble!");
     ui.refreshHotbar(HOTBAR, state.inventory, selectedSlot);
   }
   events.emit("blockMined", { x, y, z, block, drop });
+  // Evento específico de recurso: los sistemas futuros (misiones, crafting)
+  // escuchan la identidad del recurso sin conocer ids de bloque.
+  const res = resourceForBlock(block);
+  if (res && amount > 0) {
+    events.emit("resourceCollected", {
+      resourceId: res.id,
+      amount,
+      source: "mining",
+      biomeId: world.biomeAt(x, z),
+      x, y, z,
+    });
+  }
+}
+
+/** Interacción con el santuario curativo: cura al equipo con cooldown corto */
+function useShrine(s) {
+  const now = performance.now();
+  if ((shrineCooldowns.get(s.id) ?? 0) > now) {
+    ui.toast("El santuario aún recarga su energía…");
+    return;
+  }
+  shrineCooldowns.set(s.id, now + 20000);
+  for (const m of state.team) m.hp = m.maxHp;
+  sfx.heal();
+  events.emit("partyHealed", { source: "healing_shrine", structureId: s.id });
+  ui.refreshHud();
+  saveGame();
 }
 
 function onPlace() {
@@ -298,7 +353,12 @@ function addMoney(delta) {
 }
 
 function spawnBreakParticles(x, y, z, block) {
-  const colors = { [B.GRASS]: 0x5aa338, [B.DIRT]: 0x8a6642, [B.STONE]: 0x8d8d94, [B.SAND]: 0xe2d08f, [B.WOOD]: 0x7d5a30, [B.LEAVES]: 0x48a03c, [B.SNOW]: 0xeef2f5 };
+  const colors = {
+    [B.GRASS]: 0x5aa338, [B.DIRT]: 0x8a6642, [B.STONE]: 0x8d8d94, [B.SAND]: 0xe2d08f,
+    [B.WOOD]: 0x7d5a30, [B.LEAVES]: 0x48a03c, [B.SNOW]: 0xeef2f5,
+    [B.COAL_ORE]: 0x44464e, [B.COPPER_ORE]: 0xc07a4a, [B.IRON_ORE]: 0xc9b69e,
+    [B.CRYSTAL]: 0x8ee4fa, [B.APRICORN]: 0xd98438, [B.HERB]: 0x8cd455,
+  };
   for (let i = 0; i < 8; i++) {
     const m = new THREE.Mesh(
       new THREE.BoxGeometry(0.09, 0.09, 0.09),
@@ -529,15 +589,33 @@ function loop(now) {
   }
   lastPos.set(player.pos.x, player.pos.z);
 
-  // Descubrimiento de biomas
-  biomeTimer += dt;
-  if (biomeTimer >= 1.5 && playing && state) {
-    biomeTimer = 0;
-    const biome = world.biomeAt(player.pos.x, player.pos.z);
+  // Sondeo periódico: descubrimiento de biomas/estructuras y santuario cercano.
+  // Las consultas son O(celdas vecinas) gracias al índice por celdas cacheado.
+  pollTimer += dt;
+  if (pollTimer >= 0.75 && playing && state) {
+    pollTimer = 0;
+    const px = player.pos.x;
+    const pz = player.pos.z;
+
+    const biome = world.biomeAt(px, pz);
     if (biome !== lastBiome) {
       lastBiome = biome;
       if (!state.stats.biomesDiscovered[biome]) {
-        events.emit("biomeDiscovered", { biome });
+        events.emit("biomeDiscovered", { biome, biomeId: biome, biomeName: getBiomeName(biome), x: px, z: pz });
+      }
+    }
+
+    nearShrine = null;
+    for (const s of world.structures.near(px, pz, 14)) {
+      if (!state.stats.structuresDiscovered[s.id]) {
+        events.emit("structureDiscovered", {
+          structureId: s.id, structureType: s.type, biomeId: s.biome, x: s.x, y: s.y, z: s.z,
+        });
+      }
+      if (s.type === "healing_shrine" &&
+          Math.hypot(s.x + 0.5 - px, s.z + 0.5 - pz) <= 4.5 &&
+          Math.abs(s.y - player.pos.y) < 6) {
+        nearShrine = s;
       }
     }
   }
@@ -577,13 +655,14 @@ function loop(now) {
         const m = c.entity.monster;
         ui.setTargetPrompt(`⚔ ${m.name} · Nv ${m.level} — clic izquierdo o E para desafiar`);
         highlight.visible = false;
-      } else if (blockHit) {
-        highlight.position.set(blockHit.x + 0.5, blockHit.y + 0.5, blockHit.z + 0.5);
-        highlight.visible = true;
-        ui.setTargetPrompt(null);
       } else {
-        highlight.visible = false;
-        ui.setTargetPrompt(null);
+        if (blockHit) {
+          highlight.position.set(blockHit.x + 0.5, blockHit.y + 0.5, blockHit.z + 0.5);
+          highlight.visible = true;
+        } else {
+          highlight.visible = false;
+        }
+        ui.setTargetPrompt(nearShrine ? "✨ Santuario curativo — pulsa E para curar a tu equipo" : null);
       }
     } else {
       highlight.visible = false;
@@ -647,4 +726,48 @@ window.__vm = {
   progression,
   stats,
   addMoney,
+  /** Herramientas de inspección del mundo vivo (Fase 2) */
+  debug: {
+    pos() {
+      return player ? { x: player.pos.x, y: player.pos.y, z: player.pos.z } : null;
+    },
+    biome() {
+      if (!world || !player) return null;
+      const id = world.biomeAt(player.pos.x, player.pos.z);
+      const def = getBiomeDefinition(id);
+      return { id, name: def.name, difficulty: def.difficulty, climate: def.climate };
+    },
+    /** Estructuras cercanas (centro a menos de r bloques) */
+    structures(r = 96) {
+      return world && player ? world.structures.near(player.pos.x, player.pos.z, r) : [];
+    },
+    /** Bloques de recurso en un cubo de radio r alrededor del jugador */
+    resourcesNear(r = 10) {
+      if (!world || !player) return [];
+      const out = [];
+      const R = Math.min(16, r);
+      const cx = Math.floor(player.pos.x);
+      const cy = Math.floor(player.pos.y);
+      const cz = Math.floor(player.pos.z);
+      for (let y = Math.max(1, cy - R); y <= cy + R; y++) {
+        for (let z = cz - R; z <= cz + R; z++) {
+          for (let x = cx - R; x <= cx + R; x++) {
+            const res = resourceForBlock(world.getBlock(x, y, z));
+            if (res) out.push({ id: res.id, name: res.name, x, y, z });
+          }
+        }
+      }
+      return out;
+    },
+    discovered() {
+      return {
+        biomes: { ...(state?.stats.biomesDiscovered ?? {}) },
+        structures: { ...(state?.stats.structuresDiscovered ?? {}) },
+      };
+    },
+    mine(x, y, z) { mineBlockAt(x, y, z); },
+    get nearShrine() { return nearShrine; },
+    useShrine() { if (nearShrine) useShrine(nearShrine); },
+    save() { saveGame(); },
+  },
 };

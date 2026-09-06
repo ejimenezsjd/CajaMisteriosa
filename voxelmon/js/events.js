@@ -14,13 +14,16 @@
  *  - battleWon       { speciesId, level }
  *  - battleLost      { speciesId, level }
  *  - battleFled      { speciesId, level }
- *  - biomeDiscovered { biome }
+ *  - biomeDiscovered { biome, biomeId, biomeName, x, z }
+ *  - structureDiscovered { structureId, structureType, biomeId, x, y, z }
+ *  - resourceCollected   { resourceId, amount, source, biomeId, x, y, z }
+ *  - partyHealed     { source, structureId }
  *  - moneyChanged    { money, delta }
  *  - progressUnlocked{ id }
  *  - flagSet         { id }
  *  - badgeEarned     { id }
  * (futuros: itemCrafted, itemCollected, npcTalked, trainerDefeated,
- *  structureDiscovered, gymEntered, questStarted/Updated/Completed, regionUnlocked)
+ *  gymEntered, questStarted/Updated/Completed, regionUnlocked)
  */
 
 const handlers = new Map();
