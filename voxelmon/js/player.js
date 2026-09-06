@@ -52,14 +52,19 @@ export class Player {
     if (keys.has("KeyA")) fx -= 1;
     if (keys.has("KeyD")) fx += 1;
     const len = Math.hypot(fx, fz);
-    let speed = this.inWater ? SWIM : keys.has("ShiftLeft") || keys.has("ShiftRight") ? SPRINT : WALK;
+    const perks = this.perks ?? {};
+    let speed = this.inWater
+      ? SWIM * (perks.swimMult ?? 1)
+      : (keys.has("ShiftLeft") || keys.has("ShiftRight") ? SPRINT : WALK) * (perks.speedMult ?? 1);
     if (len > 0) {
       fx /= len;
       fz /= len;
+      // Rota el vector local (fx, fz) al mundo: adelante (0,-1) debe coincidir
+      // con la dirección de la mirada (-sin yaw, -cos yaw).
       const sin = Math.sin(this.yaw);
       const cos = Math.cos(this.yaw);
-      const wx = fx * cos - fz * sin;
-      const wz = fz * cos + fx * sin;
+      const wx = fx * cos + fz * sin;
+      const wz = fz * cos - fx * sin;
       const accel = this.onGround || this.inWater ? 40 : 12;
       this.vel.x += (wx * speed - this.vel.x) * Math.min(1, accel * dt);
       this.vel.z += (wz * speed - this.vel.z) * Math.min(1, accel * dt);
@@ -76,7 +81,7 @@ export class Player {
     } else {
       this.vel.y += GRAVITY * dt;
       if (keys.has("Space") && this.onGround) {
-        this.vel.y = JUMP_V;
+        this.vel.y = JUMP_V * (perks.jumpMult ?? 1);
         this.onGround = false;
       }
     }
