@@ -33,6 +33,9 @@ class StatsSystem {
     events.on("biomeDiscovered", ({ biome }) => {
       if (this.s) this.s.biomesDiscovered[biome] = true;
     });
+    events.on("structureDiscovered", ({ structureId }) => {
+      if (this.s) this.s.structuresDiscovered[structureId] = true;
+    });
   }
 
   /** Distancia horizontal recorrida; llamar desde el bucle con el delta del frame. */
@@ -43,6 +46,10 @@ class StatsSystem {
 
   biomeCount() {
     return this.s ? Object.keys(this.s.biomesDiscovered).length : 0;
+  }
+
+  structureCount() {
+    return this.s ? Object.keys(this.s.structuresDiscovered).length : 0;
   }
 }
 

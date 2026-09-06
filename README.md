@@ -10,7 +10,8 @@ En `voxelmon/` vive **VoxelMon**, un juego 3D estilo Minecraft ambientado en el 
 - Controles: WASD + ratón (clic para bloquear el puntero), clic izquierdo mina, E o clic izquierdo desafía criaturas, clic derecho construye, 1–6 selecciona bloque, Tab abre la VoxelDex.
 - Objetivo: captura las 8 familias para invocar al legendario **Prismatón**.
 - Cada familia capturada otorga una habilidad pasiva permanente (nadar más rápido, saltar más alto, minar bloques dobles, visión nocturna…). Se consultan en la VoxelDex (Tab).
-- La partida se guarda sola en el navegador (equipo, mundo editado, dex e inventario).
+- Mundo vivo: cada bioma tiene sus propias criaturas, recursos especiales (carbón, cobre, hierro, cristal, apricornos, hierbas medicinales) y estructuras procedurales (campamentos, ruinas y santuarios que curan a tu equipo con E).
+- La partida se guarda sola en el navegador (equipo, mundo editado, dex, inventario y descubrimientos).
 
 Requiere un navegador moderno con WebGL; usa Three.js desde CDN, sin paso de build.
 

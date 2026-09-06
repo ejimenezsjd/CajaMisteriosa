@@ -22,6 +22,8 @@ export function defaultStats() {
     itemsCrafted: 0,
     distanceTraveled: 0,
     biomesDiscovered: {},
+    // id de estructura → true (Fase 2; los saves previos lo reciben por fillDefaults)
+    structuresDiscovered: {},
   };
 }
 

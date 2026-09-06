@@ -2,6 +2,7 @@
 
 import { SPECIES, TYPES, FAMILY_STARTERS, PERKS, movesFor, typeMultiplier } from "./data.js";
 import { BLOCK_NAMES } from "./world.js";
+import { RESOURCES } from "./resources.js";
 import { sfx } from "./audio.js";
 import { mulberry32 } from "./noise.js";
 
@@ -185,6 +186,11 @@ export class UI {
     const km = st.distanceTraveled >= 1000
       ? `${(st.distanceTraveled / 1000).toFixed(1)} km`
       : `${Math.round(st.distanceTraveled)} m`;
+    const resources = Object.values(RESOURCES)
+      .map((r) => ({ r, n: this.state.inventory?.[r.block] ?? 0 }))
+      .filter((e) => e.n > 0)
+      .map((e) => `${e.r.icon} ${e.r.name}: <b>${e.n}</b>`)
+      .join(" · ");
     box.innerHTML = `
       <span>⛏ Minados: <b>${st.blocksMined}</b></span>
       <span>🧱 Colocados: <b>${st.blocksPlaced}</b></span>
@@ -193,7 +199,9 @@ export class UI {
       <span>⚔ Victorias: <b>${st.battlesWon}</b></span>
       <span>💀 Derrotas: <b>${st.battlesLost}</b></span>
       <span>🥾 Distancia: <b>${km}</b></span>
-      <span>🧭 Biomas: <b>${Object.keys(st.biomesDiscovered).length}</b></span>`;
+      <span>🧭 Biomas: <b>${Object.keys(st.biomesDiscovered).length}</b></span>
+      <span>🏛 Estructuras: <b>${Object.keys(st.structuresDiscovered ?? {}).length}</b></span>` +
+      (resources ? `<span class="stats-wide">🎒 Recursos: ${resources}</span>` : "");
     box.classList.remove("hidden");
   }
 
