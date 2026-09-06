@@ -68,6 +68,40 @@ export const SPECIES = {
 
 export const FAMILY_STARTERS = ["emberin", "gotita", "semilla", "chispin", "piedrita", "plumin", "umbra", "lucier"];
 
+/** Habilidad pasiva permanente que otorga cada familia al capturarla */
+export const PERKS = {
+  emberin: { icon: "🔥", name: "Brasa viva", desc: "+25% de XP en cada combate" },
+  gotita: { icon: "💧", name: "Branquias", desc: "Nadas mucho más rápido" },
+  semilla: { icon: "🌿", name: "Fotosíntesis", desc: "Tu equipo se regenera el doble de rápido" },
+  chispin: { icon: "⚡", name: "Reflejos", desc: "Te mueves un 20% más rápido" },
+  piedrita: { icon: "🪨", name: "Manos de roca", desc: "25% de probabilidad de minar un bloque doble" },
+  plumin: { icon: "🪶", name: "Plumas ligeras", desc: "Saltas notablemente más alto" },
+  umbra: { icon: "🌙", name: "Visión nocturna", desc: "Las noches son mucho más claras" },
+  lucier: { icon: "✨", name: "Aura radiante", desc: "+15% de probabilidad de captura con cubos" },
+};
+
+/** Efectos combinados de las habilidades activas según las familias capturadas */
+export function activePerks(dexCaught) {
+  const has = (fam) => {
+    let id = fam;
+    while (id) {
+      if (dexCaught[id]) return true;
+      id = SPECIES[id].evolvesTo;
+    }
+    return false;
+  };
+  return {
+    xpMult: has("emberin") ? 1.25 : 1,
+    swimMult: has("gotita") ? 1.6 : 1,
+    regenMult: has("semilla") ? 2 : 1,
+    speedMult: has("chispin") ? 1.2 : 1,
+    doubleDrop: has("piedrita") ? 0.25 : 0,
+    jumpMult: has("plumin") ? 1.18 : 1,
+    nightVision: has("umbra"),
+    catchBonus: has("lucier") ? 0.15 : 0,
+  };
+}
+
 /** Familia (id de etapa 1) a la que pertenece una especie */
 export function familyOf(speciesId) {
   for (const fam of FAMILY_STARTERS) {

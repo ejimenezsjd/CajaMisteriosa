@@ -4,7 +4,7 @@
  */
 
 import * as THREE from "three";
-import { SPECIES, movesFor, typeMultiplier, gainXp } from "./data.js";
+import { SPECIES, movesFor, typeMultiplier, gainXp, activePerks } from "./data.js";
 import { buildCreatureModel, buildCubeBall, animateModel } from "./models.js";
 import { sfx } from "./audio.js";
 
@@ -35,6 +35,7 @@ export class Battle {
     this.allyModel = null;
     this.done = false;
     this.camT = 0;
+    this.perks = activePerks(this.state.dex?.caught ?? {});
   }
 
   setupArena() {
@@ -192,7 +193,7 @@ export class Battle {
     const sp = SPECIES[this.enemy.speciesId];
     const base = sp.legendary ? 0.3 : sp.stage === 1 ? 0.85 : sp.stage === 2 ? 0.6 : 0.42;
     const hpRatio = this.enemy.hp / this.enemy.maxHp;
-    const chance = Math.min(0.95, Math.max(0.06, base * (1.15 - hpRatio)));
+    const chance = Math.min(0.95, Math.max(0.06, base * (1.15 - hpRatio) + this.perks.catchBonus));
 
     let caught = true;
     const bounces = 3;
@@ -222,7 +223,8 @@ export class Battle {
   }
 
   async grantXp() {
-    const amount = 14 + this.enemy.level * 7 + (SPECIES[this.enemy.speciesId].legendary ? 120 : 0);
+    const raw = 14 + this.enemy.level * 7 + (SPECIES[this.enemy.speciesId].legendary ? 120 : 0);
+    const amount = Math.round(raw * this.perks.xpMult);
     this.ui.battleLog(`${this.active.name} ganó ${amount} XP.`);
     const events = gainXp(this.active, amount);
     for (const ev of events) {

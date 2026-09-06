@@ -1,6 +1,6 @@
 /** Interfaz: HUD, menús, batalla, dex y notificaciones */
 
-import { SPECIES, TYPES, FAMILY_STARTERS, movesFor, typeMultiplier } from "./data.js";
+import { SPECIES, TYPES, FAMILY_STARTERS, PERKS, movesFor, typeMultiplier } from "./data.js";
 import { BLOCK_NAMES } from "./world.js";
 import { sfx } from "./audio.js";
 import { mulberry32 } from "./noise.js";
@@ -226,6 +226,22 @@ export class UI {
     const fams = FAMILY_STARTERS.filter((f) => this.familyCaught(f)).length;
     $("dex-progress").textContent = `Familias capturadas: ${fams}/8` +
       (this.state.dex.caught.prismaton ? " · ✦ Prismatón obtenido" : fams >= 8 ? " · ¡El legendario te espera!" : "");
+
+    const perkGrid = $("dex-perks");
+    perkGrid.innerHTML = "";
+    for (const fam of FAMILY_STARTERS) {
+      const p = PERKS[fam];
+      const unlocked = this.familyCaught(fam);
+      const cell = document.createElement("div");
+      cell.className = "perk-cell" + (unlocked ? " unlocked" : "");
+      cell.innerHTML = `
+        <span class="perk-icon">${unlocked ? p.icon : "🔒"}</span>
+        <div class="perk-info">
+          <span class="perk-name">${p.name}</span>
+          <span class="perk-desc">${unlocked ? p.desc : `Captura a la familia de ${SPECIES[fam].name}`}</span>
+        </div>`;
+      perkGrid.appendChild(cell);
+    }
   }
 
   // ---------- Batalla ----------

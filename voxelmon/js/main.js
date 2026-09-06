@@ -9,7 +9,7 @@ import { Player } from "./player.js";
 import { Spawner } from "./creatures.js";
 import { Battle } from "./battle.js";
 import { UI } from "./ui.js";
-import { FAMILY_STARTERS, createMonster } from "./data.js";
+import { FAMILY_STARTERS, PERKS, activePerks, familyOf, createMonster } from "./data.js";
 import { sfx, toggleMute } from "./audio.js";
 
 const SAVE_KEY = "voxelmon.save.v1";
@@ -58,6 +58,13 @@ let state = null;
 
 let mode = "title"; // title | starter | play | battle | pause | dex | victory
 let locked = false;
+let perks = activePerks({});
+
+/** Recalcula las habilidades activas según la dex y las aplica al jugador */
+function refreshPerks() {
+  perks = activePerks(state?.dex.caught ?? {});
+  if (player) player.perks = perks;
+}
 const keys = new Set();
 let selectedSlot = 0;
 let dayTime = 0.3;
@@ -122,6 +129,7 @@ async function startWorld(saved) {
 
   const py = state.pos?.y ?? world.surfaceY(px, pz) + 2;
   player = new Player(px, py, pz);
+  refreshPerks();
   if (state.pos) {
     player.yaw = state.pos.yaw ?? 0;
     player.pitch = state.pos.pitch ?? 0;
@@ -259,7 +267,9 @@ function onPrimary() {
   spawnBreakParticles(x, y, z, block);
   const drop = BLOCK_DROPS[block];
   if (drop) {
-    state.inventory[drop] = (state.inventory[drop] ?? 0) + 1;
+    const bonus = Math.random() < perks.doubleDrop ? 1 : 0;
+    state.inventory[drop] = (state.inventory[drop] ?? 0) + 1 + bonus;
+    if (bonus) ui.toast("🪨 ¡Manos de roca: bloque doble!");
     ui.refreshHotbar(HOTBAR, state.inventory, selectedSlot);
   }
 }
@@ -392,12 +402,19 @@ async function startBattle(wild) {
   } else if (result === "caught") {
     spawner.removeCreature(wild);
     const m = wild.monster;
+    const fam = familyOf(m.speciesId);
+    const famWasNew = fam && PERKS[fam] && !ui.familyCaught(fam);
     state.dex.caught[m.speciesId] = true;
     if (state.team.length < 6) {
       state.team.push(m);
       ui.toast(`${m.name} se unió a tu equipo.`, "good");
     } else {
       ui.toast(`${m.name} fue enviado a la Caja (equipo lleno).`);
+    }
+    if (famWasNew) {
+      const p = PERKS[fam];
+      refreshPerks();
+      ui.toast(`${p.icon} Habilidad desbloqueada: ${p.name} — ${p.desc}`, "good");
     }
     if (m.speciesId === "prismaton" && !state.victoryShown) {
       state.victoryShown = true;
@@ -447,8 +464,10 @@ function updateDayNight(dt) {
 
   sun.position.set(Math.cos(angle) * 80, elev * 100, 30);
   sun.target.position.set(0, 0, 0);
-  sun.intensity = 0.38 + dayFactor * 0.75;
-  ambient.intensity = 0.34 + dayFactor * 0.34;
+  // Visión nocturna: sube el mínimo de luz cuando es de noche
+  const nv = perks.nightVision ? (1 - dayFactor) * 0.3 : 0;
+  sun.intensity = 0.38 + nv + dayFactor * 0.75;
+  ambient.intensity = 0.34 + nv * 0.8 + dayFactor * 0.34;
 
   const sky = new THREE.Color();
   if (elev > 0.18) sky.copy(SKY_DAY);
@@ -537,14 +556,14 @@ function loop(now) {
       highlight.visible = false;
     }
 
-    // Regeneración fuera de combate
+    // Regeneración fuera de combate (Fotosíntesis la duplica)
     regenTimer += dt;
     if (regenTimer >= 2 && state) {
       regenTimer = 0;
       let changed = false;
       for (const m of state.team) {
         if (m.hp < m.maxHp) {
-          m.hp = Math.min(m.maxHp, m.hp + Math.max(1, Math.round(m.maxHp * 0.02)));
+          m.hp = Math.min(m.maxHp, m.hp + Math.max(1, Math.round(m.maxHp * 0.02 * perks.regenMult)));
           changed = true;
         }
       }
