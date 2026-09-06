@@ -533,10 +533,70 @@ html, body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: 10px;
-  max-height: 52vh;
+  max-height: 40vh;
   overflow-y: auto;
   padding: 4px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
+}
+
+.dex-subtitle {
+  font-family: "Syne", sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  color: var(--text-dim, #9aa3b8);
+  margin: 0 0 8px;
+  text-align: left;
+}
+
+.perk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  max-height: 22vh;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+.perk-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  opacity: 0.55;
+  text-align: left;
+}
+
+.perk-cell.unlocked {
+  opacity: 1;
+  background: rgba(94, 234, 141, 0.08);
+  border-color: rgba(94, 234, 141, 0.25);
+}
+
+.perk-icon {
+  font-size: 1.3rem;
+  width: 32px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.perk-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.perk-name {
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.perk-desc {
+  font-size: 0.75rem;
+  color: var(--text-dim, #9aa3b8);
 }
 
 .dex-cell {

@@ -57,14 +57,14 @@ const COLORS = {
   [B.BEDROCK]: { top: [0.22, 0.22, 0.24], side: [0.22, 0.22, 0.24], bottom: [0.22, 0.22, 0.24] },
 };
 
-// [dx,dy,dz, sombreado, 4 vértices de la cara]
+// [dx,dy,dz, sombreado, 4 vértices de la cara] — orden CCW visto desde fuera
 const FACES = [
-  { dir: [1, 0, 0], shade: 0.8, corners: [[1, 1, 0], [1, 0, 0], [1, 1, 1], [1, 0, 1]] },
-  { dir: [-1, 0, 0], shade: 0.8, corners: [[0, 1, 1], [0, 0, 1], [0, 1, 0], [0, 0, 0]] },
+  { dir: [1, 0, 0], shade: 0.8, corners: [[1, 1, 0], [1, 1, 1], [1, 0, 0], [1, 0, 1]] },
+  { dir: [-1, 0, 0], shade: 0.8, corners: [[0, 1, 1], [0, 1, 0], [0, 0, 1], [0, 0, 0]] },
   { dir: [0, 1, 0], shade: 1.0, corners: [[0, 1, 1], [1, 1, 1], [0, 1, 0], [1, 1, 0]] },
   { dir: [0, -1, 0], shade: 0.5, corners: [[0, 0, 0], [1, 0, 0], [0, 0, 1], [1, 0, 1]] },
-  { dir: [0, 0, 1], shade: 0.7, corners: [[1, 1, 1], [1, 0, 1], [0, 1, 1], [0, 0, 1]] },
-  { dir: [0, 0, -1], shade: 0.7, corners: [[0, 1, 0], [0, 0, 0], [1, 1, 0], [1, 0, 0]] },
+  { dir: [0, 0, 1], shade: 0.7, corners: [[1, 1, 1], [0, 1, 1], [1, 0, 1], [0, 0, 1]] },
+  { dir: [0, 0, -1], shade: 0.7, corners: [[0, 1, 0], [1, 1, 0], [0, 0, 0], [1, 0, 0]] },
 ];
 
 const idx = (x, y, z) => x + z * CHUNK + y * CHUNK * CHUNK;
