@@ -539,6 +539,24 @@ html, body {
   margin-bottom: 14px;
 }
 
+.pause-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px 14px;
+  margin: 14px 0 4px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 0.8rem;
+  color: var(--text-dim, #9aa3b8);
+  text-align: left;
+}
+
+.pause-stats b {
+  color: #fff;
+}
+
 .dex-subtitle {
   font-family: "Syne", sans-serif;
   font-size: 0.95rem;

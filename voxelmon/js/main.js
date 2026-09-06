@@ -4,15 +4,18 @@
  */
 
 import * as THREE from "three";
-import { World, B, BLOCK_DROPS } from "./world.js";
+import { World, B, BLOCK_DROPS, BIOME_NAMES } from "./world.js";
 import { Player } from "./player.js";
 import { Spawner } from "./creatures.js";
 import { Battle } from "./battle.js";
 import { UI } from "./ui.js";
 import { FAMILY_STARTERS, PERKS, activePerks, familyOf, createMonster } from "./data.js";
 import { sfx, toggleMute } from "./audio.js";
+import { events } from "./events.js";
+import { SAVE_KEY, defaultState, loadSave, persistSave } from "./state.js";
+import { progression } from "./progression.js";
+import { stats } from "./stats.js";
 
-const SAVE_KEY = "voxelmon.save.v1";
 const DAY_LENGTH = 600; // segundos por ciclo completo
 const HOTBAR = [B.DIRT, B.STONE, B.SAND, B.WOOD, B.LEAVES, B.SNOW];
 
@@ -70,40 +73,25 @@ let selectedSlot = 0;
 let dayTime = 0.3;
 let regenTimer = 0;
 let saveTimer = 0;
+let biomeTimer = 0;
+let lastBiome = null;
+const lastPos = new THREE.Vector2();
 const particles = [];
 
-function defaultState(seed) {
-  return {
-    seed,
-    team: [],
-    balls: 10,
-    inventory: {},
-    dex: { seen: {}, caught: {} },
-    edits: {},
-    dayTime: 0.3,
-    pos: null,
-    legendarySpawned: false,
-    victoryShown: false,
-  };
-}
+// Avisos de gameplay desacoplados mediante el bus de eventos
+events.on("biomeDiscovered", ({ biome }) => {
+  ui.toast(`🧭 Nuevo bioma descubierto: ${BIOME_NAMES[biome] ?? biome}`, "good");
+});
+events.on("badgeEarned", ({ id }) => {
+  ui.toast(`🏅 ¡Insignia conseguida: ${id}!`, "legendary");
+});
 
 function saveGame() {
   if (!state || !player) return;
   state.edits = world.edits;
   state.dayTime = dayTime;
   state.pos = { x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch };
-  try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-  } catch { /* almacenamiento lleno o bloqueado: se ignora */ }
-}
-
-function loadSave() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+  persistSave(state);
 }
 
 // ---------- Arranque de mundo ----------
@@ -130,6 +118,12 @@ async function startWorld(saved) {
   const py = state.pos?.y ?? world.surfaceY(px, pz) + 2;
   player = new Player(px, py, pz);
   refreshPerks();
+  progression.attach(state);
+  stats.attach(state);
+  // El bioma inicial cuenta como descubierto (sin toast en la carga)
+  state.stats.biomesDiscovered[world.biomeAt(px, pz)] = true;
+  lastBiome = world.biomeAt(px, pz);
+  lastPos.set(px, pz);
   if (state.pos) {
     player.yaw = state.pos.yaw ?? 0;
     player.pitch = state.pos.pitch ?? 0;
@@ -272,6 +266,7 @@ function onPrimary() {
     if (bonus) ui.toast("🪨 ¡Manos de roca: bloque doble!");
     ui.refreshHotbar(HOTBAR, state.inventory, selectedSlot);
   }
+  events.emit("blockMined", { x, y, z, block, drop });
 }
 
 function onPlace() {
@@ -292,6 +287,14 @@ function onPlace() {
   state.inventory[b] -= 1;
   sfx.place();
   ui.refreshHotbar(HOTBAR, state.inventory, selectedSlot);
+  events.emit("blockPlaced", { x, y, z, block: b });
+}
+
+/** Suma o resta monedas y lo anuncia */
+function addMoney(delta) {
+  state.money = Math.max(0, (state.money ?? 0) + delta);
+  events.emit("moneyChanged", { money: state.money, delta });
+  ui.refreshHud();
 }
 
 function spawnBreakParticles(x, y, z, block) {
@@ -316,6 +319,7 @@ function spawnBreakParticles(x, y, z, block) {
 function showPause() {
   if (mode !== "play") return;
   mode = "pause";
+  ui.renderStats();
   ui.show(ui.el.pause);
   saveGame();
 }
@@ -386,12 +390,16 @@ async function startBattle(wild) {
   mode = "battle";
   document.exitPointerLock();
   ui.setTargetPrompt(null);
-  state.dex.seen[wild.monster.speciesId] = true;
+  const wildInfo = { speciesId: wild.monster.speciesId, level: wild.monster.level };
+  if (!state.dex.seen[wildInfo.speciesId]) events.emit("creatureSeen", wildInfo);
+  state.dex.seen[wildInfo.speciesId] = true;
+  events.emit("battleStarted", wildInfo);
 
   battle = new Battle({ scene, camera, world, player, wild, team: state.team, state, ui });
   ui.onEvolve = (m) => {
     state.dex.caught[m.speciesId] = true;
     state.dex.seen[m.speciesId] = true;
+    events.emit("creatureEvolved", { speciesId: m.speciesId });
     ui.refreshHud();
   };
   const result = await battle.run();
@@ -399,6 +407,11 @@ async function startBattle(wild) {
 
   if (result === "win") {
     spawner.removeCreature(wild);
+    events.emit("creatureDefeated", wildInfo);
+    events.emit("battleWon", wildInfo);
+    const reward = 4 + wildInfo.level * 2;
+    addMoney(reward);
+    ui.toast(`+${reward} ⌾ por la victoria.`, "good");
   } else if (result === "caught") {
     spawner.removeCreature(wild);
     const m = wild.monster;
@@ -416,6 +429,8 @@ async function startBattle(wild) {
       refreshPerks();
       ui.toast(`${p.icon} Habilidad desbloqueada: ${p.name} — ${p.desc}`, "good");
     }
+    events.emit("creatureCaptured", wildInfo);
+    events.emit("battleWon", wildInfo);
     if (m.speciesId === "prismaton" && !state.victoryShown) {
       state.victoryShown = true;
       mode = "victory";
@@ -427,10 +442,13 @@ async function startBattle(wild) {
     }
     checkLegendary();
   } else if (result === "lost") {
+    events.emit("battleLost", wildInfo);
     for (const m of state.team) m.hp = m.maxHp;
     player.pos.set(8.5, world.surfaceY(8.5, 8.5) + 2, 8.5);
     player.vel.set(0, 0, 0);
     ui.toast("Todo tu equipo cayó… Despiertas en el punto de origen, recuperado.", "bad");
+  } else if (result === "fled") {
+    events.emit("battleFled", wildInfo);
   }
 
   ui.refreshHud();
@@ -507,6 +525,21 @@ function loop(now) {
   const playing = mode === "play";
   if (playing && locked) {
     player.update(dt, world, keys);
+    stats.addDistance(Math.hypot(player.pos.x - lastPos.x, player.pos.z - lastPos.y));
+  }
+  lastPos.set(player.pos.x, player.pos.z);
+
+  // Descubrimiento de biomas
+  biomeTimer += dt;
+  if (biomeTimer >= 1.5 && playing && state) {
+    biomeTimer = 0;
+    const biome = world.biomeAt(player.pos.x, player.pos.z);
+    if (biome !== lastBiome) {
+      lastBiome = biome;
+      if (!state.stats.biomesDiscovered[biome]) {
+        events.emit("biomeDiscovered", { biome });
+      }
+    }
   }
 
   world.update(player.pos.x, player.pos.z, 2);
@@ -610,4 +643,8 @@ window.__vm = {
   creatureInSight,
   startBattle,
   setDayTime(v) { dayTime = ((v % 1) + 1) % 1; },
+  events,
+  progression,
+  stats,
+  addMoney,
 };

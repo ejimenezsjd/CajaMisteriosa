@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { SPECIES, FAMILY_STARTERS, createMonster } from "./data.js";
 import { buildCreatureModel, animateModel } from "./models.js";
 import { WATER_Y } from "./world.js";
+import { events } from "./events.js";
 
 function makeLabel(text, color = "#ffffff") {
   const canvas = document.createElement("canvas");
@@ -167,6 +168,7 @@ export class Spawner {
       const level = Math.max(1, Math.min(15,
         1 + Math.floor(distOrigin / 55) + Math.floor(Math.random() * 3) + (SPECIES[id].stage - 1) * 2));
       this.creatures.push(new WildCreature(this.scene, id, level, x, z, this.world));
+      events.emit("creatureSpawned", { speciesId: id, level });
     }
   }
 
