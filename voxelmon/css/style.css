@@ -539,6 +539,24 @@ html, body {
   margin-bottom: 14px;
 }
 
+/* ---------- Fase 4: banner de combate contra entrenador ---------- */
+
+#battle-trainer {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(12, 15, 26, 0.88);
+  border: 1px solid var(--panel-border);
+  border-left: 3px solid #ff7a5a;
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #ffd0c0;
+  white-space: nowrap;
+}
+
 /* ---------- Fase 3: tracker de misiones ---------- */
 
 #quest-tracker {

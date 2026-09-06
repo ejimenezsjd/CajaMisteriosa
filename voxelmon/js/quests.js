@@ -78,11 +78,50 @@ export const QUESTS = {
       { type: "discoverStructure", structureType: "ruin", amount: 1, label: "Descubre unas ruinas" },
     ],
     rewards: { money: 80, badge: "explorador", unlock: "intro_questline_completed" },
+    next: "quest_first_challenge",
+  },
+
+  // ---------- Fase 4: camino del entrenador ----------
+
+  quest_first_challenge: {
+    id: "quest_first_challenge",
+    title: "Primer desafío",
+    description: "Alba te habló de Milo, un joven entrenador que busca rival junto al huerto del asentamiento.",
+    // Se acepta hablando con Alba tras completar la cadena introductoria
+    objectives: [
+      { type: "defeatTrainer", trainerId: "trainer_milo", amount: 1, label: "Derrota a Milo, el novato" },
+    ],
+    rewards: { money: 60 },
+    next: "quest_trainer_road",
+  },
+  quest_trainer_road: {
+    id: "quest_trainer_road",
+    title: "Camino del entrenador",
+    description: "Vera, la exploradora, entrena en el camino al este del asentamiento. Su equipo tiene dos criaturas.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "defeatTrainer", trainerId: "trainer_vera", amount: 1, label: "Derrota a Vera, la exploradora" },
+    ],
+    rewards: { money: 90, balls: 3 },
+    next: "quest_final_test",
+  },
+  quest_final_test: {
+    id: "quest_final_test",
+    title: "Prueba final",
+    description: "Ross, el guardabosques, decide quién está listo para el gimnasio. Vive en las colinas del noreste con tres criaturas.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "defeatTrainer", trainerId: "trainer_ross", amount: 1, label: "Derrota a Ross, el guardabosques" },
+    ],
+    rewards: { money: 150, unlock: "gym_path_unlocked" },
   },
 };
 
 /** Orden de la cadena (para el tracker y el panel de misiones) */
-export const QUEST_ORDER = ["quest_welcome", "quest_apricorns", "quest_trade", "quest_capture", "quest_explorer"];
+export const QUEST_ORDER = [
+  "quest_welcome", "quest_apricorns", "quest_trade", "quest_capture", "quest_explorer",
+  "quest_first_challenge", "quest_trainer_road", "quest_final_test",
+];
 
 /** eventName → [tipo de objetivo, función de filtro, cantidad del payload] */
 const EVENT_OBJECTIVES = {
@@ -93,6 +132,9 @@ const EVENT_OBJECTIVES = {
   npcTalked: ["talkToNPC", (o, p) => !o.role || o.role === p.role, () => 1],
   tradeCompleted: ["trade", (o, p) => !o.traderId || o.traderId === p.traderId, () => 1],
   blockMined: ["mineBlock", (o, p) => !o.block || o.block === p.block, () => 1],
+  trainerDefeated: ["defeatTrainer",
+    (o, p) => (!o.trainerId || o.trainerId === p.trainerId) && (!o.trainerClass || o.trainerClass === p.trainerClass),
+    () => 1],
 };
 
 class QuestSystem {
@@ -114,6 +156,16 @@ class QuestSystem {
         this.makeAvailable(id);
         this.start(id, { silent: false });
       }
+    }
+    // Reconciliación de cadena: si una quest completada tiene `next` que aún
+    // no está en ninguna lista (p. ej. saves previos a una fase nueva), se
+    // desbloquea ahora. Mantiene las cadenas vivas entre versiones.
+    for (const id of QUEST_ORDER) {
+      const def = QUESTS[id];
+      if (!def.next || !this.isCompleted(id)) continue;
+      if (this.isCompleted(def.next) || this.isActive(def.next) || this.q.available[def.next]) continue;
+      this.makeAvailable(def.next);
+      if (QUESTS[def.next].startOnAvailable) this.start(def.next);
     }
   }
 

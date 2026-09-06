@@ -19,6 +19,7 @@ import { buildNpcModel } from "./models.js";
 import { npcAnchorsFor } from "./structures.js";
 import { dialogue } from "./dialogue.js";
 import { events } from "./events.js";
+import { TRAINERS, trainerAnchorsFor, trainers } from "./trainers.js";
 
 /** Definiciones data-driven de los NPC por rol */
 export const NPC_DEFS = {
@@ -73,6 +74,8 @@ class NPCSystem {
     for (const s of this.world.structures.near(px, pz, ACTIVATION_RADIUS)) {
       if (s.type !== "settlement") continue;
       for (const a of npcAnchorsFor(s)) wanted.set(a.id, a);
+      // Entrenadores anclados de forma determinista al asentamiento (Fase 4)
+      for (const a of trainerAnchorsFor(s)) wanted.set(a.id, a);
     }
     for (const id of [...this.active.keys()]) {
       if (!wanted.has(id)) this.despawn(id);
@@ -83,7 +86,7 @@ class NPCSystem {
   }
 
   spawn(anchor) {
-    const def = NPC_DEFS[anchor.role];
+    const def = anchor.trainerId ? TRAINERS[anchor.trainerId] : NPC_DEFS[anchor.role];
     if (!def) return;
     const group = buildNpcModel(def);
     const y = this.world.surfaceY(anchor.x, anchor.z) + 1;
@@ -98,6 +101,7 @@ class NPCSystem {
       id: anchor.id,
       role: anchor.role,
       def,
+      trainerId: anchor.trainerId ?? null,
       structureId: anchor.structureId,
       group,
       baseY: y,
@@ -112,7 +116,7 @@ class NPCSystem {
       y: y + 1,
       z: group.position.z,
       range: 3.5,
-      prompt: `Hablar con ${def.name}`,
+      prompt: anchor.trainerId ? `Hablar con ${def.name} (entrenador)` : `Hablar con ${def.name}`,
       data: npc,
       onInteract: () => this.talk(npc),
     });
@@ -141,7 +145,12 @@ class NPCSystem {
       name: npc.def.name,
       structureId: npc.structureId,
     });
-    dialogue.start(npc.def.dialogueId, { npc });
+    // Entrenadores derrotados (no repetibles) muestran su diálogo alternativo
+    let dialogueId = npc.def.dialogueId;
+    if (npc.trainerId && trainers.isDefeated(npc.trainerId) && !npc.def.repeatable) {
+      dialogueId = npc.def.dialogueDefeatedId ?? dialogueId;
+    }
+    dialogue.start(dialogueId, { npc });
   }
 
   /** Animación ligera por frame: solo sobre los pocos NPC activos */
@@ -168,6 +177,7 @@ class NPCSystem {
       id: n.id,
       role: n.role,
       name: n.def.name,
+      trainerId: n.trainerId,
       x: n.group.position.x,
       y: n.group.position.y,
       z: n.group.position.z,

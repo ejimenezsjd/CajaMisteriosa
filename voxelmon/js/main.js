@@ -10,7 +10,8 @@ import { RESOURCES, resourceForBlock } from "./resources.js";
 import { STRUCTURE_TYPES } from "./structures.js";
 import { Player } from "./player.js";
 import { Spawner } from "./creatures.js";
-import { Battle } from "./battle.js";
+import { Battle, TrainerOpponent } from "./battle.js";
+import { TRAINERS, trainers } from "./trainers.js";
 import { UI } from "./ui.js";
 import { FAMILY_STARTERS, PERKS, activePerks, familyOf, createMonster } from "./data.js";
 import { sfx, toggleMute } from "./audio.js";
@@ -126,8 +127,19 @@ events.on("questCompleted", ({ title }) => {
 events.on("tradeCompleted", () => {
   progression.unlock("first_trade_completed");
 });
+events.on("trainerDefeated", ({ trainerId, rewardMoney }) => {
+  const def = TRAINERS[trainerId];
+  ui.toast(`🎖 ¡Has derrotado a ${def?.name ?? trainerId}! +${rewardMoney} ⌾`, "good");
+});
+events.on("progressUnlocked", ({ id }) => {
+  if (id === "gym_path_unlocked") {
+    ui.toast("🏆 Has demostrado que estás listo para buscar el primer gimnasio.", "legendary");
+  }
+});
 
 // ---------- Diálogos: acciones controladas, condiciones y modo de juego ----------
+
+trainers.setRewardHandler((money) => addMoney(money));
 
 quests.setRewardHandler((rewards) => {
   if (rewards.money) addMoney(rewards.money);
@@ -166,6 +178,16 @@ dialogue.registerAction("heal", (a, ctx) => {
   sfx.heal();
   events.emit("partyHealed", { source: "healer", structureId: ctx?.npc?.structureId });
   ui.refreshHud();
+});
+dialogue.registerAction("startTrainerBattle", (a, ctx) => {
+  const check = trainers.canBattle(a.trainerId);
+  if (!check.ok) {
+    ui.toast(check.reason, "bad");
+    return false; // el diálogo no avanza
+  }
+  const npc = ctx?.npc ?? null;
+  // La batalla arranca tras cerrarse el diálogo (la opción lleva end: true)
+  setTimeout(() => startTrainerBattle(a.trainerId, npc), 60);
 });
 
 dialogue.onOpen = () => {
@@ -220,6 +242,7 @@ async function startWorld(saved) {
   interaction.clear();
   npcs.init(scene, world, interaction);
   quests.attach(state);
+  trainers.attach(state);
   // El bioma inicial cuenta como descubierto (sin toast en la carga)
   state.stats.biomesDiscovered[world.biomeAt(px, pz)] = true;
   lastBiome = world.biomeAt(px, pz);
@@ -538,7 +561,7 @@ async function startBattle(wild) {
   mode = "battle";
   document.exitPointerLock();
   ui.setTargetPrompt(null);
-  const wildInfo = { speciesId: wild.monster.speciesId, level: wild.monster.level };
+  const wildInfo = { speciesId: wild.monster.speciesId, level: wild.monster.level, type: "wild" };
   if (!state.dex.seen[wildInfo.speciesId]) events.emit("creatureSeen", wildInfo);
   state.dex.seen[wildInfo.speciesId] = true;
   events.emit("battleStarted", wildInfo);
@@ -597,6 +620,74 @@ async function startBattle(wild) {
     ui.toast("Todo tu equipo cayó… Despiertas en el punto de origen, recuperado.", "bad");
   } else if (result === "fled") {
     events.emit("battleFled", wildInfo);
+  }
+
+  ui.refreshHud();
+  saveGame();
+  mode = "play";
+  ui.setTargetPrompt("Haz clic para tomar el control");
+}
+
+/**
+ * Combate contra entrenador (Fase 4): reutiliza Battle con un
+ * TrainerOpponent y contexto de equipo rival. La recompensa pasa
+ * exclusivamente por trainers.resolveVictory (idempotente).
+ */
+async function startTrainerBattle(trainerId, npc = null) {
+  if (mode !== "play" || battle) return;
+  const check = trainers.canBattle(trainerId);
+  if (!check.ok) {
+    ui.toast(check.reason, "bad");
+    return;
+  }
+  const def = TRAINERS[trainerId];
+  mode = "battle";
+  document.exitPointerLock();
+  ui.setTargetPrompt(null);
+
+  const teamMonsters = def.team.map((t) => createMonster(t.speciesId, t.level));
+
+  // El oponente aparece entre el entrenador y el jugador (o frente al
+  // jugador si el combate se lanzó por debug sin NPC cercano)
+  let ox, oz;
+  if (npc?.group) {
+    const nx = npc.group.position.x;
+    const nz = npc.group.position.z;
+    let dx = player.pos.x - nx;
+    let dz = player.pos.z - nz;
+    const len = Math.hypot(dx, dz);
+    if (len < 0.01) { dx = 0; dz = 1; } else { dx /= len; dz /= len; }
+    ox = nx + dx * 2.5;
+    oz = nz + dz * 2.5;
+  } else {
+    const look = player.lookDir();
+    ox = player.pos.x + look.x * 5;
+    oz = player.pos.z + look.z * 5;
+  }
+  const opponent = new TrainerOpponent(scene, world, teamMonsters[0], ox, oz);
+
+  events.emit("trainerBattleStarted", { trainerId });
+  events.emit("battleStarted", {
+    type: "trainer", trainerId, speciesId: teamMonsters[0].speciesId, level: teamMonsters[0].level,
+  });
+
+  battle = new Battle({
+    scene, camera, world, player, wild: opponent, team: state.team, state, ui,
+    ctx: { type: "trainer", trainer: def, queue: teamMonsters.slice(1) },
+  });
+  const result = await battle.run();
+  battle = null;
+  opponent.dispose();
+
+  if (result === "win") {
+    const reward = trainers.resolveVictory(trainerId); // emite trainerDefeated + paga una sola vez
+    events.emit("battleWon", { type: "trainer", trainerId });
+    if (!reward) ui.toast(`Buen combate de entrenamiento contra ${def.name}.`, "good");
+  } else if (result === "lost") {
+    events.emit("trainerBattleLost", { trainerId });
+    events.emit("battleLost", { type: "trainer", trainerId });
+    for (const m of state.team) m.hp = m.maxHp;
+    ui.toast(`Perdiste contra ${def.name}… Tu equipo se recupera. ¡Vuelve a intentarlo!`, "bad");
   }
 
   ui.refreshHud();
@@ -838,6 +929,7 @@ window.__vm = {
   npcSystem: npcs,
   dialogueSystem: dialogue,
   interactionSystem: interaction,
+  trainerSystem: trainers,
   /** Herramientas de inspección del mundo vivo (Fase 2) */
   debug: {
     pos() {
@@ -918,5 +1010,29 @@ window.__vm = {
     },
     /** [debug] ejecuta un intercambio directamente (sin diálogo) */
     trade(id = "apricorn_balls") { return executeTrade(state, id); },
+    /** Entrenadores: activos en el mundo y derrotados (Fase 4) */
+    trainers() {
+      return {
+        defs: Object.keys(TRAINERS),
+        active: npcs.list().filter((n) => n.trainerId),
+        defeated: trainers.defeatedList(),
+      };
+    },
+    /** Contexto de la batalla en curso (null si no hay) */
+    battleContext() {
+      if (!battle) return null;
+      return {
+        type: battle.ctx.type,
+        trainerId: battle.trainer?.id ?? null,
+        enemy: { speciesId: battle.enemy.speciesId, level: battle.enemy.level, hp: battle.enemy.hp },
+        queueLeft: battle.ctx.queue?.length ?? 0,
+      };
+    },
+    /** [debug] lanza un combate contra un entrenador por id */
+    startTrainerBattle(id) {
+      const npc = npcs.list().find((n) => n.trainerId === id);
+      const inst = npc ? npcs.active.get(npc.id) : null;
+      startTrainerBattle(id, inst ?? null);
+    },
   },
 };

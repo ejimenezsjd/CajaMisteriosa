@@ -224,6 +224,24 @@ export function buildNpcModel(def) {
       box(g, 0.5, 0.16, 0.5, 0, 1.9, 0.02, outfit);
       box(g, 0.12, 0.12, 0.05, 0, 1.14, -0.19, accent, { emissive: accent, emissiveIntensity: 0.9 });
       break;
+    case "trainer": // identidad visual por clase (Fase 4)
+      switch (def.trainerClass) {
+        case "rookie": // gorra con visera
+          box(g, 0.48, 0.12, 0.48, 0, 1.92, 0, accent);
+          box(g, 0.4, 0.05, 0.26, 0, 1.88, -0.32, accent);
+          break;
+        case "explorer": // mochila y pañuelo
+          box(g, 0.44, 0.5, 0.2, 0, 1.1, 0.3, accent);
+          box(g, 0.46, 0.12, 0.46, 0, 1.42, 0, "#e0e6ec");
+          break;
+        case "ranger": // sombrero ancho y emblema
+        case "ace":
+          box(g, 0.68, 0.06, 0.68, 0, 1.9, 0, outfit);
+          box(g, 0.36, 0.16, 0.36, 0, 1.98, 0, outfit);
+          box(g, 0.14, 0.14, 0.05, 0, 1.2, -0.19, accent, { emissive: accent, emissiveIntensity: 0.8 });
+          break;
+      }
+      break;
   }
 
   g.userData = { height: 2.0, role: def.role };

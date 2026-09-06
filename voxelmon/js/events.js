@@ -10,10 +10,13 @@
  *  - creatureDefeated{ speciesId, level }
  *  - creatureCaptured{ speciesId, level }
  *  - creatureEvolved { speciesId }
- *  - battleStarted   { speciesId, level }
- *  - battleWon       { speciesId, level }
- *  - battleLost      { speciesId, level }
+ *  - battleStarted   { speciesId, level, type: "wild" } | { type: "trainer", trainerId, speciesId, level }
+ *  - battleWon       { speciesId, level, type: "wild" } | { type: "trainer", trainerId }
+ *  - battleLost      { speciesId, level, type: "wild" } | { type: "trainer", trainerId }
  *  - battleFled      { speciesId, level }
+ *  - trainerBattleStarted { trainerId }
+ *  - trainerDefeated { trainerId, trainerClass, rewardMoney }
+ *  - trainerBattleLost   { trainerId }
  *  - biomeDiscovered { biome, biomeId, biomeName, x, z }
  *  - structureDiscovered { structureId, structureType, biomeId, x, y, z }
  *  - resourceCollected   { resourceId, amount, source, biomeId, x, y, z }
@@ -27,8 +30,7 @@
  *  - progressUnlocked{ id }
  *  - flagSet         { id }
  *  - badgeEarned     { id }
- * (futuros: itemCrafted, itemCollected, trainerDefeated, gymEntered,
- *  regionUnlocked)
+ * (futuros: itemCrafted, itemCollected, gymEntered, regionUnlocked)
  */
 
 const handlers = new Map();

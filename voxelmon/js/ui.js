@@ -203,7 +203,8 @@ export class UI {
       <span>🏛 Estructuras: <b>${Object.keys(st.structuresDiscovered ?? {}).length}</b></span>
       <span>📜 Misiones: <b>${st.questsCompleted ?? 0}</b></span>
       <span>🤝 Tratos: <b>${st.tradesCompleted ?? 0}</b></span>
-      <span>💬 Charlas: <b>${st.npcsTalked ?? 0}</b></span>` +
+      <span>💬 Charlas: <b>${st.npcsTalked ?? 0}</b></span>
+      <span>🎖 Entrenadores: <b>${st.trainersDefeated ?? 0}</b></span>` +
       (resources ? `<span class="stats-wide">🎒 Recursos: ${resources}</span>` : "");
     box.classList.remove("hidden");
   }
@@ -319,6 +320,19 @@ export class UI {
   hideBattle() {
     this.hide(this.el.battle);
     this.el.battleActions.innerHTML = "";
+    this.setTrainerBanner(null);
+  }
+
+  /** Banner de combate contra entrenador ("Milo · Novato · 2 restantes") */
+  setTrainerBanner(text) {
+    const el = $("battle-trainer");
+    if (!el) return;
+    if (text) {
+      el.textContent = text;
+      el.classList.remove("hidden");
+    } else {
+      el.classList.add("hidden");
+    }
   }
 
   battleLog(msg) {
@@ -328,8 +342,8 @@ export class UI {
     while (this.el.battleLog.children.length > 4) this.el.battleLog.firstChild.remove();
   }
 
-  setBattleHp(ally, enemy) {
-    $("b-enemy-name").textContent = `${enemy.name} salvaje`;
+  setBattleHp(ally, enemy, enemyLabel = null) {
+    $("b-enemy-name").textContent = enemyLabel ?? `${enemy.name} salvaje`;
     $("b-enemy-level").textContent = `Nv ${enemy.level}`;
     $("b-enemy-hp").style.width = `${(enemy.hp / enemy.maxHp) * 100}%`;
     $("b-enemy-hp").classList.toggle("low", enemy.hp / enemy.maxHp < 0.25);
@@ -356,10 +370,16 @@ export class UI {
           b.addEventListener("click", () => { sfx.select(); fn(); });
           actions.appendChild(b);
         };
+        const isTrainer = battle.ctx?.type === "trainer";
         mk("⚔ Atacar", "attack", movesMenu);
-        mk(`▣ Cubo <small>×${battle.state.balls}</small>`, "ball", () => { actions.innerHTML = ""; resolve({ kind: "ball" }); });
+        mk(
+          isTrainer ? "▣ Cubo <small>bloqueado</small>" : `▣ Cubo <small>×${battle.state.balls}</small>`,
+          "ball",
+          () => { actions.innerHTML = ""; resolve({ kind: "ball" }); },
+          isTrainer // no se captura a criaturas de otro entrenador
+        );
         mk("⇄ Cambiar", "switch", switchMenu, battle.team.filter((m) => m.hp > 0).length <= 1);
-        mk("✕ Huir", "flee", () => { actions.innerHTML = ""; resolve({ kind: "flee" }); });
+        mk("✕ Huir", "flee", () => { actions.innerHTML = ""; resolve({ kind: "flee" }); }, isTrainer);
       };
 
       const movesMenu = () => {

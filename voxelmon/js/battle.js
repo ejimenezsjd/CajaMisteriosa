@@ -6,7 +6,61 @@
 import * as THREE from "three";
 import { SPECIES, movesFor, typeMultiplier, gainXp, activePerks } from "./data.js";
 import { buildCreatureModel, buildCubeBall, animateModel } from "./models.js";
+import { makeLabel } from "./creatures.js";
+import { TRAINER_CLASSES } from "./trainers.js";
 import { sfx } from "./audio.js";
+
+/**
+ * Adaptador de oponente para combates contra entrenadores (Fase 4): imita
+ * la interfaz de WildCreature que Battle necesita (monster, pos, group,
+ * label, yaw, syncTransform, inBattle) pero gestiona su propio modelo en
+ * escena y permite cambiar de criatura cuando cae una del equipo rival.
+ */
+export class TrainerOpponent {
+  constructor(scene, world, monster, x, z) {
+    this.scene = scene;
+    this.world = world;
+    this.inBattle = false;
+    this.yaw = 0;
+    this.pos = new THREE.Vector3(x, world.surfaceY(x, z) + 1, z);
+    this.group = null;
+    this.label = { visible: false }; // sustituido por el sprite real en setMonster
+    this.setMonster(monster);
+  }
+
+  setMonster(monster) {
+    if (this.group) this.disposeModel();
+    this.monster = monster;
+    this.group = buildCreatureModel(monster.speciesId);
+    this.label = makeLabel(`${monster.name} Nv ${monster.level}`, "#ffb0a0");
+    this.label.position.y = this.group.userData.height + 0.4;
+    this.label.visible = false;
+    this.group.add(this.label);
+    this.scene.add(this.group);
+    this.syncTransform();
+  }
+
+  syncTransform() {
+    this.group.position.copy(this.pos);
+    this.group.rotation.y = this.yaw;
+  }
+
+  disposeModel() {
+    this.scene.remove(this.group);
+    this.group.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) {
+        if (o.material.map) o.material.map.dispose();
+        o.material.dispose();
+      }
+    });
+    this.group = null;
+  }
+
+  dispose() {
+    if (this.group) this.disposeModel();
+  }
+}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const nextFrame = () => new Promise((r) => requestAnimationFrame(r));
@@ -25,17 +79,39 @@ const easeOut = (k) => 1 - (1 - k) * (1 - k);
 
 export class Battle {
   /**
-   * @param {object} o {scene, camera, world, player, wild, team, state, ui}
+   * @param {object} o {scene, camera, world, player, wild, team, state, ui, ctx?}
    * state: {balls} — se decrementa al lanzar cubos
+   * ctx (Fase 4): { type: "wild" } (por defecto) o
+   *   { type: "trainer", trainer: defDeTRAINERS, queue: [monstruos restantes] }
+   *   En trainer, `wild` es un TrainerOpponent con la primera criatura.
    */
   constructor(o) {
     Object.assign(this, o);
+    this.ctx = o.ctx ?? { type: "wild" };
+    this.trainer = this.ctx.type === "trainer" ? this.ctx.trainer : null;
     this.active = this.team.find((m) => m.hp > 0);
     this.enemy = this.wild.monster;
     this.allyModel = null;
     this.done = false;
     this.camT = 0;
     this.perks = activePerks(this.state.dex?.caught ?? {});
+  }
+
+  get isTrainerBattle() {
+    return this.ctx.type === "trainer";
+  }
+
+  /** Nombre del rival para el log y la barra de vida */
+  enemyTag() {
+    return this.trainer ? `${this.enemy.name} de ${this.trainer.name}` : `${this.enemy.name} salvaje`;
+  }
+
+  /** Banner "Milo · Novato · 2 criaturas restantes" durante trainer battle */
+  refreshTrainerBanner() {
+    if (!this.trainer) return;
+    const cls = TRAINER_CLASSES[this.trainer.trainerClass]?.name ?? this.trainer.trainerClass;
+    const left = 1 + this.ctx.queue.length;
+    this.ui.setTrainerBanner(`⚔ ${this.trainer.name} · ${cls} · ${left} criatura${left === 1 ? "" : "s"} restante${left === 1 ? "" : "s"}`);
   }
 
   setupArena() {
@@ -129,7 +205,7 @@ export class Battle {
     if (mult >= 1.5) { sfx.superHit(); this.ui.battleLog("¡Es súper eficaz!"); }
     else if (mult <= 0.5) { sfx.weakHit(); this.ui.battleLog("No es muy eficaz…"); }
     else sfx.hit();
-    this.ui.setBattleHp(this.active, this.enemy);
+    this.ui.setBattleHp(this.active, this.enemy, this.enemyTag());
     await sleep(420);
   }
 
@@ -149,7 +225,7 @@ export class Battle {
   async enemyTurn() {
     if (this.enemy.hp <= 0) return;
     const mv = this.enemyPickMove();
-    await this.doMove(this.enemy, this.active, mv, this.wild.group, this.allyModel, `${this.enemy.name} salvaje`);
+    await this.doMove(this.enemy, this.active, mv, this.wild.group, this.allyModel, this.enemyTag());
     if (this.active.hp <= 0) {
       sfx.faint();
       this.ui.battleLog(`¡${this.active.name} se debilitó!`);
@@ -160,12 +236,18 @@ export class Battle {
       this.active = next;
       this.ui.battleLog(`¡Adelante, ${next.name}!`);
       this.spawnAllyModel();
-      this.ui.setBattleHp(this.active, this.enemy);
+      this.ui.setBattleHp(this.active, this.enemy, this.enemyTag());
       await sleep(500);
     }
   }
 
   async tryCatch() {
+    if (this.isTrainerBattle) {
+      // Inalcanzable con el botón deshabilitado; red de seguridad
+      this.ui.battleLog("No puedes capturar criaturas de otro entrenador.");
+      await sleep(600);
+      return null;
+    }
     if (this.state.balls <= 0) {
       this.ui.battleLog("¡No te quedan cubos! Consíguelos ganando combates.");
       await sleep(700);
@@ -245,7 +327,7 @@ export class Battle {
         this.ui.onEvolve?.(this.active);
         await sleep(700);
       }
-      this.ui.setBattleHp(this.active, this.enemy);
+      this.ui.setBattleHp(this.active, this.enemy, this.enemyTag());
     }
   }
 
@@ -254,16 +336,30 @@ export class Battle {
     this.setupArena();
     sfx.battleStart();
     this.ui.showBattle(this.active, this.enemy);
-    const spName = SPECIES[this.enemy.speciesId];
-    this.ui.battleLog(spName.legendary
-      ? `⚡ ¡El legendario ${this.enemy.name} bloquea tu camino!`
-      : `¡Un ${this.enemy.name} salvaje (Nv ${this.enemy.level}) apareció!`);
+    this.ui.setBattleHp(this.active, this.enemy, this.enemyTag());
+    if (this.isTrainerBattle) {
+      this.refreshTrainerBanner();
+      const cls = TRAINER_CLASSES[this.trainer.trainerClass]?.name ?? "";
+      this.ui.battleLog(`⚔ ¡${this.trainer.name} (${cls}) te desafía con ${this.enemy.name} (Nv ${this.enemy.level})!`);
+      this.ui.battleLog("En un desafío de entrenador no puedes capturar ni huir.");
+    } else {
+      const spName = SPECIES[this.enemy.speciesId];
+      this.ui.battleLog(spName.legendary
+        ? `⚡ ¡El legendario ${this.enemy.name} bloquea tu camino!`
+        : `¡Un ${this.enemy.name} salvaje (Nv ${this.enemy.level}) apareció!`);
+    }
     await sleep(800);
 
     while (true) {
       const action = await this.ui.promptBattleAction(this);
 
       if (action.kind === "flee") {
+        if (this.isTrainerBattle) {
+          // Inalcanzable con el botón deshabilitado; red de seguridad
+          this.ui.battleLog("¡No puedes huir de un desafío de entrenador!");
+          await sleep(600);
+          continue;
+        }
         const chance = Math.min(0.95, Math.max(0.3, 0.55 + (this.active.spd - this.enemy.spd) * 0.03));
         if (Math.random() < chance) {
           sfx.escape();
@@ -282,7 +378,7 @@ export class Battle {
         this.active = action.monster;
         this.ui.battleLog(`¡Adelante, ${this.active.name}!`);
         this.spawnAllyModel();
-        this.ui.setBattleHp(this.active, this.enemy);
+        this.ui.setBattleHp(this.active, this.enemy, this.enemyTag());
         await sleep(450);
         await this.enemyTurn();
         if (this.teamWiped()) return this.finish("lost");
@@ -303,21 +399,38 @@ export class Battle {
       const move = action.move;
       const allyFirst = this.active.spd >= this.enemy.spd;
       const acts = allyFirst ? ["ally", "enemy"] : ["enemy", "ally"];
+      let enemySwapped = false;
       for (const who of acts) {
         if (who === "ally") {
           if (this.active.hp <= 0) continue;
           await this.doMove(this.active, this.enemy, move, this.allyModel, this.wild.group, this.active.name);
           if (this.enemy.hp <= 0) {
             sfx.faint();
-            this.ui.battleLog(`¡El ${this.enemy.name} salvaje se debilitó!`);
+            this.ui.battleLog(`¡${this.enemyTag()} se debilitó!`);
             await animate(450, (k) => {
               this.wild.group.scale.setScalar(Math.max(0.01, this.wild.group.scale.x * (1 - k * 0.2)));
               this.wild.group.position.y -= k * 0.02;
               this.wild.group.rotation.z = k * 1.3;
             });
-            this.state.balls += 2;
-            this.ui.battleLog("Recuperaste 2 cubos del combate.");
             await this.grantXp();
+
+            // Trainer battle: entra la siguiente criatura del equipo rival
+            if (this.isTrainerBattle && this.ctx.queue.length > 0) {
+              const next = this.ctx.queue.shift();
+              this.enemy = next;
+              this.wild.setMonster(next);
+              this.refreshTrainerBanner();
+              this.ui.battleLog(`¡${this.trainer.name} saca a ${next.name} (Nv ${next.level})!`);
+              this.ui.setBattleHp(this.active, this.enemy, this.enemyTag());
+              await sleep(700);
+              enemySwapped = true;
+              break; // vuelve al menú de acciones con el nuevo rival
+            }
+
+            if (!this.isTrainerBattle) {
+              this.state.balls += 2;
+              this.ui.battleLog("Recuperaste 2 cubos del combate.");
+            }
             await sleep(600);
             return this.finish("win");
           }
@@ -327,6 +440,7 @@ export class Battle {
           if (this.active.hp <= 0) break; // ya cambió en enemyTurn
         }
       }
+      if (enemySwapped) continue;
     }
   }
 
@@ -342,6 +456,7 @@ export class Battle {
     }
     this.wild.inBattle = false;
     this.wild.label.visible = true;
+    this.ui.setTrainerBanner(null);
     this.ui.hideBattle();
     return result;
   }

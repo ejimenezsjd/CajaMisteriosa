@@ -27,6 +27,11 @@ export const DIALOGUES = {
         options: [
           { text: "¿Qué es este lugar?", next: "about" },
           {
+            text: "¿Algún desafío nuevo?",
+            next: "trainer_intro",
+            when: { questAvailable: "quest_first_challenge" },
+          },
+          {
             text: "¿Tienes trabajo para mí?",
             next: "quest_offer",
             when: { questAvailable: "quest_apricorns" },
@@ -73,6 +78,21 @@ export const DIALOGUES = {
         text: "Lleva tus apricornos a Bruno, el comerciante: te los cambiará por cubos de captura. Después, ¡sal ahí fuera y hazte con un buen equipo!",
         options: [{ text: "Gracias, Alba.", end: true }],
       },
+      trainer_intro: {
+        text: "Milo, un joven entrenador, anda buscando rival junto al huerto. Si de verdad quieres crecer, empieza por vencerle a él… y a los que vengan después. Dicen que quien derrota a Ross, el guardabosques, está listo para el gimnasio.",
+        options: [
+          {
+            text: "Lo desafiaré.",
+            actions: [{ type: "startQuest", questId: "quest_first_challenge" }],
+            next: "trainer_luck",
+          },
+          { text: "Quizá más tarde.", end: true },
+        ],
+      },
+      trainer_luck: {
+        text: "¡Esa es la actitud! Cura a tu equipo con Sena o en un santuario antes de cada combate. ¡Suerte!",
+        options: [{ text: "¡A por ello!", end: true }],
+      },
     },
   },
 
@@ -105,6 +125,86 @@ export const DIALOGUES = {
       about: {
         text: "Bruno, artesano y comerciante. Tallo cubos de captura con lo que me traen los viajeros. Algún día montaré una tienda de verdad…",
         options: [{ text: "Volvamos al negocio.", next: "start" }],
+      },
+    },
+  },
+
+  // ---------- Entrenadores (Fase 4) ----------
+
+  trainer_milo: {
+    npcName: "Milo",
+    nodes: {
+      start: {
+        text: "¡Eh, tú! Yo también entreno criaturas. Aún soy novato, pero no pienso ponértelo fácil. ¿Combatimos?",
+        options: [
+          {
+            text: "¡Acepto el desafío!",
+            actions: [{ type: "startTrainerBattle", trainerId: "trainer_milo" }],
+            end: true,
+          },
+          { text: "Ahora no.", end: true },
+        ],
+      },
+    },
+  },
+  trainer_milo_done: {
+    npcName: "Milo",
+    nodes: {
+      start: {
+        text: "Buen combate… me diste una lección. Seguiré entrenando junto al huerto. ¡Vera te espera en el camino del este!",
+        options: [{ text: "¡Sigue así, Milo!", end: true }],
+      },
+    },
+  },
+
+  trainer_vera: {
+    npcName: "Vera",
+    nodes: {
+      start: {
+        text: "Soy Vera, exploro estas tierras con mi equipo. Pocos viajeros aguantan mis dos criaturas. ¿Te atreves?",
+        options: [
+          {
+            text: "¡Adelante!",
+            actions: [{ type: "startTrainerBattle", trainerId: "trainer_vera" }],
+            end: true,
+          },
+          { text: "Mejor en otro momento.", end: true },
+        ],
+      },
+    },
+  },
+  trainer_vera_done: {
+    npcName: "Vera",
+    nodes: {
+      start: {
+        text: "Vaya combate… ¡mereció la pena! Si buscas un reto de verdad, Ross vigila las colinas del noreste. Nadie le ha ganado todavía.",
+        options: [{ text: "Iré a por él.", end: true }],
+      },
+    },
+  },
+
+  trainer_ross: {
+    npcName: "Ross",
+    nodes: {
+      start: {
+        text: "Soy Ross, guardabosques. Mi deber es comprobar quién está listo para el gimnasio… y hasta hoy nadie lo ha estado. Tres criaturas me acompañan. ¿Aceptas la prueba?",
+        options: [
+          {
+            text: "Estoy listo. ¡Vamos!",
+            actions: [{ type: "startTrainerBattle", trainerId: "trainer_ross" }],
+            end: true,
+          },
+          { text: "Todavía no.", end: true },
+        ],
+      },
+    },
+  },
+  trainer_ross_done: {
+    npcName: "Ross",
+    nodes: {
+      start: {
+        text: "Impresionante. Has demostrado que estás listo para buscar el primer gimnasio. Cuando exista un camino, tú serás quien lo recorra primero.",
+        options: [{ text: "Gracias, Ross.", end: true }],
       },
     },
   },
