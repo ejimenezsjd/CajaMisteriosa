@@ -598,10 +598,13 @@ export class StructureIndex {
     for (const type in STRUCTURE_TYPES) {
       const def = STRUCTURE_TYPES[type];
       const r = def.radius;
-      const c0x = Math.floor((xMin - r) / def.cell);
-      const c1x = Math.floor((xMax + r) / def.cell);
-      const c0z = Math.floor((zMin - r) / def.cell);
-      const c1z = Math.floor((zMax + r) / def.cell);
+      // Gate/atalaya/puesto se indexan en la celda del gimnasio, pero su
+      // (x,z) real puede caer en la celda vecina (+52 / +100 / +155).
+      const pad = REGIONAL_TYPES.has(type) ? 1 : 0;
+      const c0x = Math.floor((xMin - r) / def.cell) - pad;
+      const c1x = Math.floor((xMax + r) / def.cell) + pad;
+      const c0z = Math.floor((zMin - r) / def.cell) - pad;
+      const c1z = Math.floor((zMax + r) / def.cell) + pad;
       for (let cz = c0z; cz <= c1z; cz++) {
         for (let cx = c0x; cx <= c1x; cx++) {
           const s = this.candidate(type, cx, cz);
