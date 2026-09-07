@@ -239,8 +239,16 @@ export function buildNpcModel(def) {
           box(g, 0.68, 0.06, 0.68, 0, 1.9, 0, outfit);
           box(g, 0.36, 0.16, 0.36, 0, 1.98, 0, outfit);
           box(g, 0.14, 0.14, 0.05, 0, 1.2, -0.19, accent, { emissive: accent, emissiveIntensity: 0.8 });
+          if (def.leader) { // corona de hojas del líder
+            box(g, 0.52, 0.08, 0.52, 0, 1.92, 0, "#3dba7a");
+            box(g, 0.1, 0.16, 0.1, 0, 2.08, -0.16, accent, { emissive: accent, emissiveIntensity: 1 });
+          }
           break;
       }
+      break;
+    case "gym_guide": // túnica verde y broche de hoja
+      box(g, 0.5, 0.16, 0.5, 0, 1.9, 0.02, outfit);
+      box(g, 0.14, 0.18, 0.05, 0, 1.2, -0.19, accent, { emissive: accent, emissiveIntensity: 0.7 });
       break;
   }
 

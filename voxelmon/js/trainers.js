@@ -75,12 +75,69 @@ export const TRAINERS = {
     anchorOffset: [62, 48],
     colors: { skin: "#c89060", outfit: "#4a5a30", accent: "#e0b840" },
   },
+
+  // ---------- Gimnasio Verde (Fase 5) ----------
+
+  gym_trainer_leaf_1: {
+    id: "gym_trainer_leaf_1",
+    name: "Nilo",
+    role: "trainer",
+    trainerClass: "ranger",
+    gymId: "gym_verdant",
+    dialogueId: "gym_trainer_nilo",
+    dialogueDefeatedId: "gym_trainer_nilo_done",
+    team: [
+      { speciesId: "semilla", level: 11 },
+      { speciesId: "gotita", level: 11 },
+    ],
+    rewardMoney: 160,
+    repeatable: false,
+    anchorOffset: [-5, 3],
+    colors: { skin: "#d4b07a", outfit: "#3d7a48", accent: "#a8e070" },
+  },
+  gym_trainer_leaf_2: {
+    id: "gym_trainer_leaf_2",
+    name: "Lira",
+    role: "trainer",
+    trainerClass: "ace",
+    gymId: "gym_verdant",
+    dialogueId: "gym_trainer_lira",
+    dialogueDefeatedId: "gym_trainer_lira_done",
+    team: [
+      { speciesId: "arbusto", level: 12 },
+      { speciesId: "plumin", level: 12 },
+      { speciesId: "lucier", level: 11 },
+    ],
+    rewardMoney: 200,
+    repeatable: false,
+    anchorOffset: [5, 3],
+    colors: { skin: "#e0c090", outfit: "#2a6a50", accent: "#f0e6a8" },
+  },
+  leader_iris: {
+    id: "leader_iris",
+    name: "Iris",
+    role: "trainer",
+    trainerClass: "ace",
+    gymId: "gym_verdant",
+    leader: true,
+    dialogueId: "gym_leader_iris",
+    dialogueDefeatedId: "gym_leader_iris_done",
+    team: [
+      { speciesId: "silvax", level: 13 },
+      { speciesId: "riazor", level: 12 },
+      { speciesId: "clarion", level: 13 },
+    ],
+    rewardMoney: 500,
+    repeatable: false,
+    anchorOffset: [3, -10],
+    colors: { skin: "#e8c49a", outfit: "#1e5a38", accent: "#7dffb0" },
+  },
 };
 
 /** Anchors deterministas de entrenadores asociados a un settlement */
 export function trainerAnchorsFor(s) {
   if (s.type !== "settlement") return [];
-  return Object.values(TRAINERS).map((t) => ({
+  return Object.values(TRAINERS).filter((t) => !t.gymId).map((t) => ({
     id: `${s.id}:${t.id}`,
     role: "trainer",
     trainerId: t.id,
@@ -136,6 +193,7 @@ class TrainerSystem {
       trainerId: id,
       trainerClass: def.trainerClass,
       rewardMoney: def.rewardMoney,
+      gymId: def.gymId ?? null,
     });
     return def.rewardMoney;
   }

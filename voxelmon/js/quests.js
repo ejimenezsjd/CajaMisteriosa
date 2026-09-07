@@ -114,6 +114,45 @@ export const QUESTS = {
       { type: "defeatTrainer", trainerId: "trainer_ross", amount: 1, label: "Derrota a Ross, el guardabosques" },
     ],
     rewards: { money: 150, unlock: "gym_path_unlocked" },
+    next: "quest_find_gym",
+  },
+
+  // ---------- Fase 5: gimnasio ----------
+
+  quest_find_gym: {
+    id: "quest_find_gym",
+    title: "El camino del gimnasio",
+    description: "Ross te consideró listo. Busca el Gimnasio Verde en las llanuras o el bosque.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "discoverStructure", structureType: "gym", amount: 1, label: "Descubre el Gimnasio Verde" },
+    ],
+    rewards: { money: 40 },
+    next: "quest_gym_trial",
+  },
+  quest_gym_trial: {
+    id: "quest_gym_trial",
+    title: "Supera la prueba",
+    description: "Dentro del gimnasio: derrota a Nilo y a Lira, y resuelve el puzzle de los pedestales.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "defeatTrainer", trainerId: "gym_trainer_leaf_1", amount: 1, label: "Derrota a Nilo" },
+      { type: "defeatTrainer", trainerId: "gym_trainer_leaf_2", amount: 1, label: "Derrota a Lira" },
+      { type: "solveGymPuzzle", gymId: "gym_verdant", amount: 1, label: "Resuelve el puzzle de los pedestales" },
+    ],
+    rewards: { money: 80 },
+    next: "quest_verdant_badge",
+  },
+  quest_verdant_badge: {
+    id: "quest_verdant_badge",
+    title: "Insignia Verde",
+    description: "La sala de Iris está abierta. Derrota a la líder para ganar la Insignia Verde.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "defeatTrainer", trainerId: "leader_iris", amount: 1, label: "Derrota a Iris, líder del gimnasio" },
+    ],
+    // La insignia y los unlocks los concede GymSystem.resolveLeaderVictory, no esta quest
+    rewards: { money: 50 },
   },
 };
 
@@ -121,6 +160,7 @@ export const QUESTS = {
 export const QUEST_ORDER = [
   "quest_welcome", "quest_apricorns", "quest_trade", "quest_capture", "quest_explorer",
   "quest_first_challenge", "quest_trainer_road", "quest_final_test",
+  "quest_find_gym", "quest_gym_trial", "quest_verdant_badge",
 ];
 
 /** eventName → [tipo de objetivo, función de filtro, cantidad del payload] */
@@ -135,6 +175,8 @@ const EVENT_OBJECTIVES = {
   trainerDefeated: ["defeatTrainer",
     (o, p) => (!o.trainerId || o.trainerId === p.trainerId) && (!o.trainerClass || o.trainerClass === p.trainerClass),
     () => 1],
+  gymPuzzleSolved: ["solveGymPuzzle", (o, p) => !o.gymId || o.gymId === p.gymId, () => 1],
+  badgeEarned: ["earnBadge", (o, p) => !o.badgeId || o.badgeId === p.id, () => 1],
 };
 
 class QuestSystem {

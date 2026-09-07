@@ -20,6 +20,7 @@ import { npcAnchorsFor } from "./structures.js";
 import { dialogue } from "./dialogue.js";
 import { events } from "./events.js";
 import { TRAINERS, trainerAnchorsFor, trainers } from "./trainers.js";
+import { gymAnchorsFor, gyms } from "./gyms.js";
 
 /** Definiciones data-driven de los NPC por rol */
 export const NPC_DEFS = {
@@ -42,6 +43,15 @@ export const NPC_DEFS = {
     name: "Sena",
     dialogueId: "healer_intro",
     colors: { skin: "#e8c49a", outfit: "#3dba7a", accent: "#aef0c8" },
+    quests: [],
+  },
+  gym_guide: {
+    role: "gym_guide",
+    name: "Orla",
+    dialogueId: "gym_guide_intro",
+    dialogueCompletedId: "gym_guide_done",
+    gymId: "gym_verdant",
+    colors: { skin: "#e8c49a", outfit: "#2d6a44", accent: "#c8f0a8" },
     quests: [],
   },
 };
@@ -72,10 +82,12 @@ class NPCSystem {
     if (!this.world) return;
     const wanted = new Map();
     for (const s of this.world.structures.near(px, pz, ACTIVATION_RADIUS)) {
-      if (s.type !== "settlement") continue;
-      for (const a of npcAnchorsFor(s)) wanted.set(a.id, a);
-      // Entrenadores anclados de forma determinista al asentamiento (Fase 4)
-      for (const a of trainerAnchorsFor(s)) wanted.set(a.id, a);
+      if (s.type === "settlement") {
+        for (const a of npcAnchorsFor(s)) wanted.set(a.id, a);
+        for (const a of trainerAnchorsFor(s)) wanted.set(a.id, a);
+      } else if (s.type === "gym") {
+        for (const a of gymAnchorsFor(s)) wanted.set(a.id, a);
+      }
     }
     for (const id of [...this.active.keys()]) {
       if (!wanted.has(id)) this.despawn(id);
@@ -89,7 +101,9 @@ class NPCSystem {
     const def = anchor.trainerId ? TRAINERS[anchor.trainerId] : NPC_DEFS[anchor.role];
     if (!def) return;
     const group = buildNpcModel(def);
-    const y = this.world.surfaceY(anchor.x, anchor.z) + 1;
+    // Los anchors de interior (gimnasio) traen y explícita: surfaceY
+    // devolvería el tejado y colocaría al NPC encima del edificio.
+    const y = anchor.y ?? (this.world.surfaceY(anchor.x, anchor.z) + 1);
     group.position.set(anchor.x + 0.5, y, anchor.z + 0.5);
 
     const label = makeLabel(def.name, "#ffe9b0");
@@ -145,10 +159,11 @@ class NPCSystem {
       name: npc.def.name,
       structureId: npc.structureId,
     });
-    // Entrenadores derrotados (no repetibles) muestran su diálogo alternativo
     let dialogueId = npc.def.dialogueId;
     if (npc.trainerId && trainers.isDefeated(npc.trainerId) && !npc.def.repeatable) {
       dialogueId = npc.def.dialogueDefeatedId ?? dialogueId;
+    } else if (npc.role === "gym_guide" && gyms.isCompleted(npc.def.gymId)) {
+      dialogueId = npc.def.dialogueCompletedId ?? dialogueId;
     }
     dialogue.start(dialogueId, { npc });
   }

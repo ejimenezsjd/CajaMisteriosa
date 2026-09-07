@@ -47,6 +47,10 @@ class StatsSystem {
     events.on("battleLost", (p) => {
       if (this.s && p?.type === "trainer") this.s.trainerBattlesLost += 1;
     });
+    events.on("gymCompleted", inc("gymsCompleted"));
+    events.on("trainerDefeated", (p) => {
+      if (this.s && p?.gymId) this.s.gymTrainersDefeated += 1;
+    });
   }
 
   /** Distancia horizontal recorrida; llamar desde el bucle con el delta del frame. */

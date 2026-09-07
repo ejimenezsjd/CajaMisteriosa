@@ -23,7 +23,7 @@ import { columnHash, mulberry32 } from "./noise.js";
 import { getBiomeDefinition } from "./biomes.js";
 import { WATER_Y } from "./world.js";
 
-const SALT = { camp: 11001, ruin: 22002, healing_shrine: 33003, settlement: 44004 };
+const SALT = { camp: 11001, ruin: 22002, healing_shrine: 33003, settlement: 44004, gym: 55005 };
 
 export const STRUCTURE_TYPES = {
   camp: {
@@ -74,6 +74,16 @@ export const STRUCTURE_TYPES = {
       { role: "merchant", local: [-4, 4] },   // frente al puesto del comerciante
       { role: "healer", local: [3, -6] },     // frente a la casa de la sanadora
     ],
+  },
+  gym: {
+    id: "gym",
+    name: "Gimnasio Verde",
+    icon: "🌿",
+    cell: 260,
+    chance: 0.5,
+    radius: 14,
+    maxSlope: 3,
+    build: buildGym,
   },
 };
 
@@ -263,6 +273,90 @@ function buildShrine(stamp, x, y, z, rng, ground) {
   stamp(x, y + 1, z, B.STONE);
   stamp(x, y + 2, z, B.STONE);
   stamp(x, y + 3, z, B.CRYSTAL);
+}
+
+/**
+ * Gimnasio Verde (Fase 5): edificio compacto de madera y hojas.
+ * Sur → entrada (barrera de cristal) → recepción → salas laterales
+ * (trainers) → sala puzzle (3 pedestales) → sala del líder (barrera).
+ * Coordenadas locales alineadas con GYM_LAYOUT / TRAINERS.anchorOffset.
+ */
+function buildGym(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 14, 10);
+
+  // Plataforma de piedra y tejado de hojas
+  for (let dx = -8; dx <= 8; dx++) {
+    for (let dz = -13; dz <= 13; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.STONE);
+      if (Math.abs(dx) <= 8 && dz >= -13 && dz <= 12) {
+        stamp(x + dx, y + 6, z + dz, B.LEAVES);
+      }
+    }
+  }
+
+  const wall = (dx, dz, block = B.WOOD) => {
+    for (let dy = 1; dy <= 5; dy++) stamp(x + dx, y + dy, z + dz, block);
+  };
+
+  // Perímetro: muro sur con puerta ceremonial de cristal en (0, 12)
+  for (let dx = -8; dx <= 8; dx++) {
+    for (let dz = -13; dz <= 12; dz++) {
+      const edge = Math.abs(dx) === 8 || dz === -13 || dz === 12;
+      if (!edge) continue;
+      const mainDoor = dx === 0 && dz === 12;
+      if (mainDoor) {
+        stamp(x + dx, y + 1, z + dz, B.CRYSTAL);
+        stamp(x + dx, y + 2, z + dz, B.CRYSTAL);
+        for (let dy = 3; dy <= 5; dy++) stamp(x + dx, y + dy, z + dz, B.WOOD);
+      } else {
+        wall(dx, dz);
+      }
+    }
+  }
+
+  // Tabique de la sala del líder (dz = -7) con puerta de cristal en (0, -7)
+  for (let dx = -7; dx <= 7; dx++) {
+    if (dx === 0) {
+      stamp(x, y + 1, z - 7, B.CRYSTAL);
+      stamp(x, y + 2, z - 7, B.CRYSTAL);
+      for (let dy = 3; dy <= 5; dy++) stamp(x, y + dy, z - 7, B.WOOD);
+    } else {
+      wall(dx, -7);
+    }
+  }
+
+  // Tabique recepción / puzzle (dz = -1) con pasillo central
+  for (let dx = -7; dx <= 7; dx++) {
+    if (dx === 0) continue;
+    wall(dx, -1);
+  }
+
+  // Salas laterales de trainers (dx = ±3, dz 0..6) con paso a dz = 3
+  for (let dz = 0; dz <= 6; dz++) {
+    if (dz === 3) continue;
+    wall(-3, dz);
+    wall(3, dz);
+  }
+
+  // Pedestales del puzzle: hoja / luz / agua (madera + cristal)
+  for (const [dx, dz] of [[-4, -4], [0, -4], [4, -4]]) {
+    stamp(x + dx, y + 1, z + dz, B.WOOD);
+    stamp(x + dx, y + 2, z + dz, B.CRYSTAL);
+  }
+
+  // Farolas de cristal en recepción y sala del líder
+  stamp(x, y + 1, z + 8, B.WOOD);
+  stamp(x, y + 2, z + 8, B.CRYSTAL);
+  stamp(x, y + 1, z - 10, B.WOOD);
+  stamp(x, y + 2, z - 10, B.CRYSTAL);
+
+  // Porche sur y hierbas decorativas
+  for (let dx = -2; dx <= 2; dx++) fillFloor(stamp, ground, x, y, z, dx, 13, B.STONE);
+  stamp(x - 2, y + 1, z + 13, B.CRYSTAL);
+  stamp(x + 2, y + 1, z + 13, B.CRYSTAL);
+  for (const [dx, dz] of [[-6, 13], [6, 13], [-7, 11], [7, 11]]) {
+    if (rng() < 0.7) stamp(x + dx, y + 1, z + dz, B.HERB);
+  }
 }
 
 // ---------- Índice determinista por celdas ----------

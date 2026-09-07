@@ -209,6 +209,122 @@ export const DIALOGUES = {
     },
   },
 
+  // ---------- Gimnasio Verde (Fase 5) ----------
+
+  gym_guide_intro: {
+    npcName: "Orla",
+    nodes: {
+      start: {
+        text: "Bienvenida al Gimnasio Verde. Soy Orla, la guía. Aquí se demuestra dominio, no prisa: dos entrenadores, un puzzle de pedestales y, al final, Iris.",
+        options: [
+          { text: "¿Cuáles son las reglas?", next: "rules" },
+          { text: "¿El puzzle?", next: "puzzle" },
+          { text: "¿Quién queda?", next: "progress" },
+          { text: "Gracias.", end: true },
+        ],
+      },
+      rules: {
+        text: "Derrota a Nilo y a Lira, y activa los tres pedestales en el orden correcto. Solo entonces se abrirá la sala de Iris. Si te equivocas en el puzzle, los pedestales se reinician: no hay castigo.",
+        options: [{ text: "Entendido.", next: "start" }],
+      },
+      puzzle: {
+        text: "Tres pedestales: hoja, luz y agua. El orden es el de la naturaleza al amanecer: primero la hoja, luego la luz, después el agua. Un error lo borra todo.",
+        options: [{ text: "Hoja, luz, agua.", next: "start" }],
+      },
+      progress: {
+        text: "Nilo espera en la sala oeste y Lira en la este. El puzzle está al fondo, antes de la puerta de Iris. Vuelve si te pierdes.",
+        options: [{ text: "Voy.", end: true }],
+      },
+    },
+  },
+  gym_guide_done: {
+    npcName: "Orla",
+    nodes: {
+      start: {
+        text: "La Insignia Verde te sienta bien. Has demostrado que este bosque te reconoce. Más allá se abre un camino nuevo… cuando el mundo esté listo.",
+        options: [{ text: "Gracias, Orla.", end: true }],
+      },
+    },
+  },
+
+  gym_trainer_nilo: {
+    npcName: "Nilo",
+    nodes: {
+      start: {
+        text: "Las raíces no perdonan a quien las pisa a ciegas. ¿Quieres cruzar mi sala?",
+        options: [
+          {
+            text: "¡Acepto el desafío!",
+            actions: [{ type: "startTrainerBattle", trainerId: "gym_trainer_leaf_1" }],
+            end: true,
+          },
+          { text: "Todavía no.", end: true },
+        ],
+      },
+    },
+  },
+  gym_trainer_nilo_done: {
+    npcName: "Nilo",
+    nodes: {
+      start: {
+        text: "Buen combate. Las raíces recuerdan tu paso. Lira te espera al otro lado.",
+        options: [{ text: "Gracias, Nilo.", end: true }],
+      },
+    },
+  },
+
+  gym_trainer_lira: {
+    npcName: "Lira",
+    nodes: {
+      start: {
+        text: "Tres criaturas me acompañan. Si pretendes ver a Iris, empieza por mí.",
+        options: [
+          {
+            text: "¡Adelante!",
+            actions: [{ type: "startTrainerBattle", trainerId: "gym_trainer_leaf_2" }],
+            end: true,
+          },
+          { text: "Mejor más tarde.", end: true },
+        ],
+      },
+    },
+  },
+  gym_trainer_lira_done: {
+    npcName: "Lira",
+    nodes: {
+      start: {
+        text: "Vaya… pocos llegan tan lejos. El puzzle está más al norte. Iris no abre a cualquiera.",
+        options: [{ text: "Allá voy.", end: true }],
+      },
+    },
+  },
+
+  gym_leader_iris: {
+    npcName: "Iris",
+    nodes: {
+      start: {
+        text: "Has llegado hasta aquí. Veamos si mereces la insignia.",
+        options: [
+          {
+            text: "Combatir",
+            actions: [{ type: "startTrainerBattle", trainerId: "leader_iris" }],
+            end: true,
+          },
+          { text: "Todavía no", end: true },
+        ],
+      },
+    },
+  },
+  gym_leader_iris_done: {
+    npcName: "Iris",
+    nodes: {
+      start: {
+        text: "Has demostrado tu dominio. Esta insignia es tuya. El bosque te reconoce… y un camino nuevo espera más allá.",
+        options: [{ text: "Honor, Iris.", end: true }],
+      },
+    },
+  },
+
   healer_intro: {
     npcName: "Sena",
     nodes: {

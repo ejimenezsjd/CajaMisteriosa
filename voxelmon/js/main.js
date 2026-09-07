@@ -12,6 +12,7 @@ import { Player } from "./player.js";
 import { Spawner } from "./creatures.js";
 import { Battle, TrainerOpponent } from "./battle.js";
 import { TRAINERS, trainers } from "./trainers.js";
+import { GYMS, GYM_LAYOUT, SWITCH_LABELS, gyms } from "./gyms.js";
 import { UI } from "./ui.js";
 import { FAMILY_STARTERS, PERKS, activePerks, familyOf, createMonster } from "./data.js";
 import { sfx, toggleMute } from "./audio.js";
@@ -110,7 +111,8 @@ events.on("resourceCollected", ({ resourceId, amount }) => {
   ui.toast(`${res.icon} +${amount} ${res.name} (${total})`, "good");
 });
 events.on("badgeEarned", ({ id }) => {
-  ui.toast(`🏅 ¡Insignia conseguida: ${id}!`, "legendary");
+  if (id === "verdant_badge") ui.toast("🏅 Has conseguido la Insignia Verde", "legendary");
+  else ui.toast(`🏅 ¡Insignia conseguida: ${id}!`, "legendary");
 });
 events.on("questStarted", ({ questId }) => {
   ui.toast(`◈ Nueva misión: ${QUESTS[questId]?.title ?? questId}`, "good");
@@ -135,6 +137,21 @@ events.on("progressUnlocked", ({ id }) => {
   if (id === "gym_path_unlocked") {
     ui.toast("🏆 Has demostrado que estás listo para buscar el primer gimnasio.", "legendary");
   }
+  if (id === "region_2_path_unlocked") {
+    ui.toast("🌄 Un nuevo camino se abre más allá del bosque… (próximamente)", "legendary");
+  }
+});
+events.on("gymPuzzleProgress", ({ current, required, reset }) => {
+  if (reset) ui.toast("↺ Secuencia incorrecta. Los pedestales se reinician.", "bad");
+  else ui.toast(`🌿 Pedestales activados: ${current}/${required}`);
+  refreshGymTracker();
+});
+events.on("gymPuzzleSolved", () => {
+  ui.toast("🌿 ¡Puzzle resuelto! La puerta del líder puede abrirse.", "good");
+  refreshGymTracker();
+});
+events.on("gymEntered", () => {
+  ui.toast("🌿 Gimnasio Verde", "good");
 });
 
 // ---------- Diálogos: acciones controladas, condiciones y modo de juego ----------
@@ -158,6 +175,7 @@ dialogue.setConditions({
   questActive: (id) => quests.isActive(id),
   questCompleted: (id) => quests.isCompleted(id),
   flag: (id) => progression.hasFlag(id),
+  unlocked: (id) => progression.isUnlocked(id),
 });
 
 dialogue.registerAction("startQuest", (a) => { quests.start(a.questId); });
@@ -243,6 +261,8 @@ async function startWorld(saved) {
   npcs.init(scene, world, interaction);
   quests.attach(state);
   trainers.attach(state);
+  gyms.attach(state);
+  gyms.setProgression(progression);
   // El bioma inicial cuenta como descubierto (sin toast en la carga)
   state.stats.biomesDiscovered[world.biomeAt(px, pz)] = true;
   lastBiome = world.biomeAt(px, pz);
@@ -432,6 +452,84 @@ function useShrine(s) {
   events.emit("partyHealed", { source: "healing_shrine", structureId: s.id });
   ui.refreshHud();
   saveGame();
+}
+
+function gymWorldPos(s, local) {
+  return { x: s.x + local[0] + 0.5, y: s.y + 1.2, z: s.z + local[1] + 0.5 };
+}
+
+function teleportPlayer(x, y, z) {
+  player.pos.set(x, y, z);
+  player.vel.set(0, 0, 0);
+}
+
+function registerGymInteractables(s, wanted) {
+  const put = (id, local, range, prompt, onInteract) => {
+    wanted.add(id);
+    const p = gymWorldPos(s, local);
+    const existing = interaction.items.get(id);
+    if (existing) {
+      existing.prompt = prompt;
+      return;
+    }
+    interaction.register({
+      id, type: "gym", x: p.x, y: p.y, z: p.z, range, prompt, data: s, onInteract,
+    });
+  };
+
+  const open = gyms.canEnter();
+  put(`gym:${s.id}:door`, GYM_LAYOUT.door, 3.2,
+    open ? "Entrar al gimnasio" : "La puerta está cerrada. Necesitas demostrar tu experiencia como entrenador.",
+    () => {
+      if (!gyms.canEnter()) {
+        ui.toast("La puerta está cerrada. Necesitas demostrar tu experiencia como entrenador.", "bad");
+        return;
+      }
+      const dest = gymWorldPos(s, GYM_LAYOUT.reception);
+      teleportPlayer(dest.x, dest.y, dest.z);
+      if (gyms.markEntered()) events.emit("gymEntered", { gymId: "gym_verdant", structureId: s.id });
+      saveGame();
+    });
+
+  put(`gym:${s.id}:exit`, GYM_LAYOUT.reception, 2.8, "Salir del gimnasio", () => {
+    const dest = gymWorldPos(s, GYM_LAYOUT.exit);
+    teleportPlayer(dest.x, dest.y, dest.z);
+  });
+
+  const leaderOpen = gyms.canEnterLeader();
+  put(`gym:${s.id}:leader`, GYM_LAYOUT.leaderDoor, 2.8,
+    leaderOpen ? "Entrar a la sala del líder" : "La puerta del líder sigue cerrada.",
+    () => {
+      if (!gyms.canEnterLeader()) {
+        ui.toast("La puerta del líder sigue cerrada.", "bad");
+        return;
+      }
+      const dest = gymWorldPos(s, GYM_LAYOUT.leaderRoom);
+      teleportPlayer(dest.x, dest.y, dest.z);
+    });
+
+  for (const [sid, local] of Object.entries(GYM_LAYOUT.switches)) {
+    put(`gym:${s.id}:switch:${sid}`, local, 2.4, SWITCH_LABELS[sid], () => {
+      const r = gyms.activateSwitch("gym_verdant", sid);
+      if (r.already) ui.toast("El puzzle ya está resuelto.");
+      saveGame();
+    });
+  }
+}
+
+function refreshGymTracker(nearGym = null) {
+  if (!nearGym || gyms.isCompleted()) {
+    ui.updateGymTracker(null);
+    return;
+  }
+  const st = gyms.gymState();
+  const cur = st.puzzleSolved ? 3 : st.puzzleAttempt.length;
+  ui.updateGymTracker({
+    title: GYMS.gym_verdant.name,
+    label: st.puzzleSolved
+      ? (st.leaderReady ? "Sala del líder abierta" : "Puzzle resuelto")
+      : `Pedestales activados: ${cur}/3`,
+  });
 }
 
 function onPlace() {
@@ -680,7 +778,9 @@ async function startTrainerBattle(trainerId, npc = null) {
   opponent.dispose();
 
   if (result === "win") {
-    const reward = trainers.resolveVictory(trainerId); // emite trainerDefeated + paga una sola vez
+    const reward = def.leader
+      ? gyms.resolveLeaderVictory(trainerId)
+      : trainers.resolveVictory(trainerId);
     events.emit("battleWon", { type: "trainer", trainerId });
     if (!reward) ui.toast(`Buen combate de entrenamiento contra ${def.name}.`, "good");
   } else if (result === "lost") {
@@ -786,6 +886,8 @@ function loop(now) {
 
     // Descubrimiento + registro de interactuables de estructura cercanos
     const wantedShrines = new Set();
+    const wantedGym = new Set();
+    let nearGym = null;
     for (const s of world.structures.near(px, pz, 20)) {
       if (!state.stats.structuresDiscovered[s.id]) {
         events.emit("structureDiscovered", {
@@ -807,10 +909,18 @@ function loop(now) {
           });
         }
       }
+      if (s.type === "gym") {
+        nearGym = s;
+        registerGymInteractables(s, wantedGym);
+      }
     }
     for (const id of interaction.ids("shrine")) {
       if (!wantedShrines.has(id)) interaction.unregister(id);
     }
+    for (const id of interaction.ids("gym")) {
+      if (!wantedGym.has(id)) interaction.unregister(id);
+    }
+    refreshGymTracker(nearGym);
 
     // NPC de asentamientos: reconciliación por distancia, sin duplicados
     npcs.sync(px, pz);
@@ -930,6 +1040,7 @@ window.__vm = {
   dialogueSystem: dialogue,
   interactionSystem: interaction,
   trainerSystem: trainers,
+  gymSystem: gyms,
   /** Herramientas de inspección del mundo vivo (Fase 2) */
   debug: {
     pos() {
@@ -1033,6 +1144,23 @@ window.__vm = {
       const npc = npcs.list().find((n) => n.trainerId === id);
       const inst = npc ? npcs.active.get(npc.id) : null;
       startTrainerBattle(id, inst ?? null);
+    },
+    gymsNear(r = 2500) {
+      return world && player
+        ? world.structures.near(player.pos.x, player.pos.z, r).filter((s) => s.type === "gym")
+        : [];
+    },
+    gym() {
+      const list = this.gymsNear(90);
+      return list[0] ?? this.gymsNear(2500)[0] ?? null;
+    },
+    gymState() {
+      return gyms.gymState();
+    },
+    /** [debug] resetea el puzzle del gimnasio (solo desarrollo) */
+    resetGymPuzzle() { gyms.resetPuzzle(); },
+    badges() {
+      return state ? { ...state.progression.badges } : {};
     },
   },
 };

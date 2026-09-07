@@ -15,7 +15,7 @@
  *  - battleLost      { speciesId, level, type: "wild" } | { type: "trainer", trainerId }
  *  - battleFled      { speciesId, level }
  *  - trainerBattleStarted { trainerId }
- *  - trainerDefeated { trainerId, trainerClass, rewardMoney }
+ *  - trainerDefeated { trainerId, trainerClass, rewardMoney, gymId? }
  *  - trainerBattleLost   { trainerId }
  *  - biomeDiscovered { biome, biomeId, biomeName, x, z }
  *  - structureDiscovered { structureId, structureType, biomeId, x, y, z }
@@ -30,7 +30,11 @@
  *  - progressUnlocked{ id }
  *  - flagSet         { id }
  *  - badgeEarned     { id }
- * (futuros: itemCrafted, itemCollected, gymEntered, regionUnlocked)
+ *  - gymPuzzleProgress { gymId, current, required, reset }
+ *  - gymPuzzleSolved   { gymId }
+ *  - gymEntered        { gymId, structureId }
+ *  - gymCompleted      { gymId, badgeId, trainerId }
+ * (futuros: itemCrafted, itemCollected, regionUnlocked)
  */
 
 const handlers = new Map();
