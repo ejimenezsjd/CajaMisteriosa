@@ -51,6 +51,12 @@ class StatsSystem {
     events.on("trainerDefeated", (p) => {
       if (this.s && p?.gymId) this.s.gymTrainersDefeated += 1;
     });
+    events.on("regionDiscovered", inc("regionsDiscovered"));
+    events.on("structureDiscovered", ({ structureType }) => {
+      if (this.s && (structureType === "watchtower" || structureType === "ancient_outpost" || structureType === "regional_gate")) {
+        this.s.regionalStructuresDiscovered += 1;
+      }
+    });
   }
 
   /** Distancia horizontal recorrida; llamar desde el bucle con el delta del frame. */

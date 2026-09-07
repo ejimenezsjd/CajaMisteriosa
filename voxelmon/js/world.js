@@ -10,6 +10,7 @@ import { B, BLOCK_NAMES, BLOCK_DROPS, COLORS } from "./blocks.js";
 import { BIOME_NAMES, getBiomeDefinition } from "./biomes.js";
 import { RESOURCES } from "./resources.js";
 import { StructureIndex } from "./structures.js";
+import { bindGymLookup, getRegionAt, REGION_2 } from "./regions.js";
 
 // Reexportados para los consumidores existentes (main.js, ui.js…)
 export { B, BLOCK_NAMES, BLOCK_DROPS } from "./blocks.js";
@@ -45,6 +46,8 @@ export class World {
     this.viewRadius = 6;
     /** Índice determinista de estructuras procedurales (por celdas) */
     this.structures = new StructureIndex(this);
+    bindGymLookup((type, cx, cz) => this.structures.candidate(type, cx, cz));
+    this.lastGenMs = 0;
   }
 
   // ---------- Generación ----------
@@ -72,9 +75,24 @@ export class World {
     return "plains";
   }
 
-  /** Identificador del bioma en una columna (ver biomes.js para su metadata) */
-  biomeAt(x, z) {
+  /** Bioma geométrico original. Las estructuras clásicas consultan ESTO. */
+  baseBiomeAt(x, z) {
     return this.biomeFromTerrain(this.terrainAt(Math.floor(x), Math.floor(z)));
+  }
+
+  /**
+   * Bioma jugable. En el rectángulo de Región 2, plains/forest se muestran
+   * como mist_forest. ocean/beach/desert/snow/mountain no se tocan.
+   * Fuera de ese rectángulo coincide con baseBiomeAt (saves antiguos intactos).
+   */
+  biomeAt(x, z) {
+    const fx = Math.floor(x);
+    const fz = Math.floor(z);
+    const base = this.biomeFromTerrain(this.terrainAt(fx, fz));
+    if (getRegionAt(fx, fz) === REGION_2 && (base === "plains" || base === "forest")) {
+      return "mist_forest";
+    }
+    return base;
   }
 
   hasTreeAt(x, z) {
@@ -88,7 +106,27 @@ export class World {
     return { h: t.h, trunk: th };
   }
 
+  /**
+   * Árbol extra solo en el rectángulo de Región 2. Sal distinta a hasTreeAt
+   * para no alterar la vegetación de Región 1.
+   */
+  hasMistTreeAt(x, z) {
+    if (getRegionAt(x, z) !== REGION_2) return null;
+    const base = this.baseBiomeAt(x, z);
+    if (base !== "plains" && base !== "forest") return null;
+    const t = this.terrainAt(x, z);
+    if (t.h <= WATER_Y + 1 || t.mountain > 0.6) return null;
+    if (this.hasTreeAt(x, z)) return null;
+    const salt = this.seed + 77123;
+    if (columnHash(x, z, salt) >= 0.2) return null;
+    if (columnHash(x - 1, z, salt) < 0.2) return null;
+    if (columnHash(x, z - 1, salt) < 0.2) return null;
+    const th = 5 + Math.floor(columnHash(x, z, this.seed + 556) * 2);
+    return { h: t.h, trunk: th };
+  }
+
   generateChunkData(cx, cz) {
+    const t0 = performance.now();
     const data = new Uint8Array(CHUNK * CHUNK * HEIGHT);
     const x0 = cx * CHUNK;
     const z0 = cz * CHUNK;
@@ -119,16 +157,24 @@ export class World {
         }
         for (let y = h + 1; y <= WATER_Y; y++) data[idx(lx, y, lz)] = B.WATER;
 
+        // Overlay visual de mist_forest: solo dentro del rectángulo de Región 2.
+        const overlayBiome = this.biomeAt(wx, wz);
+        if (overlayBiome === "mist_forest" && data[idx(lx, h, lz)] === B.GRASS) {
+          data[idx(lx, h, lz)] = B.MIST_GRASS;
+        }
+
         // Recursos especiales según las reglas del bioma (hash determinista
         // por columna: mismo seed → mismas vetas, sin coste apreciable).
-        const rules = getBiomeDefinition(this.biomeFromTerrain(t)).resources;
+        const rules = getBiomeDefinition(overlayBiome).resources;
         for (let ri = 0; ri < rules.length; ri++) {
           const rule = rules[ri];
           if (columnHash(wx, wz, this.seed + 90210 + ri * 7919) >= rule.chance) continue;
           const res = RESOURCES[rule.id];
           if (res.surface) {
-            // Brote superficial (apricorno, hierba medicinal) sobre hierba
-            if (h > WATER_Y + 1 && h + 1 < HEIGHT && data[idx(lx, h, lz)] === B.GRASS) {
+            // Brote superficial sobre hierba (o musgo brumoso en Región 2)
+            const ground = data[idx(lx, h, lz)];
+            const okGround = ground === B.GRASS || ground === B.MIST_GRASS;
+            if (h > WATER_Y + 1 && h + 1 < HEIGHT && okGround) {
               data[idx(lx, h + 1, lz)] = res.block;
             }
           } else {
@@ -176,6 +222,36 @@ export class World {
       }
     }
 
+    // Vegetación extra de Región 2 (no altera hasTreeAt de Región 1)
+    for (let tz = z0 - 3; tz < z0 + CHUNK + 3; tz++) {
+      for (let tx = x0 - 3; tx < x0 + CHUNK + 3; tx++) {
+        const tree = this.hasMistTreeAt(tx, tz);
+        if (!tree) continue;
+        const stamp = (wx, wy, wz, b, keepSolid = false) => {
+          const lx = wx - x0;
+          const lz = wz - z0;
+          if (lx < 0 || lx >= CHUNK || lz < 0 || lz >= CHUNK || wy < 1 || wy >= HEIGHT) return;
+          const i = idx(lx, wy, lz);
+          if (keepSolid && data[i] !== B.AIR) return;
+          data[i] = b;
+        };
+        const baseY = tree.h + 1;
+        const topY = tree.h + tree.trunk;
+        for (let dy = -2; dy <= 1; dy++) {
+          const y = topY + dy;
+          const r = dy < 0 ? 2 : 1;
+          for (let ox = -r; ox <= r; ox++) {
+            for (let oz = -r; oz <= r; oz++) {
+              if (Math.abs(ox) === r && Math.abs(oz) === r && r === 2) continue;
+              if (dy === 1 && Math.abs(ox) + Math.abs(oz) > 1) continue;
+              stamp(tx + ox, y, tz + oz, B.LEAVES, true);
+            }
+          }
+        }
+        for (let y = baseY; y <= topY; y++) stamp(tx, y, tz, B.WOOD);
+      }
+    }
+
     // Estructuras procedurales deterministas que intersectan este chunk
     const stampStruct = (wx, wy, wz, b) => {
       const lx = wx - x0;
@@ -195,6 +271,7 @@ export class World {
       }
     }
 
+    this.lastGenMs = performance.now() - t0;
     return data;
   }
 

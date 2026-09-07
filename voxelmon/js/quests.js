@@ -14,6 +14,8 @@
  *   talkToNPC         ← npcTalked          (role opcional)
  *   trade             ← tradeCompleted     (traderId opcional)
  *   mineBlock         ← blockMined         (block opcional)
+ *   discoverRegion    ← regionDiscovered   (regionId opcional)
+ *   openRegionGate    ← regionGateOpened   (regionId opcional)
  *
  * Idempotencia: una quest completada nunca vuelve a activarse ni a entregar
  * recompensas; complete() ignora quests ya completadas.
@@ -23,6 +25,7 @@
  */
 
 import { events } from "./events.js";
+import { progression } from "./progression.js";
 
 export const QUESTS = {
   quest_welcome: {
@@ -153,6 +156,44 @@ export const QUESTS = {
     ],
     // La insignia y los unlocks los concede GymSystem.resolveLeaderVictory, no esta quest
     rewards: { money: 50 },
+    next: "quest_frontier",
+  },
+
+  // ---------- Fase 6: frontera y Región 2 ----------
+
+  quest_frontier: {
+    id: "quest_frontier",
+    title: "La frontera",
+    description: "La Insignia Verde abre el paso al sur del Gimnasio Verde. Habla con Kael y abre la frontera.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "openRegionGate", regionId: "region_2", amount: 1, label: "Abre el paso fronterizo" },
+    ],
+    rewards: { money: 40 },
+    next: "quest_beyond_pass",
+  },
+  quest_beyond_pass: {
+    id: "quest_beyond_pass",
+    title: "Más allá del paso",
+    description: "Cruza el portón y pisa las Tierras Brumosas por primera vez.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "discoverRegion", regionId: "region_2", amount: 1, label: "Descubre las Tierras Brumosas" },
+    ],
+    rewards: { money: 50 },
+    next: "quest_unknown_lands",
+  },
+  quest_unknown_lands: {
+    id: "quest_unknown_lands",
+    title: "Tierras desconocidas",
+    description: "Explora el bosque brumoso: su bioma, una flor de bruma y la atalaya.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "discoverBiome", biomeId: "mist_forest", amount: 1, label: "Descubre el Bosque Brumoso" },
+      { type: "collectResource", resourceId: "mist_bloom", amount: 1, label: "Recoge una flor de bruma" },
+      { type: "discoverStructure", structureType: "watchtower", amount: 1, label: "Descubre la atalaya brumosa" },
+    ],
+    rewards: { money: 120, unlock: "regional_explorer" },
   },
 };
 
@@ -161,6 +202,7 @@ export const QUEST_ORDER = [
   "quest_welcome", "quest_apricorns", "quest_trade", "quest_capture", "quest_explorer",
   "quest_first_challenge", "quest_trainer_road", "quest_final_test",
   "quest_find_gym", "quest_gym_trial", "quest_verdant_badge",
+  "quest_frontier", "quest_beyond_pass", "quest_unknown_lands",
 ];
 
 /** eventName → [tipo de objetivo, función de filtro, cantidad del payload] */
@@ -177,6 +219,8 @@ const EVENT_OBJECTIVES = {
     () => 1],
   gymPuzzleSolved: ["solveGymPuzzle", (o, p) => !o.gymId || o.gymId === p.gymId, () => 1],
   badgeEarned: ["earnBadge", (o, p) => !o.badgeId || o.badgeId === p.id, () => 1],
+  regionDiscovered: ["discoverRegion", (o, p) => !o.regionId || o.regionId === p.regionId, () => 1],
+  regionGateOpened: ["openRegionGate", (o, p) => !o.regionId || o.regionId === p.regionId, () => 1],
 };
 
 class QuestSystem {
@@ -209,6 +253,12 @@ class QuestSystem {
       this.makeAvailable(def.next);
       if (QUESTS[def.next].startOnAvailable) this.start(def.next);
     }
+    // Saves que ya tenían la insignia antes de existir esta cadena
+    if (progression.isUnlocked("region_2_path_unlocked") &&
+        !this.isCompleted("quest_frontier") && !this.isActive("quest_frontier")) {
+      this.makeAvailable("quest_frontier");
+      this.start("quest_frontier");
+    }
   }
 
   setRewardHandler(fn) {
@@ -219,6 +269,12 @@ class QuestSystem {
     for (const [event, [type, filter, amountOf]] of Object.entries(EVENT_OBJECTIVES)) {
       events.on(event, (payload) => this.progress(type, filter, amountOf(payload), payload));
     }
+    events.on("progressUnlocked", ({ id }) => {
+      if (id !== "region_2_path_unlocked") return;
+      if (this.isCompleted("quest_frontier") || this.isActive("quest_frontier")) return;
+      this.makeAvailable("quest_frontier");
+      this.start("quest_frontier");
+    });
   }
 
   // ---------- Estado ----------

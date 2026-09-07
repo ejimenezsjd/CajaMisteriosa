@@ -21,6 +21,8 @@ import { dialogue } from "./dialogue.js";
 import { events } from "./events.js";
 import { TRAINERS, trainerAnchorsFor, trainers } from "./trainers.js";
 import { gymAnchorsFor, gyms } from "./gyms.js";
+import { regions } from "./regions.js";
+import { progression } from "./progression.js";
 
 /** Definiciones data-driven de los NPC por rol */
 export const NPC_DEFS = {
@@ -53,6 +55,15 @@ export const NPC_DEFS = {
     gymId: "gym_verdant",
     colors: { skin: "#e8c49a", outfit: "#2d6a44", accent: "#c8f0a8" },
     quests: [],
+  },
+  gatekeeper: {
+    role: "gatekeeper",
+    name: "Kael",
+    dialogueId: "gatekeeper_closed",
+    dialogueUnlockId: "gatekeeper_unlock",
+    dialogueOpenedId: "gatekeeper_opened",
+    colors: { skin: "#c9a078", outfit: "#3a3f52", accent: "#c4a646" },
+    quests: ["quest_frontier"],
   },
 };
 
@@ -87,6 +98,8 @@ class NPCSystem {
         for (const a of trainerAnchorsFor(s)) wanted.set(a.id, a);
       } else if (s.type === "gym") {
         for (const a of gymAnchorsFor(s)) wanted.set(a.id, a);
+      } else if (s.type === "regional_gate") {
+        for (const a of npcAnchorsFor(s)) wanted.set(a.id, a);
       }
     }
     for (const id of [...this.active.keys()]) {
@@ -164,6 +177,11 @@ class NPCSystem {
       dialogueId = npc.def.dialogueDefeatedId ?? dialogueId;
     } else if (npc.role === "gym_guide" && gyms.isCompleted(npc.def.gymId)) {
       dialogueId = npc.def.dialogueCompletedId ?? dialogueId;
+    } else if (npc.role === "gatekeeper") {
+      if (regions.isGateOpened("region_2")) dialogueId = npc.def.dialogueOpenedId ?? dialogueId;
+      else if (progression.isUnlocked("region_2_path_unlocked") || progression.hasBadge("verdant_badge")) {
+        dialogueId = npc.def.dialogueUnlockId ?? dialogueId;
+      }
     }
     dialogue.start(dialogueId, { npc });
   }

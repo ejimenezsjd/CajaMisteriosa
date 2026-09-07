@@ -22,6 +22,11 @@ export const B = {
   CRYSTAL: 13,
   APRICORN: 14,
   HERB: 15,
+  // Recursos regionales (Fase 6 — Tierras Brumosas)
+  ANCIENT_FRAGMENT: 16,
+  MIST_BLOOM: 17,
+  // Superficie visual del bosque brumoso (no es recurso)
+  MIST_GRASS: 18,
 };
 
 export const BLOCK_NAMES = {
@@ -38,6 +43,9 @@ export const BLOCK_NAMES = {
   [B.CRYSTAL]: "Cristal luminoso",
   [B.APRICORN]: "Apricorno",
   [B.HERB]: "Hierba medicinal",
+  [B.ANCIENT_FRAGMENT]: "Fragmento antiguo",
+  [B.MIST_BLOOM]: "Flor de bruma",
+  [B.MIST_GRASS]: "Musgo brumoso",
 };
 
 /** Qué suelta cada bloque al minarlo */
@@ -56,6 +64,9 @@ export const BLOCK_DROPS = {
   [B.CRYSTAL]: B.CRYSTAL,
   [B.APRICORN]: B.APRICORN,
   [B.HERB]: B.HERB,
+  [B.ANCIENT_FRAGMENT]: B.ANCIENT_FRAGMENT,
+  [B.MIST_BLOOM]: B.MIST_BLOOM,
+  [B.MIST_GRASS]: B.DIRT,
 };
 
 /** Colores por cara (top/side/bottom) para el meshing con vertex colors */
@@ -75,4 +86,7 @@ export const COLORS = {
   [B.CRYSTAL]: { top: [0.62, 0.9, 0.98], side: [0.5, 0.82, 0.94], bottom: [0.42, 0.72, 0.86] },
   [B.APRICORN]: { top: [0.44, 0.66, 0.28], side: [0.85, 0.52, 0.22], bottom: [0.6, 0.4, 0.2] },
   [B.HERB]: { top: [0.62, 0.85, 0.35], side: [0.5, 0.76, 0.32], bottom: [0.38, 0.6, 0.28] },
+  [B.ANCIENT_FRAGMENT]: { top: [0.72, 0.58, 0.86], side: [0.52, 0.4, 0.64], bottom: [0.38, 0.3, 0.48] },
+  [B.MIST_BLOOM]: { top: [0.72, 0.88, 0.92], side: [0.42, 0.62, 0.7], bottom: [0.28, 0.42, 0.48] },
+  [B.MIST_GRASS]: { top: [0.22, 0.38, 0.32], side: [0.32, 0.28, 0.22], bottom: [0.28, 0.22, 0.18] },
 };
