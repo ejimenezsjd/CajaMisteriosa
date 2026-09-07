@@ -12,6 +12,7 @@ En `voxelmon/` vive **VoxelMon**, un juego 3D estilo Minecraft ambientado en el 
 - Cada familia capturada otorga una habilidad pasiva permanente (nadar más rápido, saltar más alto, minar bloques dobles, visión nocturna…). Se consultan en la VoxelDex (Tab).
 - Mundo vivo: cada bioma tiene sus propias criaturas, recursos especiales (carbón, cobre, hierro, cristal, apricornos, hierbas medicinales) y estructuras procedurales (campamentos, ruinas y santuarios que curan a tu equipo con E).
 - Asentamientos con NPC: busca el asentamiento procedural y habla (E) con sus habitantes. Alba, la investigadora, da la primera cadena de misiones; Bruno cambia 3 apricornos por 1 cubo de captura; Sena cura a tu equipo. Las misiones se siguen en el HUD y en el menú de pausa.
+- Entrenadores: tras la cadena introductoria, Alba te presenta a Milo (novato), Vera (exploradora) y Ross (guardabosques). Sus combates son por equipos: sin captura ni huida, con recompensa en dinero una sola vez. Derrota a los tres para desbloquear el camino al primer gimnasio.
 - La partida se guarda sola en el navegador (equipo, mundo editado, dex, inventario, descubrimientos y misiones).
 
 Requiere un navegador moderno con WebGL; usa Three.js desde CDN, sin paso de build.

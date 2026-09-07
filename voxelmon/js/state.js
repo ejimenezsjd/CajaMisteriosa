@@ -28,6 +28,10 @@ export function defaultStats() {
     npcsTalked: 0,
     questsCompleted: 0,
     tradesCompleted: 0,
+    // Fase 4
+    trainersDefeated: 0,
+    trainerBattlesWon: 0,
+    trainerBattlesLost: 0,
   };
 }
 
@@ -57,6 +61,8 @@ export function defaultState(seed) {
     progression: defaultProgression(),
     // Fase 3: misiones (questId → {progress:[...]} en active; sets en el resto)
     quests: { active: {}, completed: {}, available: {} },
+    // Fase 4: entrenadores (trainerId → true al derrotarlos)
+    trainers: { defeated: {} },
   };
 }
 

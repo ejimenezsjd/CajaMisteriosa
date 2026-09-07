@@ -39,6 +39,14 @@ class StatsSystem {
     events.on("npcTalked", inc("npcsTalked"));
     events.on("questCompleted", inc("questsCompleted"));
     events.on("tradeCompleted", inc("tradesCompleted"));
+    // Fase 4: los eventos genéricos llevan type para distinguir trainer/wild
+    events.on("trainerDefeated", inc("trainersDefeated"));
+    events.on("battleWon", (p) => {
+      if (this.s && p?.type === "trainer") this.s.trainerBattlesWon += 1;
+    });
+    events.on("battleLost", (p) => {
+      if (this.s && p?.type === "trainer") this.s.trainerBattlesLost += 1;
+    });
   }
 
   /** Distancia horizontal recorrida; llamar desde el bucle con el delta del frame. */
