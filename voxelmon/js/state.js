@@ -32,6 +32,9 @@ export function defaultStats() {
     trainersDefeated: 0,
     trainerBattlesWon: 0,
     trainerBattlesLost: 0,
+    // Fase 5
+    gymsCompleted: 0,
+    gymTrainersDefeated: 0,
   };
 }
 
@@ -63,6 +66,10 @@ export function defaultState(seed) {
     quests: { active: {}, completed: {}, available: {} },
     // Fase 4: entrenadores (trainerId → true al derrotarlos)
     trainers: { defeated: {} },
+    // Fase 5: estado por gimnasio (puzzle, entrada, completado)
+    gyms: {
+      gym_verdant: { puzzleSolved: false, puzzleAttempt: [], completed: false, entered: false },
+    },
   };
 }
 

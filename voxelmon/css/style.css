@@ -580,6 +580,29 @@ html, body {
 
 #qt-obj {
   font-size: 0.8rem;
+}
+
+#gym-tracker {
+  position: absolute;
+  top: 196px;
+  right: 14px;
+  max-width: 260px;
+  background: rgba(10, 13, 22, 0.75);
+  border: 1px solid var(--panel-border);
+  border-left: 3px solid #3dba7a;
+  border-radius: 10px;
+  padding: 8px 12px;
+  text-align: right;
+}
+
+#gt-title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #b8f0c8;
+}
+
+#gt-obj {
+  font-size: 0.8rem;
   color: var(--text-dim, #9aa3b8);
   margin-top: 2px;
 }

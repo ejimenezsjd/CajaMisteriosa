@@ -111,7 +111,8 @@ export class Battle {
     if (!this.trainer) return;
     const cls = TRAINER_CLASSES[this.trainer.trainerClass]?.name ?? this.trainer.trainerClass;
     const left = 1 + this.ctx.queue.length;
-    this.ui.setTrainerBanner(`⚔ ${this.trainer.name} · ${cls} · ${left} criatura${left === 1 ? "" : "s"} restante${left === 1 ? "" : "s"}`);
+    const tag = this.trainer.leader ? "LÍDER" : "⚔";
+    this.ui.setTrainerBanner(`${tag} ${this.trainer.name} · ${cls} · ${left} criatura${left === 1 ? "" : "s"} restante${left === 1 ? "" : "s"}`);
   }
 
   setupArena() {
@@ -340,7 +341,8 @@ export class Battle {
     if (this.isTrainerBattle) {
       this.refreshTrainerBanner();
       const cls = TRAINER_CLASSES[this.trainer.trainerClass]?.name ?? "";
-      this.ui.battleLog(`⚔ ¡${this.trainer.name} (${cls}) te desafía con ${this.enemy.name} (Nv ${this.enemy.level})!`);
+      const who = this.trainer.leader ? `la líder ${this.trainer.name}` : `${this.trainer.name} (${cls})`;
+      this.ui.battleLog(`⚔ ¡${who} te desafía con ${this.enemy.name} (Nv ${this.enemy.level})!`);
       this.ui.battleLog("En un desafío de entrenador no puedes capturar ni huir.");
     } else {
       const spName = SPECIES[this.enemy.speciesId];

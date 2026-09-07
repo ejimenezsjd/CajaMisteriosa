@@ -204,7 +204,9 @@ export class UI {
       <span>📜 Misiones: <b>${st.questsCompleted ?? 0}</b></span>
       <span>🤝 Tratos: <b>${st.tradesCompleted ?? 0}</b></span>
       <span>💬 Charlas: <b>${st.npcsTalked ?? 0}</b></span>
-      <span>🎖 Entrenadores: <b>${st.trainersDefeated ?? 0}</b></span>` +
+      <span>🎖 Entrenadores: <b>${st.trainersDefeated ?? 0}</b></span>
+      <span>🏅 Insignias: <b>${this.badgeCount()}</b>${this.badgeList()}</span>
+      <span>🏟 Gimnasios: <b>${st.gymsCompleted ?? 0}</b></span>` +
       (resources ? `<span class="stats-wide">🎒 Recursos: ${resources}</span>` : "");
     box.classList.remove("hidden");
   }
@@ -321,6 +323,27 @@ export class UI {
     this.hide(this.el.battle);
     this.el.battleActions.innerHTML = "";
     this.setTrainerBanner(null);
+  }
+
+  badgeCount() {
+    return this.state?.progression ? Object.keys(this.state.progression.badges ?? {}).length : 0;
+  }
+
+  badgeList() {
+    const badges = this.state?.progression?.badges ?? {};
+    const names = { explorador: "Explorador", verdant_badge: "Insignia Verde" };
+    const list = Object.keys(badges).filter((k) => badges[k]).map((k) => names[k] ?? k);
+    return list.length ? ` · ${list.join(", ")}` : "";
+  }
+
+  /** Tracker de puzzle del gimnasio (visible solo durante la prueba) */
+  updateGymTracker(info) {
+    const box = $("gym-tracker");
+    if (!box) return;
+    if (!info) { box.classList.add("hidden"); return; }
+    $("gt-title").textContent = info.title;
+    $("gt-obj").textContent = info.label;
+    box.classList.remove("hidden");
   }
 
   /** Banner de combate contra entrenador ("Milo · Novato · 2 restantes") */
