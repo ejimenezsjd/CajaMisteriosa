@@ -285,6 +285,10 @@ export function buildNpcModel(def) {
       box(g, 0.5, 0.16, 0.5, 0, 1.9, 0.02, outfit);
       box(g, 0.12, 0.18, 0.12, -0.38, 1.08, -0.06, accent, { emissive: accent, emissiveIntensity: 0.55 });
       break;
+    case "crimson_gym_guide": // visera de forja y broche de ascua
+      box(g, 0.52, 0.1, 0.52, 0, 1.92, 0.02, outfit);
+      box(g, 0.14, 0.14, 0.06, 0, 1.18, -0.2, accent, { emissive: accent, emissiveIntensity: 0.9 });
+      break;
   }
 
   g.userData = { height: 2.0, role: def.role };

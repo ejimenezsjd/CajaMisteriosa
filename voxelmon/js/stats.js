@@ -72,6 +72,12 @@ class StatsSystem {
     events.on("moneyChanged", (p) => {
       if (this.s && (p?.delta ?? 0) < 0) this.s.moneySpent += Math.abs(p.delta);
     });
+    events.on("bossDefeated", inc("bossesDefeated"));
+    events.on("structureDiscovered", ({ structureType }) => {
+      if (this.s && structureType === "gym_crimson") {
+        this.s.regionalStructuresDiscovered += 1;
+      }
+    });
   }
 
   /** Distancia horizontal recorrida; llamar desde el bucle con el delta del frame. */

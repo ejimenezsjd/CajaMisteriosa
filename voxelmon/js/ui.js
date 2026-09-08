@@ -344,7 +344,12 @@ export class UI {
 
   badgeList() {
     const badges = this.state?.progression?.badges ?? {};
-    const names = { explorador: "Explorador", verdant_badge: "Insignia Verde", mist_badge: "Insignia Bruma" };
+    const names = {
+      explorador: "Explorador",
+      verdant_badge: "Insignia Verde",
+      mist_badge: "Insignia Bruma",
+      crimson_badge: "Insignia Forja",
+    };
     const list = Object.keys(badges).filter((k) => badges[k]).map((k) => names[k] ?? k);
     return list.length ? ` · ${list.join(", ")}` : "";
   }
@@ -406,16 +411,17 @@ export class UI {
           b.addEventListener("click", () => { sfx.select(); fn(); });
           actions.appendChild(b);
         };
-        const isTrainer = battle.ctx?.type === "trainer";
+        const restricted = battle.isRestrictedBattle
+          ?? (battle.ctx?.type === "trainer" || battle.ctx?.type === "boss");
         mk("⚔ Atacar", "attack", movesMenu);
         mk(
-          isTrainer ? "▣ Cubo <small>bloqueado</small>" : `▣ Cubo <small>×${battle.state.balls}</small>`,
+          restricted ? "▣ Cubo <small>bloqueado</small>" : `▣ Cubo <small>×${battle.state.balls}</small>`,
           "ball",
           () => { actions.innerHTML = ""; resolve({ kind: "ball" }); },
-          isTrainer // no se captura a criaturas de otro entrenador
+          restricted
         );
         mk("⇄ Cambiar", "switch", switchMenu, battle.team.filter((m) => m.hp > 0).length <= 1);
-        mk("✕ Huir", "flee", () => { actions.innerHTML = ""; resolve({ kind: "flee" }); }, isTrainer);
+        mk("✕ Huir", "flee", () => { actions.innerHTML = ""; resolve({ kind: "flee" }); }, restricted);
       };
 
       const movesMenu = () => {

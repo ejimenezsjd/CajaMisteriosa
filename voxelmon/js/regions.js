@@ -47,6 +47,8 @@ export const REGION_GEOMETRY = {
   r3z1: 442,
   miningCamp: { dx: -12, dz: 272 },
   crimsonRuin: { dx: 30, dz: 362 },
+  // Gym 3: al sur de la ruina, aún dentro de r3z1=442 (radio 16 → z≤428)
+  gymCrimson: { dx: 38, dz: 412 },
 };
 
 export const REGIONS = {

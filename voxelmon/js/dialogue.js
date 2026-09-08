@@ -713,6 +713,11 @@ export const DIALOGUES = {
         options: [
           { text: "¿Qué se saca de aquí?", next: "ores" },
           { text: "¿Hay algo más al sur?", next: "ruin" },
+          {
+            text: "El sello está resonando. ¿Qué hago?",
+            next: "recipe",
+            when: { unlocked: "gym_3_clue_unlocked" },
+          },
           { text: "Gracias, Bren.", end: true },
         ],
       },
@@ -723,6 +728,10 @@ export const DIALOGUES = {
       ruin: {
         text: "Hay una ruina más adentro, un sello mineral dormido. Cuando la montaña te acepte —mena vendida, ruina hallada— el sello empezará a cantar. No es un gimnasio. Todavía.",
         options: [{ text: "Iré a verlo.", end: true }],
+      },
+      recipe: {
+        text: "El sello ya canta, ¿verdad? No le basta el cristal suelto. En el banco de Talo: dos menas de ascuas, dos cristales rojos y un fragmento de cristal. Eso despierta un resonador. No lo vendas: la ruina lo reclama.",
+        options: [{ text: "Fabricaré el resonador.", end: true }],
       },
     },
   },
@@ -749,6 +758,131 @@ export const DIALOGUES = {
       why: {
         text: "Traer vendas hasta aquí no es barato. El altar recarga solo; yo no. El tónico de Mira os cubre en ruta. Tres caminos, tres precios.",
         options: [{ text: "Entendido.", next: "start" }],
+      },
+    },
+  },
+
+  // ---------- Gimnasio de la Forja (Fase 10) ----------
+
+  crimson_gym_guide_intro: {
+    npcName: "Rhed",
+    nodes: {
+      start: {
+        text: "Bienvenida al Gimnasio de la Forja. Soy Rhed. El guardián de la ruina os ha dejado pasar: ahora la montaña prueba si sabéis repartir el fuego.",
+        options: [
+          { text: "¿Cómo se supera?", next: "rules" },
+          { text: "¿La energía?", next: "puzzle" },
+          { text: "¿Quién queda?", next: "remain" },
+          {
+            text: "El guardián de la ruina…",
+            next: "boss",
+            when: { unlocked: "gym_3_path_unlocked" },
+          },
+          { text: "Gracias.", end: true },
+        ],
+      },
+      rules: {
+        text: "Derrota a Pyra y a Flint, y carga el núcleo de forja con dos unidades de energía. El reservorio solo tiene tres. Quien lo gaste todo en las puertas no podrá abrir la cámara de Brann.",
+        options: [{ text: "Entendido.", next: "start" }],
+      },
+      puzzle: {
+        text: "Tres conductos, tres cargas. Oeste y este piden una cada uno para abrir las salas. El núcleo pide dos. No hay orden ni reloj: recuperáis y reasignáis cuando queráis. No hace falta gastar mena aquí dentro.",
+        options: [{ text: "Reservorio de tres.", next: "start" }],
+      },
+      remain: {
+        text: "Pyra guarda el ala oeste; Flint, la este. Si ya cayeron, cargad el núcleo. Brann no abre hasta que las tres pruebas estén hechas.",
+        options: [{ text: "Los buscaré.", next: "start" }],
+      },
+      boss: {
+        text: "Ese gólem mineral no era un líder. Era el cerrojo. Vosotros lo forjasteis con mena y cristal, y luego lo derribasteis. Aquí dentro solo queda demostrar que el calor no os quiebra.",
+        options: [{ text: "Encaja.", next: "start" }],
+      },
+    },
+  },
+  crimson_gym_guide_done: {
+    npcName: "Rhed",
+    nodes: {
+      start: {
+        text: "La Insignia Forja os sienta como un sello caliente. El paso al sur del gimnasio responde a ella. Más allá… todavía no hay tierra, pero el mecanismo ya no está ciego.",
+        options: [{ text: "Gracias, Rhed.", end: true }],
+      },
+    },
+  },
+
+  gym_trainer_pyra: {
+    npcName: "Pyra",
+    nodes: {
+      start: {
+        text: "El calor no espera a que el conducto se llene. ¿Sigues?",
+        options: [
+          {
+            text: "¡Acepto el desafío!",
+            actions: [{ type: "startTrainerBattle", trainerId: "gym_trainer_forge_1" }],
+            end: true,
+          },
+          { text: "Todavía no.", end: true },
+        ],
+      },
+    },
+  },
+  gym_trainer_pyra_done: {
+    npcName: "Pyra",
+    nodes: {
+      start: {
+        text: "Bien. Recupera la energía si la necesitas. Flint espera al otro lado.",
+        options: [{ text: "Gracias, Pyra.", end: true }],
+      },
+    },
+  },
+
+  gym_trainer_flint: {
+    npcName: "Flint",
+    nodes: {
+      start: {
+        text: "Tres criaturas me acompañan. Si pretendes ver a Brann, empieza por la resistencia.",
+        options: [
+          {
+            text: "¡Adelante!",
+            actions: [{ type: "startTrainerBattle", trainerId: "gym_trainer_forge_2" }],
+            end: true,
+          },
+          { text: "Mejor más tarde.", end: true },
+        ],
+      },
+    },
+  },
+  gym_trainer_flint_done: {
+    npcName: "Flint",
+    nodes: {
+      start: {
+        text: "La forja te reconoce. Carga el núcleo. Brann no abre a cualquiera.",
+        options: [{ text: "Allá voy.", end: true }],
+      },
+    },
+  },
+
+  gym_leader_brann: {
+    npcName: "Brann",
+    nodes: {
+      start: {
+        text: "Has forjado el camino hasta aquí. Veamos si el mineral te reconoce.",
+        options: [
+          {
+            text: "Combatir",
+            actions: [{ type: "startTrainerBattle", trainerId: "leader_brann" }],
+            end: true,
+          },
+          { text: "Todavía no", end: true },
+        ],
+      },
+    },
+  },
+  gym_leader_brann_done: {
+    npcName: "Brann",
+    nodes: {
+      start: {
+        text: "Esta insignia es tuya. El paso del sur responde ahora. Un camino nuevo espera… cuando el mundo esté listo.",
+        options: [{ text: "Honor, Brann.", end: true }],
       },
     },
   },

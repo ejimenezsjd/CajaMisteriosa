@@ -39,7 +39,7 @@ export const SHOP_BUYS = [
   "coal", "copper", "iron", "mist_bloom", "ancient_fragment", "ember_ore", "red_crystal",
 ];
 
-const NO_SELL = new Set(["ancient_core"]);
+const NO_SELL = new Set(["ancient_core", "crimson_resonator"]);
 
 export function itemLabel(itemId) {
   if (itemId === "balls") return "Cubo de captura";

@@ -31,11 +31,12 @@ const SALT = {
   gym_mist: 11110,
   mining_camp: 12111,
   crimson_ruin: 13112,
+  gym_crimson: 14113,
 };
 
 const REGIONAL_TYPES = new Set([
   "regional_gate", "watchtower", "ancient_outpost", "mist_settlement", "gym_mist",
-  "mining_camp", "crimson_ruin",
+  "mining_camp", "crimson_ruin", "gym_crimson",
 ]);
 
 export const STRUCTURE_TYPES = {
@@ -177,9 +178,19 @@ export const STRUCTURE_TYPES = {
     icon: "🏛",
     cell: 260,
     chance: 1,
-    radius: 6,
+    radius: 8,
     maxSlope: 8,
     build: buildCrimsonRuin,
+  },
+  gym_crimson: {
+    id: "gym_crimson",
+    name: "Gimnasio de la Forja",
+    icon: "🔥",
+    cell: 260,
+    chance: 1,
+    radius: 16,
+    maxSlope: 8,
+    build: buildForgeGym,
   },
 };
 
@@ -197,6 +208,8 @@ export const MINING_CAMP_LAYOUT = {
 
 export const CRIMSON_RUIN_LAYOUT = {
   seal: [0, 0],
+  boss: [0, 4],
+  pathGate: [0, 7],
 };
 
 /** Radio máximo entre todos los tipos: margen de solape chunk/estructura */
@@ -784,6 +797,129 @@ function buildCrimsonRuin(stamp, x, y, z, rng, ground) {
   stamp(x - 2, y + 1, z - 1, B.RED_CRYSTAL);
   if (rng() < 0.8) stamp(x - 1, y + 1, z + 3, B.EMBER_ORE);
   if (rng() < 0.7) stamp(x + 3, y + 1, z - 2, B.RED_CRYSTAL);
+
+  // Patio del guardián (sur del sello)
+  for (let dx = -2; dx <= 2; dx++) {
+    for (let dz = 3; dz <= 5; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.STONE);
+    }
+  }
+  stamp(x, y + 1, z + 4, B.CRIMSON_STONE);
+  stamp(x, y + 2, z + 4, B.EMBER_ORE);
+
+  // Barrera sur: camino al Gym 3 (se perfora con gym_3_path_unlocked)
+  for (let dx = -3; dx <= 3; dx++) {
+    fillFloor(stamp, ground, x, y, z, dx, 7, B.CRIMSON_STONE);
+    if (Math.abs(dx) <= 1) {
+      for (let dy = 1; dy <= 5; dy++) stamp(x + dx, y + dy, z + 7, B.RED_CRYSTAL);
+    } else {
+      for (let dy = 1; dy <= 4; dy++) stamp(x + dx, y + dy, z + 7, B.CRIMSON_STONE);
+    }
+  }
+}
+
+/**
+ * Gimnasio de la Forja: calor, conductos de energía y cámara del líder.
+ * Distinto de Gym 1 (secuencia) y Gym 2 (faros). Entrada al norte.
+ */
+function buildForgeGym(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 16, 10);
+
+  for (let dx = -8; dx <= 8; dx++) {
+    for (let dz = -13; dz <= 15; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.CRIMSON_STONE);
+      if (dz <= 13) stamp(x + dx, y + 6, z + dz, B.STONE);
+    }
+  }
+
+  const wall = (dx, dz, block = B.CRIMSON_STONE) => {
+    for (let dy = 1; dy <= 5; dy++) stamp(x + dx, y + dy, z + dz, block);
+  };
+
+  for (let dx = -8; dx <= 8; dx++) {
+    for (let dz = -12; dz <= 13; dz++) {
+      const edge = Math.abs(dx) === 8 || dz === -12 || dz === 13;
+      if (!edge) continue;
+      const mainDoor = dx === 0 && dz === -12;
+      if (mainDoor) {
+        stamp(x + dx, y + 1, z + dz, B.EMBER_ORE);
+        stamp(x + dx, y + 2, z + dz, B.RED_CRYSTAL);
+        for (let dy = 3; dy <= 5; dy++) stamp(x + dx, y + dy, z + dz, B.CRIMSON_STONE);
+      } else {
+        wall(dx, dz);
+      }
+    }
+  }
+
+  // Tabique de la sala del líder (dz = 7)
+  for (let dx = -7; dx <= 7; dx++) {
+    if (dx === 0) {
+      stamp(x, y + 1, z + 7, B.EMBER_ORE);
+      stamp(x, y + 2, z + 7, B.RED_CRYSTAL);
+      for (let dy = 3; dy <= 5; dy++) stamp(x, y + dy, z + 7, B.CRIMSON_STONE);
+    } else {
+      wall(dx, 7);
+    }
+  }
+
+  // Separación recepción / cámara de energía (dz = -6)
+  for (let dx = -7; dx <= 7; dx++) {
+    if (dx === 0) continue;
+    wall(dx, -6);
+  }
+
+  // Sala oeste de Pyra: puerta en (-4, -2)
+  for (let dz = -8; dz <= 3; dz++) {
+    if (dz === -2) continue;
+    wall(-3, dz);
+  }
+  for (let dx = -7; dx <= -4; dx++) {
+    if (dx === -4) continue;
+    wall(dx, -2);
+  }
+  stamp(x - 4, y + 1, z - 2, B.COPPER_ORE);
+  stamp(x - 4, y + 2, z - 2, B.CRYSTAL);
+
+  // Sala este de Flint: puerta en (4, -2)
+  for (let dz = -8; dz <= 6; dz++) {
+    if (dz === -2) continue;
+    wall(3, dz);
+  }
+  for (let dx = 4; dx <= 7; dx++) {
+    if (dx === 4) continue;
+    wall(dx, -2);
+  }
+  stamp(x + 4, y + 1, z - 2, B.IRON_ORE);
+  stamp(x + 4, y + 2, z - 2, B.CRYSTAL);
+
+  // Conductos: cobre / hierro / carmesí (asignación de energía)
+  stamp(x - 5, y + 1, z - 4, B.COPPER_ORE);
+  stamp(x - 5, y + 2, z - 4, B.CRYSTAL);
+  stamp(x + 5, y + 1, z - 4, B.IRON_ORE);
+  stamp(x + 5, y + 2, z - 4, B.CRYSTAL);
+  stamp(x, y + 1, z + 3, B.EMBER_ORE);
+  stamp(x, y + 2, z + 3, B.RED_CRYSTAL);
+
+  stamp(x, y + 1, z - 9, B.STONE);
+  stamp(x, y + 2, z - 9, B.EMBER_ORE);
+  stamp(x, y + 1, z + 10, B.STONE);
+  stamp(x, y + 2, z + 10, B.RED_CRYSTAL);
+  stamp(x - 6, y + 1, z - 10, B.COAL_ORE);
+  stamp(x + 6, y + 1, z - 10, B.COAL_ORE);
+
+  for (let dx = -2; dx <= 2; dx++) fillFloor(stamp, ground, x, y, z, dx, -13, B.CRIMSON_STONE);
+  stamp(x - 2, y + 1, z - 13, B.EMBER_ORE);
+  stamp(x + 2, y + 1, z - 13, B.EMBER_ORE);
+
+  // Crimson Pass: hook sur hacia el siguiente arco (no es Región 4)
+  for (let dx = -3; dx <= 3; dx++) {
+    fillFloor(stamp, ground, x, y, z, dx, 15, B.CRIMSON_STONE);
+    if (Math.abs(dx) <= 1) {
+      for (let dy = 1; dy <= 5; dy++) stamp(x + dx, y + dy, z + 15, B.RED_CRYSTAL);
+    } else {
+      wall(dx, 15);
+    }
+  }
 }
 
 // ---------- Índice determinista por celdas ----------
@@ -881,6 +1017,9 @@ export class StructureIndex {
     } else if (type === "crimson_ruin") {
       x = gym.x + g.crimsonRuin.dx;
       z = gym.z + g.crimsonRuin.dz;
+    } else if (type === "gym_crimson") {
+      x = gym.x + g.gymCrimson.dx;
+      z = gym.z + g.gymCrimson.dz;
     }
     const t = this.world.terrainAt(x, z);
     return {
