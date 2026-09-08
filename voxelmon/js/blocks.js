@@ -35,6 +35,8 @@ export const B = {
   CRIMSON_STONE: 22,
   EMBER_ORE: 23,
   RED_CRYSTAL: 24,
+  // Objeto de progresión (Fase 10 — no se genera en el mundo)
+  CRIMSON_RESONATOR: 25,
 };
 
 export const BLOCK_NAMES = {
@@ -60,6 +62,7 @@ export const BLOCK_NAMES = {
   [B.CRIMSON_STONE]: "Piedra carmesí",
   [B.EMBER_ORE]: "Mena de ascuas",
   [B.RED_CRYSTAL]: "Cristal rojo",
+  [B.CRIMSON_RESONATOR]: "Resonador carmesí",
 };
 
 /** Qué suelta cada bloque al minarlo */
@@ -87,6 +90,7 @@ export const BLOCK_DROPS = {
   [B.CRIMSON_STONE]: B.STONE,
   [B.EMBER_ORE]: B.EMBER_ORE,
   [B.RED_CRYSTAL]: B.RED_CRYSTAL,
+  [B.CRIMSON_RESONATOR]: B.CRIMSON_RESONATOR,
 };
 
 /** Colores por cara (top/side/bottom) para el meshing con vertex colors */
@@ -115,4 +119,5 @@ export const COLORS = {
   [B.CRIMSON_STONE]: { top: [0.42, 0.18, 0.16], side: [0.32, 0.14, 0.14], bottom: [0.22, 0.1, 0.1] },
   [B.EMBER_ORE]: { top: [0.78, 0.32, 0.12], side: [0.55, 0.2, 0.1], bottom: [0.38, 0.14, 0.08] },
   [B.RED_CRYSTAL]: { top: [0.95, 0.28, 0.32], side: [0.78, 0.12, 0.22], bottom: [0.52, 0.08, 0.16] },
+  [B.CRIMSON_RESONATOR]: { top: [0.92, 0.38, 0.18], side: [0.72, 0.18, 0.14], bottom: [0.42, 0.1, 0.1] },
 };

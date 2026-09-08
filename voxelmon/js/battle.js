@@ -81,14 +81,15 @@ export class Battle {
   /**
    * @param {object} o {scene, camera, world, player, wild, team, state, ui, ctx?}
    * state: {balls} — se decrementa al lanzar cubos
-   * ctx (Fase 4): { type: "wild" } (por defecto) o
-   *   { type: "trainer", trainer: defDeTRAINERS, queue: [monstruos restantes] }
-   *   En trainer, `wild` es un TrainerOpponent con la primera criatura.
+   * ctx (Fase 4 / 10): { type: "wild" } (por defecto),
+   *   { type: "trainer", trainer, queue } o { type: "boss", boss, queue }.
+   *   En trainer/boss, `wild` es un TrainerOpponent con la primera criatura.
    */
   constructor(o) {
     Object.assign(this, o);
     this.ctx = o.ctx ?? { type: "wild" };
     this.trainer = this.ctx.type === "trainer" ? this.ctx.trainer : null;
+    this.boss = this.ctx.type === "boss" ? this.ctx.boss : null;
     this.active = this.team.find((m) => m.hp > 0);
     this.enemy = this.wild.monster;
     this.allyModel = null;
@@ -101,16 +102,30 @@ export class Battle {
     return this.ctx.type === "trainer";
   }
 
+  get isBossBattle() {
+    return this.ctx.type === "boss";
+  }
+
+  /** Captura y huida bloqueadas: entrenador o jefe regional. */
+  get isRestrictedBattle() {
+    return this.isTrainerBattle || this.isBossBattle;
+  }
+
   /** Nombre del rival para el log y la barra de vida */
   enemyTag() {
+    if (this.boss) return `${this.enemy.name} · ${this.boss.name}`;
     return this.trainer ? `${this.enemy.name} de ${this.trainer.name}` : `${this.enemy.name} salvaje`;
   }
 
-  /** Banner "Milo · Novato · 2 criaturas restantes" durante trainer battle */
+  /** Banner de entrenador o jefe regional */
   refreshTrainerBanner() {
+    if (this.boss) {
+      this.ui.setTrainerBanner(this.boss.banner ?? `⚠ ${this.boss.name.toUpperCase()}`);
+      return;
+    }
     if (!this.trainer) return;
     const cls = TRAINER_CLASSES[this.trainer.trainerClass]?.name ?? this.trainer.trainerClass;
-    const left = 1 + this.ctx.queue.length;
+    const left = 1 + (this.ctx.queue?.length ?? 0);
     const tag = this.trainer.leader ? "LÍDER DE GIMNASIO" : "⚔";
     this.ui.setTrainerBanner(`${tag} ${this.trainer.name} · ${cls} · ${left} criatura${left === 1 ? "" : "s"} restante${left === 1 ? "" : "s"}`);
   }
@@ -243,9 +258,10 @@ export class Battle {
   }
 
   async tryCatch() {
-    if (this.isTrainerBattle) {
-      // Inalcanzable con el botón deshabilitado; red de seguridad
-      this.ui.battleLog("No puedes capturar criaturas de otro entrenador.");
+    if (this.isRestrictedBattle) {
+      this.ui.battleLog(this.isBossBattle
+        ? "No puedes capturar al guardián. Este encuentro no admite cubos."
+        : "No puedes capturar criaturas de otro entrenador.");
       await sleep(600);
       return null;
     }
@@ -338,12 +354,17 @@ export class Battle {
     sfx.battleStart();
     this.ui.showBattle(this.active, this.enemy);
     this.ui.setBattleHp(this.active, this.enemy, this.enemyTag());
-    if (this.isTrainerBattle) {
+    if (this.isRestrictedBattle) {
       this.refreshTrainerBanner();
-      const cls = TRAINER_CLASSES[this.trainer.trainerClass]?.name ?? "";
-      const who = this.trainer.leader ? `la líder ${this.trainer.name}` : `${this.trainer.name} (${cls})`;
-      this.ui.battleLog(`⚔ ¡${who} te desafía con ${this.enemy.name} (Nv ${this.enemy.level})!`);
-      this.ui.battleLog("En un desafío de entrenador no puedes capturar ni huir.");
+      if (this.isBossBattle) {
+        this.ui.battleLog(`⚠ ¡El ${this.boss.name} despierta! ${this.enemy.name} (Nv ${this.enemy.level}).`);
+        this.ui.battleLog("Captura no disponible. Huida no disponible.");
+      } else {
+        const cls = TRAINER_CLASSES[this.trainer.trainerClass]?.name ?? "";
+        const who = this.trainer.leader ? `la líder ${this.trainer.name}` : `${this.trainer.name} (${cls})`;
+        this.ui.battleLog(`⚔ ¡${who} te desafía con ${this.enemy.name} (Nv ${this.enemy.level})!`);
+        this.ui.battleLog("En un desafío de entrenador no puedes capturar ni huir.");
+      }
     } else {
       const spName = SPECIES[this.enemy.speciesId];
       this.ui.battleLog(spName.legendary
@@ -356,9 +377,10 @@ export class Battle {
       const action = await this.ui.promptBattleAction(this);
 
       if (action.kind === "flee") {
-        if (this.isTrainerBattle) {
-          // Inalcanzable con el botón deshabilitado; red de seguridad
-          this.ui.battleLog("¡No puedes huir de un desafío de entrenador!");
+        if (this.isRestrictedBattle) {
+          this.ui.battleLog(this.isBossBattle
+            ? "¡No puedes huir del guardián una vez aceptado el desafío!"
+            : "¡No puedes huir de un desafío de entrenador!");
           await sleep(600);
           continue;
         }
@@ -417,19 +439,20 @@ export class Battle {
             await this.grantXp();
 
             // Trainer battle: entra la siguiente criatura del equipo rival
-            if (this.isTrainerBattle && this.ctx.queue.length > 0) {
+            if (this.isRestrictedBattle && this.ctx.queue?.length > 0) {
               const next = this.ctx.queue.shift();
               this.enemy = next;
               this.wild.setMonster(next);
               this.refreshTrainerBanner();
-              this.ui.battleLog(`¡${this.trainer.name} saca a ${next.name} (Nv ${next.level})!`);
+              const owner = this.trainer?.name ?? this.boss?.name ?? "Rival";
+              this.ui.battleLog(`¡${owner} saca a ${next.name} (Nv ${next.level})!`);
               this.ui.setBattleHp(this.active, this.enemy, this.enemyTag());
               await sleep(700);
               enemySwapped = true;
               break; // vuelve al menú de acciones con el nuevo rival
             }
 
-            if (!this.isTrainerBattle) {
+            if (!this.isRestrictedBattle) {
               this.state.balls += 2;
               this.ui.battleLog("Recuperaste 2 cubos del combate.");
             }

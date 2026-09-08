@@ -22,6 +22,8 @@
  *   solveGymPuzzle    ← gymPuzzleSolved    (gymId opcional)
  *   earnBadge         ← badgeEarned        (badgeId opcional)
  *   defeatTrainer     ← trainerDefeated    (trainerId / trainerClass)
+ *   setFlag           ← flagSet            (flagId opcional)
+ *   defeatBoss        ← bossDefeated       (bossId opcional)
  *
  * Idempotencia: una quest completada nunca vuelve a activarse ni a entregar
  * recompensas; complete() ignora quests ya completadas.
@@ -36,6 +38,7 @@ import { trainers } from "./trainers.js";
 import { gyms } from "./gyms.js";
 import { regions } from "./regions.js";
 import { getItemCount } from "./items.js";
+import { bosses } from "./bosses.js";
 
 export const QUESTS = {
   quest_welcome: {
@@ -352,6 +355,68 @@ export const QUESTS = {
       { type: "discoverStructure", structureType: "crimson_ruin", amount: 1, label: "Descubre la Ruina Carmesí" },
     ],
     rewards: { money: 120, unlock: "gym_3_clue_unlocked" },
+    next: "quest_crimson_seal",
+  },
+
+  // ---------- Fase 10: resonador, boss regional y Gimnasio de la Forja ----------
+
+  quest_crimson_seal: {
+    id: "quest_crimson_seal",
+    title: "El sello carmesí",
+    description: "Habla con Bren y fabrica un resonador carmesí para despertar el sello.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "talkToNPC", role: "prospector", amount: 1, label: "Habla con Bren" },
+      { type: "craftRecipe", recipeId: "recipe_crimson_resonator", amount: 1, label: "Fabrica un resonador carmesí" },
+    ],
+    rewards: { money: 80 },
+    next: "quest_ruin_guardian",
+  },
+  quest_ruin_guardian: {
+    id: "quest_ruin_guardian",
+    title: "El guardián de la ruina",
+    description: "Activa el sello con el resonador y derrota al Guardián Carmesí.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "setFlag", flagId: "crimson_seal_activated", amount: 1, label: "Activa el sello de la ruina" },
+      { type: "defeatBoss", bossId: "crimson_guardian", amount: 1, label: "Derrota al Guardián Carmesí" },
+    ],
+    rewards: { money: 100 },
+    next: "quest_the_forge",
+  },
+  quest_the_forge: {
+    id: "quest_the_forge",
+    title: "La forja",
+    description: "El camino al sur de la ruina está abierto. Encuentra el Gimnasio de la Forja.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "discoverStructure", structureType: "gym_crimson", amount: 1, label: "Descubre el Gimnasio de la Forja" },
+    ],
+    rewards: { money: 70 },
+    next: "quest_forge_trial",
+  },
+  quest_forge_trial: {
+    id: "quest_forge_trial",
+    title: "Prueba de la forja",
+    description: "Derrota a Pyra y a Flint, y reparte la energía del núcleo.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "defeatTrainer", trainerId: "gym_trainer_forge_1", amount: 1, label: "Derrota a Pyra" },
+      { type: "defeatTrainer", trainerId: "gym_trainer_forge_2", amount: 1, label: "Derrota a Flint" },
+      { type: "solveGymPuzzle", gymId: "gym_crimson", amount: 1, label: "Carga el núcleo de forja" },
+    ],
+    rewards: { money: 110 },
+    next: "quest_forge_badge",
+  },
+  quest_forge_badge: {
+    id: "quest_forge_badge",
+    title: "Insignia Forja",
+    description: "La cámara de Brann está abierta. Gana la Insignia Forja.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "earnBadge", badgeId: "crimson_badge", amount: 1, label: "Consigue la Insignia Forja" },
+    ],
+    rewards: { money: 90 },
   },
 };
 
@@ -364,6 +429,7 @@ export const QUEST_ORDER = [
   "quest_mist_refuge", "quest_hands_on", "quest_mist_remedy", "quest_echo_past",
   "quest_into_mist", "quest_mist_lights", "quest_mist_trial", "quest_mist_badge",
   "quest_beyond_mist", "quest_crimson_peaks", "quest_mining_post", "quest_mountain_wealth",
+  "quest_crimson_seal", "quest_ruin_guardian", "quest_the_forge", "quest_forge_trial", "quest_forge_badge",
 ];
 
 /** eventName → [tipo de objetivo, función de filtro, cantidad del payload] */
@@ -385,6 +451,8 @@ const EVENT_OBJECTIVES = {
   craftCompleted: ["craftRecipe", (o, p) => !o.recipeId || o.recipeId === p.recipeId, () => 1],
   itemPurchased: ["buyItem", (o, p) => !o.itemId || o.itemId === p.itemId, (p) => p.amount ?? 1],
   itemSold: ["sellItem", (o, p) => !o.itemId || o.itemId === p.itemId, (p) => p.amount ?? 1],
+  flagSet: ["setFlag", (o, p) => !o.flagId || o.flagId === p.id, () => 1],
+  bossDefeated: ["defeatBoss", (o, p) => !o.bossId || o.bossId === p.bossId, () => 1],
 };
 
 class QuestSystem {
@@ -435,6 +503,13 @@ class QuestSystem {
       this.makeAvailable("quest_beyond_mist");
       this.start("quest_beyond_mist");
     }
+    if (progression.isUnlocked("gym_3_clue_unlocked")) {
+      progression.unlock("crimson_resonator_recipe_unlocked");
+      if (!this.isCompleted("quest_crimson_seal") && !this.isActive("quest_crimson_seal")) {
+        this.makeAvailable("quest_crimson_seal");
+        this.start("quest_crimson_seal");
+      }
+    }
   }
 
   setRewardHandler(fn) {
@@ -460,6 +535,12 @@ class QuestSystem {
         if (this.isCompleted("quest_beyond_mist") || this.isActive("quest_beyond_mist")) return;
         this.makeAvailable("quest_beyond_mist");
         this.start("quest_beyond_mist");
+      }
+      if (id === "gym_3_clue_unlocked") {
+        progression.unlock("crimson_resonator_recipe_unlocked");
+        if (this.isCompleted("quest_crimson_seal") || this.isActive("quest_crimson_seal")) return;
+        this.makeAvailable("quest_crimson_seal");
+        this.start("quest_crimson_seal");
       }
     });
   }
@@ -512,6 +593,15 @@ class QuestSystem {
       } else if (obj.type === "collectResource" && obj.resourceId && this.state) {
         const n = getItemCount(this.state, obj.resourceId);
         if (n >= (obj.amount ?? 1)) st.progress[i] = obj.amount;
+      } else if (obj.type === "craftRecipe" && obj.recipeId === "recipe_crimson_resonator") {
+        if (getItemCount(this.state, "crimson_resonator") >= 1 ||
+            progression.hasFlag("crimson_seal_activated")) {
+          st.progress[i] = obj.amount;
+        }
+      } else if (obj.type === "setFlag" && obj.flagId && progression.hasFlag(obj.flagId)) {
+        st.progress[i] = obj.amount;
+      } else if (obj.type === "defeatBoss" && obj.bossId && bosses.isDefeated(obj.bossId)) {
+        st.progress[i] = obj.amount;
       }
     });
   }

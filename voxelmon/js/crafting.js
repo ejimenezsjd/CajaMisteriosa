@@ -62,6 +62,19 @@ export const RECIPES = {
     outputs: [{ itemId: "ancient_core", amount: 1 }],
     resultLabel: "1 núcleo antiguo (despierta el sendero del próximo gimnasio)",
   },
+  recipe_crimson_resonator: {
+    id: "recipe_crimson_resonator",
+    name: "Resonador carmesí",
+    station: "basic_workbench",
+    unlock: "crimson_resonator_recipe_unlocked",
+    inputs: [
+      { itemId: "ember_ore", amount: 2 },
+      { itemId: "red_crystal", amount: 2 },
+      { itemId: "crystal_shard", amount: 1 },
+    ],
+    outputs: [{ itemId: "crimson_resonator", amount: 1 }],
+    resultLabel: "1 resonador carmesí (despierta el sello de la ruina)",
+  },
 };
 
 const $ = (id) => document.getElementById(id);

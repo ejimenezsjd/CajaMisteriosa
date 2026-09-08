@@ -45,6 +45,8 @@ export function defaultStats() {
     moneyEarnedFromSales: 0,
     itemsPurchased: 0,
     itemsSold: 0,
+    // Fase 10
+    bossesDefeated: 0,
   };
 }
 
@@ -86,6 +88,20 @@ export function defaultState(seed) {
         completed: false,
         entered: false,
       },
+      gym_crimson: {
+        puzzleSolved: false,
+        puzzleAttempt: [],
+        energy: { west: 0, east: 0, core: 0, pool: 3 },
+        completed: false,
+        entered: false,
+      },
+    },
+    // Fase 10: jefes regionales y sellos (fillDefaults cubre saves previos)
+    bosses: {
+      crimson_guardian: { defeated: false },
+    },
+    seals: {
+      crimson_ruin: { activated: false },
     },
     // Fase 6: descubrimiento de regiones y estado de la frontera
     regions: {

@@ -141,6 +141,15 @@ export const RESOURCES = {
     surface: true,
     futureUse: "quest del tercer arco, evolución y sello del gimnasio 3",
   },
+  crimson_resonator: {
+    id: "crimson_resonator",
+    name: "Resonador carmesí",
+    icon: "🔶",
+    block: B.CRIMSON_RESONATOR,
+    rarity: "rara",
+    crafted: true,
+    futureUse: "activar el sello de la Ruina Carmesí y despertar al guardián",
+  },
 };
 
 const BY_BLOCK = Object.fromEntries(

@@ -9,6 +9,7 @@
  *
  * Gym 1 (gym_verdant): puzzle de secuencia de pedestales.
  * Gym 2 (gym_mist): faros de bruma en cualquier orden, sin reset.
+ * Gym 3 (gym_crimson): distribución de energía (reservorio 3).
  *
  * Anti-farm de insignia: resolveLeaderVictory() llama a trainers.resolveVictory
  * (dinero + trainerDefeated una sola vez) y solo entonces concede badge/unlocks
@@ -54,6 +55,33 @@ export const MIST_GYM_LAYOUT = {
   exitHook: [0, 15],
 };
 
+/** Gimnasio de la Forja: entrada al norte (desde la ruina / el boss). */
+export const FORGE_GYM_LAYOUT = {
+  door: [0, -12],
+  exit: [0, -13],
+  reception: [0, -9],
+  guide: [3, -9],
+  westDoor: [-4, -2],
+  eastDoor: [4, -2],
+  conduits: {
+    west: [-5, -4],
+    east: [5, -4],
+    core: [0, 3],
+  },
+  leaderDoor: [0, 7],
+  leaderRoom: [2, 10],
+  passHook: [0, 15],
+};
+
+export const CONDUIT_LABELS = {
+  west: "Conducto oeste",
+  east: "Conducto este",
+  core: "Núcleo de forja",
+};
+
+export const CONDUIT_CAPS = { west: 1, east: 1, core: 2 };
+export const ENERGY_POOL = 3;
+
 export const BEACON_LABELS = {
   north: "Faro Norte",
   west: "Faro Oeste",
@@ -63,6 +91,7 @@ export const BEACON_LABELS = {
 export const GYM_BY_STRUCTURE = {
   gym: "gym_verdant",
   gym_mist: "gym_mist",
+  gym_crimson: "gym_crimson",
 };
 
 export function gymIdForStructure(s) {
@@ -113,11 +142,30 @@ export const GYMS = {
       unlocks: ["second_gym_completed", "region_3_path_unlocked"],
     },
   },
+
+  gym_crimson: {
+    id: "gym_crimson",
+    name: "Gimnasio de la Forja",
+    badgeId: "crimson_badge",
+    badgeName: "Insignia Forja",
+    region: "region_3",
+    structureType: "gym_crimson",
+    requirements: { progression: ["gym_3_path_unlocked"] },
+    trainers: ["gym_trainer_forge_1", "gym_trainer_forge_2"],
+    leader: "leader_brann",
+    puzzle: { type: "forge_energy", conduits: ["west", "east", "core"] },
+    layout: FORGE_GYM_LAYOUT,
+    guideRole: "crimson_gym_guide",
+    rewards: {
+      unlocks: ["third_gym_completed", "region_4_path_unlocked"],
+    },
+  },
 };
 
 export function defaultGymState(id = "gym_verdant") {
   const st = { puzzleSolved: false, puzzleAttempt: [], completed: false, entered: false };
   if (id === "gym_mist") st.beacons = { north: false, east: false, west: false };
+  if (id === "gym_crimson") st.energy = { west: 0, east: 0, core: 0, pool: ENERGY_POOL };
   return st;
 }
 
@@ -162,6 +210,7 @@ class GymSystem {
     this.g = state.gyms;
     if (this.g && !this.g.gym_verdant) this.g.gym_verdant = defaultGymState("gym_verdant");
     if (this.g && !this.g.gym_mist) this.g.gym_mist = defaultGymState("gym_mist");
+    if (this.g && !this.g.gym_crimson) this.g.gym_crimson = defaultGymState("gym_crimson");
   }
 
   setProgression(p) {
@@ -174,6 +223,9 @@ class GymSystem {
     if (id === "gym_mist" && !this.g[id].beacons) {
       this.g[id].beacons = { north: false, east: false, west: false };
     }
+    if (id === "gym_crimson" && !this.g[id].energy) {
+      this.g[id].energy = { west: 0, east: 0, core: 0, pool: ENERGY_POOL };
+    }
     return this.g[id];
   }
 
@@ -182,6 +234,7 @@ class GymSystem {
     const gym = GYMS[id];
     const beacons = st.beacons ? { ...st.beacons } : null;
     const beaconCount = beacons ? Object.values(beacons).filter(Boolean).length : 0;
+    const energy = st.energy ? { ...st.energy } : null;
     return {
       id,
       name: gym.name,
@@ -189,6 +242,7 @@ class GymSystem {
       puzzleAttempt: [...(st.puzzleAttempt ?? [])],
       beacons,
       beaconCount,
+      energy,
       completed: !!st.completed,
       entered: !!st.entered,
       trainersRequired: gym.trainers,
@@ -288,6 +342,59 @@ class GymSystem {
     st.puzzleSolved = false;
     st.puzzleAttempt = [];
     if (st.beacons) st.beacons = { north: false, east: false, west: false };
+    if (st.energy) st.energy = { west: 0, east: 0, core: 0, pool: ENERGY_POOL };
+  }
+
+  /**
+   * Distribución de energía: reservorio compartido de 3 cargas.
+   * Conductos: oeste/este cap 1 (puertas de trainers), núcleo cap 2 (líder).
+   * Asignar o recuperar una carga por interacción. Sin timing.
+   */
+  assignEnergy(id, conduitId) {
+    const st = this.ensure(id);
+    if (!st.energy) st.energy = { west: 0, east: 0, core: 0, pool: ENERGY_POOL };
+    const cap = CONDUIT_CAPS[conduitId];
+    if (cap == null) return { ok: false, error: "Conducto desconocido." };
+    if (st.energy.pool <= 0) {
+      return { ok: false, error: "No queda energía en el reservorio.", energy: { ...st.energy } };
+    }
+    if (st.energy[conduitId] >= cap) {
+      return { ok: false, error: "Ese conducto ya está saturado.", energy: { ...st.energy } };
+    }
+    st.energy[conduitId] += 1;
+    st.energy.pool -= 1;
+    const current = st.energy.core;
+    events.emit("gymPuzzleProgress", {
+      gymId: id, current, required: CONDUIT_CAPS.core, reset: false, conduitId, energy: { ...st.energy },
+    });
+    if (st.energy.core >= CONDUIT_CAPS.core && !st.puzzleSolved) {
+      st.puzzleSolved = true;
+      events.emit("gymPuzzleSolved", { gymId: id });
+      return { ok: true, solved: true, assigned: true, energy: { ...st.energy } };
+    }
+    return { ok: true, assigned: true, energy: { ...st.energy } };
+  }
+
+  recoverEnergy(id, conduitId) {
+    const st = this.ensure(id);
+    if (!st.energy) st.energy = { west: 0, east: 0, core: 0, pool: ENERGY_POOL };
+    if (!(conduitId in CONDUIT_CAPS)) return { ok: false, error: "Conducto desconocido." };
+    if (st.energy[conduitId] <= 0) {
+      return { ok: false, error: "Ese conducto no tiene energía.", energy: { ...st.energy } };
+    }
+    st.energy[conduitId] -= 1;
+    st.energy.pool += 1;
+    events.emit("gymPuzzleProgress", {
+      gymId: id, current: st.energy.core, required: CONDUIT_CAPS.core, reset: false,
+      conduitId, recovered: true, energy: { ...st.energy },
+    });
+    return { ok: true, recovered: true, energy: { ...st.energy } };
+  }
+
+  conduitOpen(id, conduitId) {
+    const st = this.ensure(id);
+    const need = CONDUIT_CAPS[conduitId] ?? 1;
+    return (st.energy?.[conduitId] ?? 0) >= need;
   }
 
   /**

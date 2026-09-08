@@ -41,6 +41,8 @@
  *  - itemUsed          { itemId, ... }
  *  - itemPurchased     { itemId, amount, unitPrice, total }
  *  - itemSold          { itemId, amount, unitPrice, total }
+ *  - bossDefeated      { bossId, regionId, level }
+ *  - sealActivated     { sealId, regionId }
  */
 
 const handlers = new Map();

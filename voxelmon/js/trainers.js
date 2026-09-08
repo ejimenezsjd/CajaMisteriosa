@@ -189,6 +189,63 @@ export const TRAINERS = {
     anchorOffset: [2, 10],
     colors: { skin: "#d4c4b0", outfit: "#2a2438", accent: "#c9f0ff" },
   },
+
+  // ---------- Gimnasio de la Forja (Fase 10) ----------
+
+  gym_trainer_forge_1: {
+    id: "gym_trainer_forge_1",
+    name: "Pyra",
+    role: "trainer",
+    trainerClass: "ranger",
+    gymId: "gym_crimson",
+    dialogueId: "gym_trainer_pyra",
+    dialogueDefeatedId: "gym_trainer_pyra_done",
+    team: [
+      { speciesId: "brasor", level: 23 },
+      { speciesId: "rocal", level: 24 },
+    ],
+    rewardMoney: 400,
+    repeatable: false,
+    anchorOffset: [-5, 2],
+    colors: { skin: "#d4a070", outfit: "#8a3020", accent: "#f07030" },
+  },
+  gym_trainer_forge_2: {
+    id: "gym_trainer_forge_2",
+    name: "Flint",
+    role: "trainer",
+    trainerClass: "ace",
+    gymId: "gym_crimson",
+    dialogueId: "gym_trainer_flint",
+    dialogueDefeatedId: "gym_trainer_flint_done",
+    team: [
+      { speciesId: "infernak", level: 25 },
+      { speciesId: "clarion", level: 24 },
+      { speciesId: "titanor", level: 26 },
+    ],
+    rewardMoney: 480,
+    repeatable: false,
+    anchorOffset: [5, 4],
+    colors: { skin: "#c89060", outfit: "#4a3a32", accent: "#e0a040" },
+  },
+  leader_brann: {
+    id: "leader_brann",
+    name: "Brann",
+    role: "trainer",
+    trainerClass: "ace",
+    gymId: "gym_crimson",
+    leader: true,
+    dialogueId: "gym_leader_brann",
+    dialogueDefeatedId: "gym_leader_brann_done",
+    team: [
+      { speciesId: "infernak", level: 27 },
+      { speciesId: "titanor", level: 28 },
+      { speciesId: "aureon", level: 29 },
+    ],
+    rewardMoney: 1100,
+    repeatable: false,
+    anchorOffset: [2, 10],
+    colors: { skin: "#c87848", outfit: "#3a2018", accent: "#ff7040" },
+  },
 };
 
 /** Anchors deterministas de entrenadores asociados a un settlement */

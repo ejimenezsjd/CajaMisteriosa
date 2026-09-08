@@ -207,7 +207,7 @@ export const BIOMES = {
       { id: "medicinal_herb", chance: 0.004 },
       { id: "crystal_shard", chance: 0.005 },
     ],
-    structures: ["mining_camp", "crimson_ruin", "healing_shrine"],
+    structures: ["mining_camp", "crimson_ruin", "gym_crimson", "healing_shrine"],
     ambience: { heat: true },
   },
 

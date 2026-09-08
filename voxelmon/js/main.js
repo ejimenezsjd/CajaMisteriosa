@@ -8,11 +8,13 @@ import { World, B, BLOCK_DROPS, BIOME_NAMES } from "./world.js";
 import { getBiomeName, getBiomeDefinition } from "./biomes.js";
 import { RESOURCES, resourceForBlock } from "./resources.js";
 import { STRUCTURE_TYPES, MIST_SETTLEMENT_LAYOUT, CRIMSON_RUIN_LAYOUT } from "./structures.js";
+import { buildCreatureModel } from "./models.js";
+import { bosses, BOSSES } from "./bosses.js";
 import { Player } from "./player.js";
 import { Spawner } from "./creatures.js";
 import { Battle, TrainerOpponent } from "./battle.js";
 import { TRAINERS, trainers } from "./trainers.js";
-import { GYMS, GYM_LAYOUT, MIST_GYM_LAYOUT, SWITCH_LABELS, BEACON_LABELS, gyms, gymIdForStructure } from "./gyms.js";
+import { GYMS, GYM_LAYOUT, MIST_GYM_LAYOUT, FORGE_GYM_LAYOUT, SWITCH_LABELS, BEACON_LABELS, CONDUIT_LABELS, gyms, gymIdForStructure } from "./gyms.js";
 import { UI } from "./ui.js";
 import { FAMILY_STARTERS, PERKS, activePerks, familyOf, createMonster } from "./data.js";
 import { sfx, toggleMute } from "./audio.js";
@@ -174,26 +176,47 @@ events.on("progressUnlocked", ({ id }) => {
     ui.toast("🌄 La Insignia Bruma abre un camino más al sur.", "legendary");
   }
   if (id === "gym_3_clue_unlocked") {
+    progression.unlock("crimson_resonator_recipe_unlocked");
     ui.toast("♦️ El sello mineral de las cumbres comienza a resonar.", "legendary");
     const ruin = findCrimsonRuin(player?.pos.x ?? 0, player?.pos.z ?? 0);
     if (ruin) applyCrimsonSeal(ruin);
   }
+  if (id === "crimson_resonator_recipe_unlocked") {
+    ui.toast("🔶 Bren te describe cómo forjar el resonador carmesí.", "good");
+  }
+  if (id === "gym_3_path_unlocked") {
+    ui.toast("🔥 El sello se abre. Un camino mineral baja hacia la forja.", "legendary");
+    const ruin = findCrimsonRuin(player?.pos.x ?? 0, player?.pos.z ?? 0);
+    if (ruin) applyGym3PathOpening(ruin);
+  }
+  if (id === "region_4_path_unlocked") {
+    ui.toast("🌄 La Insignia Forja activa el mecanismo del paso sur.", "legendary");
+    const g3 = findForgeGym(player?.pos.x ?? 0, player?.pos.z ?? 0);
+    if (g3) applyCrimsonPassOpening(g3);
+  }
 });
-events.on("gymPuzzleProgress", ({ gymId, current, required, reset }) => {
+events.on("gymPuzzleProgress", ({ gymId, current, required, reset, recovered }) => {
   if (gymId === "gym_mist") ui.toast(`🌫 Faros de bruma: ${current}/${required}`);
-  else if (reset) ui.toast("↺ Secuencia incorrecta. Los pedestales se reinician.", "bad");
+  else if (gymId === "gym_crimson") {
+    ui.toast(recovered ? "🔥 Energía recuperada al reservorio." : `🔥 Energía del núcleo: ${current}/${required}`);
+  } else if (reset) ui.toast("↺ Secuencia incorrecta. Los pedestales se reinician.", "bad");
   else ui.toast(`🌿 Pedestales activados: ${current}/${required}`);
   refreshGymTracker();
 });
 events.on("gymPuzzleSolved", ({ gymId }) => {
   if (gymId === "gym_mist") ui.toast("🌫 Los tres faros están encendidos.", "good");
+  else if (gymId === "gym_crimson") ui.toast("🔥 El núcleo de forja está cargado.", "good");
   else ui.toast("🌿 ¡Puzzle resuelto! La puerta del líder puede abrirse.", "good");
   maybeLeaderRoomToast(gymId ?? "gym_verdant");
   refreshGymTracker();
 });
 events.on("gymEntered", ({ gymId }) => {
   if (gymId === "gym_mist") ui.toast("🌫 Gimnasio de las Brumas", "good");
+  else if (gymId === "gym_crimson") ui.toast("🔥 Gimnasio de la Forja", "good");
   else ui.toast("🌿 Gimnasio Verde", "good");
+});
+events.on("bossDefeated", ({ bossId }) => {
+  if (bossId === "crimson_guardian") ui.toast("⚠ El Guardián Carmesí se desmorona. El camino al sur se abre.", "legendary");
 });
 events.on("trainerDefeated", ({ gymId }) => {
   if (gymId) maybeLeaderRoomToast(gymId);
@@ -397,10 +420,12 @@ async function startWorld(saved) {
   crafting.attach(state);
   interaction.clear();
   npcs.init(scene, world, interaction);
-  quests.attach(state);
   trainers.attach(state);
   gyms.attach(state);
   gyms.setProgression(progression);
+  bosses.attach(state);
+  bosses.setRewardHandler((money) => addMoney(money));
+  quests.attach(state);
   // El bioma inicial cuenta como descubierto (sin toast en la carga)
   state.stats.biomesDiscovered[world.biomeAt(px, pz)] = true;
   lastBiome = world.biomeAt(px, pz);
@@ -661,7 +686,9 @@ function registerGymInteractables(s, wanted) {
   const open = gyms.canEnter(gymId);
   const closedPrompt = gymId === "gym_mist"
     ? "La puerta está sellada. El arco del refugio debe despertar primero."
-    : "La puerta está cerrada. Necesitas demostrar tu experiencia como entrenador.";
+    : gymId === "gym_crimson"
+      ? "La puerta está sellada. El guardián de la ruina debe caer primero."
+      : "La puerta está cerrada. Necesitas demostrar tu experiencia como entrenador.";
   put(`gym:${s.id}:door`, layout.door, 3.2,
     open ? "Entrar al gimnasio" : closedPrompt,
     () => {
@@ -738,6 +765,77 @@ function registerGymInteractables(s, wanted) {
         const [hx, hz] = layout.exitHook;
         const destX = s.x + hx + 0.5;
         const destZ = s.z + hz + 18;
+        teleportPlayer(destX, world.surfaceY(destX, destZ) + 1, destZ);
+      });
+  }
+
+  if (gym.puzzle?.type === "forge_energy" && layout.conduits) {
+    applyForgeEnergyVisuals(s);
+    const st = gyms.gymState(gymId);
+    for (const [cid, local] of Object.entries(layout.conduits)) {
+      const assigned = st.energy?.[cid] ?? 0;
+      const cap = cid === "core" ? 2 : 1;
+      const pool = st.energy?.pool ?? 0;
+      const label = CONDUIT_LABELS[cid] ?? cid;
+      const prompt = (assigned < cap && pool > 0)
+        ? `${label} (${assigned}/${cap}) — Asignar energía`
+        : assigned > 0
+          ? `${label} (${assigned}/${cap}) — Recuperar energía`
+          : `${label} (0/${cap}) — Sin energía en el reservorio`;
+      put(`gym:${s.id}:conduit:${cid}`, local, 2.6, prompt, () => {
+        const en = gyms.gymState(gymId).energy ?? { west: 0, east: 0, core: 0, pool: 3 };
+        const cur = en[cid] ?? 0;
+        const capNow = cid === "core" ? 2 : 1;
+        const r = (cur < capNow && en.pool > 0)
+          ? gyms.assignEnergy(gymId, cid)
+          : gyms.recoverEnergy(gymId, cid);
+        if (!r.ok && r.error) ui.toast(r.error, "bad");
+        applyForgeEnergyVisuals(s);
+        saveGame();
+      });
+    }
+
+    const westOpen = gyms.conduitOpen(gymId, "west") || trainers.isDefeated("gym_trainer_forge_1");
+    put(`gym:${s.id}:west-door`, layout.westDoor, 2.6,
+      westOpen ? "Entrar al ala oeste" : "El conducto oeste no tiene energía.",
+      () => {
+        if (!gyms.conduitOpen(gymId, "west") && !trainers.isDefeated("gym_trainer_forge_1")) {
+          ui.toast("El conducto oeste no tiene energía.", "bad");
+          return;
+        }
+        teleportPlayer(s.x - 5 + 0.5, s.y + 1.2, s.z + 2 + 0.5);
+      });
+
+    const eastOpen = gyms.conduitOpen(gymId, "east") || trainers.isDefeated("gym_trainer_forge_2");
+    put(`gym:${s.id}:east-door`, layout.eastDoor, 2.6,
+      eastOpen ? "Entrar al ala este" : "El conducto este no tiene energía.",
+      () => {
+        if (!gyms.conduitOpen(gymId, "east") && !trainers.isDefeated("gym_trainer_forge_2")) {
+          ui.toast("El conducto este no tiene energía.", "bad");
+          return;
+        }
+        teleportPlayer(s.x + 5 + 0.5, s.y + 1.2, s.z + 4 + 0.5);
+      });
+
+    const passOpen = isCrimsonPassOpen();
+    if (passOpen) applyCrimsonPassOpening(s);
+    let passPrompt;
+    if (passOpen) passPrompt = "Cruzar el Paso Carmesí";
+    else if (progression.isUnlocked("region_4_path_unlocked") || progression.hasBadge("crimson_badge")) {
+      passPrompt = "La Insignia Forja activa el mecanismo.";
+    } else {
+      passPrompt = "El paso está bloqueado.";
+    }
+    put(`gym:${s.id}:pass-hook`, layout.passHook, 3.2, passPrompt,
+      () => {
+        if (!progression.isUnlocked("region_4_path_unlocked") && !progression.hasBadge("crimson_badge")) {
+          ui.toast("El paso está bloqueado.", "bad");
+          return;
+        }
+        applyCrimsonPassOpening(s);
+        const [hx, hz] = layout.passHook;
+        const destX = s.x + hx + 0.5;
+        const destZ = s.z + hz + 10;
         teleportPlayer(destX, world.surfaceY(destX, destZ) + 1, destZ);
       });
   }
@@ -885,47 +983,181 @@ function findMiningCamp(x, z) {
 }
 
 function applyCrimsonSeal(s) {
-  if (!s || !world || !progression.isUnlocked("gym_3_clue_unlocked")) return;
+  if (!s || !world) return;
   const [dx, dz] = CRIMSON_RUIN_LAYOUT.seal;
-  world.setBlock(s.x + dx, s.y + 2, s.z + dz, B.RED_CRYSTAL);
+  const phase = bosses.sealPhase();
+  if (phase === "activated") {
+    world.setBlock(s.x + dx, s.y + 2, s.z + dz, B.EMBER_ORE);
+    world.setBlock(s.x + dx, s.y + 3, s.z + dz, B.RED_CRYSTAL);
+  } else if (phase === "resonating") {
+    world.setBlock(s.x + dx, s.y + 2, s.z + dz, B.RED_CRYSTAL);
+  }
+}
+
+function applyGym3PathOpening(s) {
+  if (!s || !world || !progression.isUnlocked("gym_3_path_unlocked")) return;
+  const [dx, dz] = CRIMSON_RUIN_LAYOUT.pathGate;
+  for (let ox = -1; ox <= 1; ox++) {
+    for (let dy = 1; dy <= 5; dy++) {
+      world.setBlock(s.x + dx + ox, s.y + dy, s.z + dz, B.AIR);
+    }
+  }
+}
+
+function applyCrimsonPassOpening(s) {
+  if (!s || !world || !isCrimsonPassOpen()) return;
+  const [dx, dz] = FORGE_GYM_LAYOUT.passHook;
+  for (let ox = -1; ox <= 1; ox++) {
+    for (let dy = 1; dy <= 5; dy++) {
+      world.setBlock(s.x + dx + ox, s.y + dy, s.z + dz, B.AIR);
+    }
+  }
+}
+
+function applyForgeEnergyVisuals(s) {
+  if (!s || !world) return;
+  const layout = FORGE_GYM_LAYOUT;
+  const westOn = gyms.conduitOpen("gym_crimson", "west") || trainers.isDefeated("gym_trainer_forge_1");
+  const eastOn = gyms.conduitOpen("gym_crimson", "east") || trainers.isDefeated("gym_trainer_forge_2");
+  const [wdx, wdz] = layout.westDoor;
+  const [edx, edz] = layout.eastDoor;
+  for (let dy = 1; dy <= 2; dy++) {
+    world.setBlock(s.x + wdx, s.y + dy, s.z + wdz, westOn ? B.AIR : B.CRYSTAL);
+    world.setBlock(s.x + edx, s.y + dy, s.z + edz, eastOn ? B.AIR : B.CRYSTAL);
+  }
+  const en = gyms.gymState("gym_crimson").energy ?? {};
+  for (const [cid, local] of Object.entries(layout.conduits)) {
+    const top = (en[cid] ?? 0) > 0 ? B.RED_CRYSTAL : B.CRYSTAL;
+    world.setBlock(s.x + local[0], s.y + 2, s.z + local[1], top);
+  }
+}
+
+function isCrimsonPassOpen() {
+  return progression.hasBadge("crimson_badge") || progression.isUnlocked("region_4_path_unlocked");
+}
+
+function findForgeGym(x, z) {
+  if (!world) return null;
+  const near = world.structures.near(x, z, 120).find((s) => s.type === "gym_crimson");
+  if (near) return near;
+  const gym = nearestGymAnchor(x, z);
+  if (!gym) return null;
+  return world.structures.candidate("gym_crimson", gym.cellX, gym.cellZ);
+}
+
+let bossVisual = null;
+function disposeBossVisual() {
+  if (!bossVisual) return;
+  scene.remove(bossVisual);
+  bossVisual.traverse((o) => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) {
+      if (o.material.map) o.material.map.dispose();
+      o.material.dispose();
+    }
+  });
+  bossVisual = null;
+}
+
+function syncBossVisual(s) {
+  const want = !!s && bosses.isSealActivated() && !bosses.isDefeated("crimson_guardian");
+  if (!want) {
+    disposeBossVisual();
+    return;
+  }
+  const [dx, dz] = CRIMSON_RUIN_LAYOUT.boss;
+  const x = s.x + dx + 0.5;
+  const y = (s.y ?? world.surfaceY(s.x + dx, s.z + dz)) + 1;
+  const z = s.z + dz + 0.5;
+  if (!bossVisual) {
+    bossVisual = buildCreatureModel("titanor");
+    scene.add(bossVisual);
+  }
+  bossVisual.position.set(x, y, z);
 }
 
 function registerRuinInteractables(s, wanted) {
-  const [dx, dz] = CRIMSON_RUIN_LAYOUT.seal;
-  const id = `crimson_seal:${s.id}`;
-  wanted.add(id);
-  if (progression.isUnlocked("gym_3_clue_unlocked")) applyCrimsonSeal(s);
-  const awake = progression.isUnlocked("gym_3_clue_unlocked");
-  const prompt = awake
-    ? "El sello mineral comienza a resonar."
-    : "El sello permanece inerte.";
-  const x = s.x + dx + 0.5;
-  const y = s.y + 1.6;
-  const z = s.z + dz + 0.5;
-  const existing = interaction.items.get(id);
-  if (existing) {
-    existing.prompt = prompt;
-    existing.x = x;
-    existing.y = y;
-    existing.z = z;
-    return;
+  applyCrimsonSeal(s);
+  if (progression.isUnlocked("gym_3_path_unlocked")) applyGym3PathOpening(s);
+  syncBossVisual(s);
+
+  const putRuin = (id, type, local, range, prompt, onInteract) => {
+    wanted.add(id);
+    const x = s.x + local[0] + 0.5;
+    const y = s.y + 1.6;
+    const z = s.z + local[1] + 0.5;
+    const existing = interaction.items.get(id);
+    if (existing) {
+      existing.prompt = prompt;
+      existing.x = x;
+      existing.y = y;
+      existing.z = z;
+      return;
+    }
+    interaction.register({ id, type, x, y, z, range, prompt, data: s, onInteract });
+  };
+
+  const phase = bosses.sealPhase();
+  let sealPrompt;
+  if (phase === "activated") sealPrompt = "El sello se abre.";
+  else if (phase === "resonating") {
+    sealPrompt = bosses.canActivateSeal().ok
+      ? "Activar sello"
+      : "El sello mineral comienza a resonar. Parece faltarle energía.";
+  } else {
+    sealPrompt = "El sello permanece inerte.";
   }
-  interaction.register({
-    id,
-    type: "crimson_seal",
-    x, y, z,
-    range: 3.2,
-    prompt,
-    data: s,
-    onInteract: () => {
-      if (progression.isUnlocked("gym_3_clue_unlocked")) {
-        applyCrimsonSeal(s);
-        ui.toast("El sello mineral comienza a resonar. Un eco señala más al sur… todavía no hay camino.", "good");
-      } else {
-        ui.toast("El sello permanece inerte.", "bad");
-      }
-    },
+  putRuin(`crimson_seal:${s.id}`, "crimson_seal", CRIMSON_RUIN_LAYOUT.seal, 3.2, sealPrompt, () => {
+    const p = bosses.sealPhase();
+    if (p === "inert") {
+      ui.toast("El sello permanece inerte.", "bad");
+      return;
+    }
+    if (p === "activated") {
+      applyCrimsonSeal(s);
+      ui.toast("El sello se abre.", "good");
+      return;
+    }
+    const r = bosses.activateSeal();
+    if (!r.ok) {
+      applyCrimsonSeal(s);
+      ui.toast(r.reason ?? "El sello mineral comienza a resonar. Parece faltarle energía.", "bad");
+      return;
+    }
+    applyCrimsonSeal(s);
+    syncBossVisual(s);
+    ui.toast("El sello se abre. Un eco mineral despierta en el patio.", "legendary");
+    ui.refreshHud();
+    saveGame();
   });
+
+  const pathOpen = progression.isUnlocked("gym_3_path_unlocked");
+  putRuin(`crimson_path:${s.id}`, "crimson_path", CRIMSON_RUIN_LAYOUT.pathGate, 3.2,
+    pathOpen ? "Cruzar hacia el Gimnasio de la Forja" : "El camino hacia la forja está sellado.",
+    () => {
+      if (!pathOpen) {
+        ui.toast("El camino hacia la forja está sellado.", "bad");
+        return;
+      }
+      applyGym3PathOpening(s);
+      const [hx, hz] = CRIMSON_RUIN_LAYOUT.pathGate;
+      const destX = s.x + hx + 0.5;
+      const destZ = s.z + hz + 12;
+      teleportPlayer(destX, world.surfaceY(destX, destZ) + 1, destZ);
+    });
+
+  if (phase === "activated") {
+    const defeated = bosses.isDefeated("crimson_guardian");
+    putRuin(`crimson_boss:${s.id}`, "boss", CRIMSON_RUIN_LAYOUT.boss, 3.4,
+      defeated ? "El guardián mineral descansa." : "Desafiar al Guardián Carmesí",
+      () => {
+        if (defeated) {
+          ui.toast("El guardián mineral descansa.", "good");
+          return;
+        }
+        startBossBattle("crimson_guardian");
+      });
+  }
 }
 
 function registerMistInteractables(s, wanted) {
@@ -1050,6 +1282,11 @@ function refreshGymTracker(nearGym = null) {
     label = st.puzzleSolved
       ? (st.leaderReady ? "Sala del líder abierta" : "Faros encendidos")
       : `Faros de bruma: ${st.beaconCount}/3`;
+  } else if (gymId === "gym_crimson") {
+    const e = st.energy ?? { west: 0, east: 0, core: 0, pool: 3 };
+    label = st.leaderReady
+      ? "Sala del líder abierta"
+      : `Energía O${e.west} E${e.east} Núcleo ${e.core}/2 · reserva ${e.pool}`;
   } else {
     const cur = st.puzzleSolved ? 3 : st.puzzleAttempt.length;
     label = st.puzzleSolved
@@ -1096,6 +1333,7 @@ function spawnBreakParticles(x, y, z, block) {
     [B.CRYSTAL]: 0x8ee4fa, [B.APRICORN]: 0xd98438, [B.HERB]: 0x8cd455,
     [B.ANCIENT_FRAGMENT]: 0xb48ad8, [B.MIST_BLOOM]: 0x8fd4e4, [B.MIST_GRASS]: 0x3a6152,
     [B.CRIMSON_STONE]: 0x6a2c28, [B.EMBER_ORE]: 0xc85020, [B.RED_CRYSTAL]: 0xe04048,
+    [B.CRIMSON_RESONATOR]: 0xe86828,
   };
   for (let i = 0; i < 8; i++) {
     const m = new THREE.Mesh(
@@ -1326,6 +1564,73 @@ async function startTrainerBattle(trainerId, npc = null) {
   ui.setTargetPrompt("Haz clic para tomar el control");
 }
 
+/**
+ * Combate contra jefe regional (Fase 10): reutiliza Battle + TrainerOpponent
+ * con ctx.type === "boss". Recompensa solo vía bosses.resolveVictory.
+ */
+async function startBossBattle(bossId) {
+  if (mode !== "play" || battle) return;
+  const check = bosses.canBattle(bossId);
+  if (!check.ok) {
+    ui.toast(check.reason, "bad");
+    return;
+  }
+  const def = BOSSES[bossId];
+  mode = "battle";
+  document.exitPointerLock();
+  ui.setTargetPrompt(null);
+
+  const teamMonsters = def.team.map((t) => createMonster(t.speciesId, t.level));
+  const [bdx, bdz] = CRIMSON_RUIN_LAYOUT.boss;
+  const ruin = findCrimsonRuin(player.pos.x, player.pos.z);
+  let ox, oz;
+  if (ruin) {
+    ox = ruin.x + bdx + 0.5;
+    oz = ruin.z + bdz + 0.5;
+  } else {
+    const look = player.lookDir();
+    ox = player.pos.x + look.x * 5;
+    oz = player.pos.z + look.z * 5;
+  }
+  const opponent = new TrainerOpponent(scene, world, teamMonsters[0], ox, oz);
+  disposeBossVisual();
+
+  events.emit("battleStarted", {
+    type: "boss", bossId, speciesId: teamMonsters[0].speciesId, level: teamMonsters[0].level,
+  });
+
+  battle = new Battle({
+    scene, camera, world, player, wild: opponent, team: state.team, state, ui,
+    ctx: { type: "boss", boss: def, queue: teamMonsters.slice(1) },
+  });
+  ui.onEvolve = (m) => {
+    state.dex.caught[m.speciesId] = true;
+    state.dex.seen[m.speciesId] = true;
+    events.emit("creatureEvolved", { speciesId: m.speciesId });
+    ui.refreshHud();
+  };
+  const result = await battle.run();
+  battle = null;
+  opponent.dispose();
+
+  if (result === "win") {
+    const reward = bosses.resolveVictory(bossId);
+    events.emit("battleWon", { type: "boss", bossId });
+    const ruinNow = findCrimsonRuin(player.pos.x, player.pos.z);
+    if (ruinNow) applyGym3PathOpening(ruinNow);
+    if (!reward) ui.toast(`El ${def.name} permanece derrotado.`, "good");
+  } else if (result === "lost") {
+    events.emit("battleLost", { type: "boss", bossId });
+    for (const m of state.team) m.hp = m.maxHp;
+    ui.toast(`Caíste ante el ${def.name}… Tu equipo se recupera. El sello sigue abierto.`, "bad");
+  }
+
+  ui.refreshHud();
+  saveGame();
+  mode = "play";
+  ui.setTargetPrompt("Haz clic para tomar el control");
+}
+
 function checkLegendary() {
   if (state.legendarySpawned) return;
   const fams = FAMILY_STARTERS.filter((f) => ui.familyCaught(f)).length;
@@ -1470,7 +1775,7 @@ function loop(now) {
           });
         }
       }
-      if (s.type === "gym" || s.type === "gym_mist") {
+      if (s.type === "gym" || s.type === "gym_mist" || s.type === "gym_crimson") {
         nearGym = s;
         registerGymInteractables(s, wantedGym);
         if (s.type === "gym_mist") fogMistGym = s;
@@ -1503,6 +1808,13 @@ function loop(now) {
     for (const id of interaction.ids("crimson_seal")) {
       if (!wantedRuin.has(id)) interaction.unregister(id);
     }
+    for (const id of interaction.ids("crimson_path")) {
+      if (!wantedRuin.has(id)) interaction.unregister(id);
+    }
+    for (const id of interaction.ids("boss")) {
+      if (!wantedRuin.has(id)) interaction.unregister(id);
+    }
+    if (![...wantedRuin].some((id) => id.startsWith("crimson_boss:"))) disposeBossVisual();
     refreshGymTracker(nearGym);
 
     // NPC de asentamientos: reconciliación por distancia, sin duplicados
@@ -1644,6 +1956,7 @@ window.__vm = {
   interactionSystem: interaction,
   trainerSystem: trainers,
   gymSystem: gyms,
+  bossSystem: bosses,
   regionSystem: regions,
   craftingSystem: crafting,
   economySystem: economy,
@@ -1742,9 +2055,14 @@ window.__vm = {
       return {
         type: battle.ctx.type,
         trainerId: battle.trainer?.id ?? null,
+        bossId: battle.boss?.id ?? null,
         enemy: { speciesId: battle.enemy.speciesId, level: battle.enemy.level, hp: battle.enemy.hp },
         queueLeft: battle.ctx.queue?.length ?? 0,
+        banner: document.getElementById("battle-trainer")?.textContent ?? "",
       };
+    },
+    startBossBattle(id = "crimson_guardian") {
+      startBossBattle(id);
     },
     /** [debug] lanza un combate contra un entrenador por id */
     startTrainerBattle(id) {
@@ -1829,7 +2147,7 @@ window.__vm = {
       return world.structures.near(player.pos.x, player.pos.z, r)
         .filter((s) => s.type === "regional_gate" || s.type === "watchtower" ||
           s.type === "ancient_outpost" || s.type === "mist_settlement" || s.type === "gym_mist" ||
-          s.type === "mining_camp" || s.type === "crimson_ruin");
+          s.type === "mining_camp" || s.type === "crimson_ruin" || s.type === "gym_crimson");
     },
     mistSettlement() {
       if (!world || !player) return null;
@@ -1861,12 +2179,16 @@ window.__vm = {
           mist_crafting_unlocked: progression.isUnlocked("mist_crafting_unlocked"),
           ancient_core_recipe_unlocked: progression.isUnlocked("ancient_core_recipe_unlocked"),
           gym_2_clue_unlocked: progression.isUnlocked("gym_2_clue_unlocked"),
+          crimson_resonator_recipe_unlocked: progression.isUnlocked("crimson_resonator_recipe_unlocked"),
         },
         items: {
           balls: state.balls,
           mist_tonic: getItemCount(state, "mist_tonic"),
           explorer_kit: getItemCount(state, "explorer_kit"),
           ancient_core: getItemCount(state, "ancient_core"),
+          crimson_resonator: getItemCount(state, "crimson_resonator"),
+          ember_ore: getItemCount(state, "ember_ore"),
+          red_crystal: getItemCount(state, "red_crystal"),
         },
         buffs: { ...(state.buffs ?? {}) },
         open: crafting.open,
@@ -1883,6 +2205,8 @@ window.__vm = {
         { itemId: "iron", amount: 3 },
         { itemId: "ancient_fragment", amount: 3 },
         { itemId: "crystal_shard", amount: 3 },
+        { itemId: "ember_ore", amount: 6 },
+        { itemId: "red_crystal", amount: 4 },
       ]);
       ui.refreshHud();
       if (crafting.open) crafting.render();
@@ -1901,6 +2225,7 @@ window.__vm = {
     unlockCrafting() {
       progression.unlock("basic_crafting_unlocked");
       progression.unlock("ancient_core_recipe_unlocked");
+      progression.unlock("crimson_resonator_recipe_unlocked");
     },
     gotoMist() {
       const s = this.mistSettlement()?.settlement;
@@ -1957,6 +2282,8 @@ window.__vm = {
           x: ruin.x, z: ruin.z,
           block: world.getBlock(ruin.x, ruin.y + 2, ruin.z),
           clue: progression.isUnlocked("gym_3_clue_unlocked"),
+          phase: bosses.sealPhase(),
+          activated: bosses.isSealActivated(),
         } : null,
         discovered: !!state?.regions.discovered[REGION_3],
       };
@@ -2005,6 +2332,129 @@ window.__vm = {
         x: player?.pos.x ?? 0,
         z: player?.pos.z ?? 0,
       });
+    },
+    unlockGym3Clue() {
+      this.unlockRegion3();
+      this.openRegion3Gate();
+      progression.unlock("gym_3_clue_unlocked");
+    },
+    crimsonBoss() {
+      if (!world || !player) return null;
+      const ruin = findCrimsonRuin(player.pos.x, player.pos.z);
+      const def = BOSSES.crimson_guardian;
+      const [bdx, bdz] = CRIMSON_RUIN_LAYOUT.boss;
+      const [gdx, gdz] = CRIMSON_RUIN_LAYOUT.pathGate;
+      return {
+        boss: {
+          id: def.id,
+          name: def.name,
+          level: def.team[0].level,
+          speciesId: def.team[0].speciesId,
+          defeated: bosses.isDefeated(def.id),
+          canBattle: bosses.canBattle(def.id),
+          coords: ruin ? { x: ruin.x + bdx, y: ruin.y + 1, z: ruin.z + bdz } : null,
+          reward: def.rewardMoney,
+          unlock: "gym_3_path_unlocked",
+        },
+        recipe: {
+          id: "recipe_crimson_resonator",
+          unlocked: progression.isUnlocked("crimson_resonator_recipe_unlocked"),
+          can: crafting.canCraft("recipe_crimson_resonator"),
+          have: {
+            ember_ore: getItemCount(state, "ember_ore"),
+            red_crystal: getItemCount(state, "red_crystal"),
+            crystal_shard: getItemCount(state, "crystal_shard"),
+            crimson_resonator: getItemCount(state, "crimson_resonator"),
+          },
+        },
+        seal: {
+          phase: bosses.sealPhase(),
+          activated: bosses.isSealActivated(),
+          coords: ruin ? { x: ruin.x, y: ruin.y + 2, z: ruin.z } : null,
+          block: ruin ? world.getBlock(ruin.x, ruin.y + 2, ruin.z) : null,
+        },
+        path: {
+          unlocked: progression.isUnlocked("gym_3_path_unlocked"),
+          gate: ruin ? { x: ruin.x + gdx, z: ruin.z + gdz } : null,
+          gateBlock: ruin ? world.getBlock(ruin.x + gdx, ruin.y + 2, ruin.z + gdz) : null,
+        },
+      };
+    },
+    gym3() {
+      if (!world || !player) return null;
+      const s = findForgeGym(player.pos.x, player.pos.z);
+      const st = gyms.gymState("gym_crimson");
+      const [hx, hz] = FORGE_GYM_LAYOUT.passHook;
+      return {
+        structure: s ? { id: s.id, x: s.x, y: s.y, z: s.z, biome: s.biome } : null,
+        ...st,
+        badge: progression.hasBadge("crimson_badge"),
+        path: progression.isUnlocked("gym_3_path_unlocked"),
+        nextArc: progression.isUnlocked("region_4_path_unlocked"),
+        pass: s ? {
+          x: s.x + hx, z: s.z + hz,
+          block: world.getBlock(s.x + hx, s.y + 2, s.z + hz),
+          open: isCrimsonPassOpen(),
+        } : null,
+        trainers: {
+          pyra: trainers.isDefeated("gym_trainer_forge_1"),
+          flint: trainers.isDefeated("gym_trainer_forge_2"),
+          brann: trainers.isDefeated("leader_brann"),
+        },
+        leader: {
+          id: "leader_brann",
+          name: "Brann",
+          team: TRAINERS.leader_brann.team,
+          reward: TRAINERS.leader_brann.rewardMoney,
+        },
+      };
+    },
+    gotoGym3() {
+      const s = findForgeGym(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s || !player || !world) return null;
+      player.pos.set(s.x + 0.5, s.y + 2, s.z - 12.5);
+      player.vel.set(0, 0, 0);
+      return s;
+    },
+    unlockGym3Path() {
+      this.unlockGym3Clue();
+      progression.setFlag("crimson_seal_activated");
+      bosses.ensureSeal().activated = true;
+      bosses.ensure("crimson_guardian").defeated = true;
+      progression.unlock("gym_3_path_unlocked");
+    },
+    activateSeal() {
+      const r = bosses.activateSeal();
+      const ruin = findCrimsonRuin(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (ruin) {
+        applyCrimsonSeal(ruin);
+        syncBossVisual(ruin);
+      }
+      ui.refreshHud();
+      return r;
+    },
+    assignForge(cid) {
+      const r = gyms.assignEnergy("gym_crimson", cid);
+      const s = findForgeGym(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (s) applyForgeEnergyVisuals(s);
+      return r;
+    },
+    recoverForge(cid) {
+      const r = gyms.recoverEnergy("gym_crimson", cid);
+      const s = findForgeGym(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (s) applyForgeEnergyVisuals(s);
+      return r;
+    },
+    giveResonatorMats() {
+      if (!state) return null;
+      grantItems(state, [
+        { itemId: "ember_ore", amount: 4 },
+        { itemId: "red_crystal", amount: 4 },
+        { itemId: "crystal_shard", amount: 2 },
+      ]);
+      ui.refreshHud();
+      if (crafting.open) crafting.render();
+      return this.crafting();
     },
     giveShopGoods() {
       if (!state) return null;
