@@ -5,7 +5,8 @@
 
 import * as THREE from "three";
 import { SPECIES, movesFor, typeMultiplier, gainXp, activePerks } from "./data.js";
-import { buildCreatureModel, buildCubeBall, animateModel } from "./models.js";
+import { buildCreatureVisual, animateCreatureVisual, disposeCreatureVisual, setCreatureAnimation } from "./creature-renderer.js";
+import { buildCubeBall } from "./models.js";
 import { makeLabel } from "./creatures.js";
 import { TRAINER_CLASSES } from "./trainers.js";
 import { sfx } from "./audio.js";
@@ -31,7 +32,7 @@ export class TrainerOpponent {
   setMonster(monster) {
     if (this.group) this.disposeModel();
     this.monster = monster;
-    this.group = buildCreatureModel(monster.speciesId);
+    this.group = buildCreatureVisual(monster.speciesId);
     this.label = makeLabel(`${monster.name} Nv ${monster.level}`, "#ffb0a0");
     this.label.position.y = this.group.userData.height + 0.4;
     this.label.visible = false;
@@ -47,13 +48,7 @@ export class TrainerOpponent {
 
   disposeModel() {
     this.scene.remove(this.group);
-    this.group.traverse((o) => {
-      if (o.geometry) o.geometry.dispose();
-      if (o.material) {
-        if (o.material.map) o.material.map.dispose();
-        o.material.dispose();
-      }
-    });
+    disposeCreatureVisual(this.group);
     this.group = null;
   }
 
@@ -157,8 +152,9 @@ export class Battle {
   spawnAllyModel() {
     if (this.allyModel) {
       this.scene.remove(this.allyModel);
+      disposeCreatureVisual(this.allyModel);
     }
-    this.allyModel = buildCreatureModel(this.active.speciesId);
+    this.allyModel = buildCreatureVisual(this.active.speciesId);
     this.allyModel.position.copy(this.allyPos);
     this.allyModel.rotation.y = Math.atan2(
       -(this.enemyPos.x - this.allyPos.x),
@@ -184,8 +180,8 @@ export class Battle {
     this.camera.position.lerp(camPos, Math.min(1, dt * 3));
     this.camera.lookAt(this.mid);
 
-    if (this.allyModel) animateModel(this.allyModel, t, "idle", 0);
-    animateModel(this.wild.group, t, "idle", 0);
+    if (this.allyModel) animateCreatureVisual(this.allyModel, t, "idle", 0);
+    animateCreatureVisual(this.wild.group, t, "idle", 0);
   }
 
   damage(attacker, defender, move) {
@@ -215,6 +211,8 @@ export class Battle {
 
   async doMove(attacker, defender, move, attackerModel, defenderModel, label) {
     this.ui.battleLog(`${label} usó ${move.name}.`);
+    setCreatureAnimation(attackerModel, "attack");
+    setCreatureAnimation(defenderModel, "hurt");
     const { dmg, mult } = this.damage(attacker, defender, move);
     await this.lungeAttack(attackerModel, defenderModel);
     defender.hp = Math.max(0, defender.hp - dmg);
@@ -477,6 +475,7 @@ export class Battle {
     this.done = true;
     if (this.allyModel) {
       this.scene.remove(this.allyModel);
+      disposeCreatureVisual(this.allyModel);
       this.allyModel = null;
     }
     this.wild.inBattle = false;

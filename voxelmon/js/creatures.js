@@ -2,7 +2,7 @@
 
 import * as THREE from "three";
 import { SPECIES, createMonster } from "./data.js";
-import { buildCreatureModel, animateModel } from "./models.js";
+import { buildCreatureVisual, animateCreatureVisual, disposeCreatureVisual } from "./creature-renderer.js";
 import { WATER_Y } from "./world.js";
 import { getBiomeDefinition } from "./biomes.js";
 import { events } from "./events.js";
@@ -35,7 +35,7 @@ export class WildCreature {
     this.monster = createMonster(speciesId, level);
     this.sp = SPECIES[speciesId];
     this.flies = this.sp.type === "volador" || this.sp.legendary;
-    this.group = buildCreatureModel(speciesId);
+    this.group = buildCreatureVisual(speciesId);
     this.group.userData.entity = this;
     this.pos = new THREE.Vector3(x, world.surfaceY(x, z) + 1, z);
     this.yaw = Math.random() * Math.PI * 2;
@@ -90,20 +90,14 @@ export class WildCreature {
       this.pos.y += (groundY - this.pos.y) * Math.min(1, 10 * dt);
     }
 
-    animateModel(this.group, t + this.speed * 10, this.moving ? "walk" : "idle", this.speed / 1.7);
+    animateCreatureVisual(this.group, t + this.speed * 10, this.moving ? "walk" : "idle", this.speed / 1.7);
     this.syncTransform();
   }
 
   remove() {
     this.dead = true;
     this.scene.remove(this.group);
-    this.group.traverse((o) => {
-      if (o.geometry) o.geometry.dispose();
-      if (o.material) {
-        if (o.material.map) o.material.map.dispose();
-        o.material.dispose();
-      }
-    });
+    disposeCreatureVisual(this.group);
   }
 }
 

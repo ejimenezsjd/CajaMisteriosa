@@ -1,6 +1,7 @@
 /** Interfaz: HUD, menús, batalla, dex y notificaciones */
 
 import { SPECIES, TYPES, FAMILY_STARTERS, PERKS, movesFor, typeMultiplier } from "./data.js";
+import { creatureArtIcon } from "./creature-renderer.js";
 import { BLOCK_NAMES } from "./world.js";
 import { RESOURCES } from "./resources.js";
 import { sfx } from "./audio.js";
@@ -11,6 +12,8 @@ const $ = (id) => document.getElementById(id);
 /** Icono pixel-art determinista por especie (estilo identicon, colores de la especie) */
 const iconCache = {};
 export function pixelIcon(speciesId, cell = 6, silhouette = false) {
+  const fromArt = creatureArtIcon(speciesId, silhouette);
+  if (fromArt) return fromArt;
   const key = `${speciesId}-${cell}-${silhouette}`;
   if (iconCache[key]) return iconCache[key];
   const sp = SPECIES[speciesId];
