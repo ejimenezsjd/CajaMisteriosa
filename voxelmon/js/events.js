@@ -39,6 +39,8 @@
  *  - craftCompleted    { recipeId, inputs, outputs, stationId }
  *  - itemCrafted       { recipeId, stationId }
  *  - itemUsed          { itemId, ... }
+ *  - itemPurchased     { itemId, amount, unitPrice, total }
+ *  - itemSold          { itemId, amount, unitPrice, total }
  */
 
 const handlers = new Map();

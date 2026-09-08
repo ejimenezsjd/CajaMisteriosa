@@ -17,7 +17,7 @@
  *
  * Consumidor de region_2_path_unlocked: RegionSystem / portón fronterizo.
  * Consumidor de region_3_path_unlocked: barrera sur del Gimnasio de las Brumas
- * (hook físico; no construye Región 3).
+ * (frontera funcional hacia las Cumbres Carmesí; no construye el Gimnasio 3).
  */
 
 import { events } from "./events.js";

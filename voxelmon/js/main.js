@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { World, B, BLOCK_DROPS, BIOME_NAMES } from "./world.js";
 import { getBiomeName, getBiomeDefinition } from "./biomes.js";
 import { RESOURCES, resourceForBlock } from "./resources.js";
-import { STRUCTURE_TYPES, MIST_SETTLEMENT_LAYOUT } from "./structures.js";
+import { STRUCTURE_TYPES, MIST_SETTLEMENT_LAYOUT, CRIMSON_RUIN_LAYOUT } from "./structures.js";
 import { Player } from "./player.js";
 import { Spawner } from "./creatures.js";
 import { Battle, TrainerOpponent } from "./battle.js";
@@ -27,9 +27,10 @@ import { quests, QUESTS } from "./quests.js";
 import { executeTrade } from "./trading.js";
 import { crafting, RECIPES } from "./crafting.js";
 import { getItemCount, grantItems } from "./items.js";
+import { economy, bindShopTabs, HEAL_COST, PRICE_CATALOG } from "./economy.js";
 import {
-  regions, getRegionAt, getRegionName, nearestGymAnchor,
-  REGION_1, REGION_2,
+  regions, getRegionAt, getRegionName, nearestGymAnchor, region3BoundsFor,
+  REGION_1, REGION_2, REGION_3,
 } from "./regions.js";
 
 const DAY_LENGTH = 600; // segundos por ciclo completo
@@ -171,8 +172,11 @@ events.on("progressUnlocked", ({ id }) => {
   }
   if (id === "region_3_path_unlocked") {
     ui.toast("🌄 La Insignia Bruma abre un camino más al sur.", "legendary");
-    const s = findMistGym(player?.pos.x ?? 0, player?.pos.z ?? 0);
-    if (s) applyMistExitOpening(s);
+  }
+  if (id === "gym_3_clue_unlocked") {
+    ui.toast("♦️ El sello mineral de las cumbres comienza a resonar.", "legendary");
+    const ruin = findCrimsonRuin(player?.pos.x ?? 0, player?.pos.z ?? 0);
+    if (ruin) applyCrimsonSeal(ruin);
   }
 });
 events.on("gymPuzzleProgress", ({ gymId, current, required, reset }) => {
@@ -197,8 +201,22 @@ events.on("trainerDefeated", ({ gymId }) => {
 events.on("regionDiscovered", ({ regionName }) => {
   ui.toast(`🌄 Nueva región descubierta: ${regionName}`, "good");
 });
-events.on("regionGateOpened", () => {
-  ui.toast("🚪 El paso fronterizo se ha abierto.", "good");
+events.on("regionGateOpened", ({ regionId }) => {
+  if (regionId === REGION_3) ui.toast("🚪 El camino hacia las Cumbres Carmesí se ha abierto.", "good");
+  else ui.toast("🚪 El paso fronterizo se ha abierto.", "good");
+});
+events.on("itemPurchased", ({ itemId, total }) => {
+  ui.toast(`💱 Comprado: ${itemId === "balls" ? "cubo" : itemId} (−${total} ⌾)`, "good");
+  ui.refreshHud();
+  if (economy.open) economy.render();
+});
+events.on("itemSold", ({ itemId, total }) => {
+  ui.toast(`💱 Vendido: ${itemId} (+${total} ⌾)`, "good");
+  ui.refreshHud();
+  if (economy.open) economy.render();
+});
+events.on("partyHealed", ({ source, cost }) => {
+  if (source === "field_medic") ui.toast(`✚ Ysol cura al equipo (−${cost ?? HEAL_COST} ⌾).`, "good");
 });
 events.on("craftCompleted", ({ recipeId }) => {
   const r = RECIPES[recipeId];
@@ -264,6 +282,19 @@ dialogue.registerAction("openRegionGate", (a) => {
     z: player?.pos.z ?? 0,
   });
 });
+dialogue.registerAction("openShop", () => {
+  setTimeout(() => economy.show(), 80);
+});
+dialogue.registerAction("paidHeal", () => {
+  const r = economy.healParty();
+  if (!r.ok) {
+    ui.toast(r.error, "bad");
+    return false;
+  }
+  sfx.heal();
+  ui.refreshHud();
+  saveGame();
+});
 dialogue.registerAction("startTrainerBattle", (a, ctx) => {
   const check = trainers.canBattle(a.trainerId);
   if (!check.ok) {
@@ -310,6 +341,23 @@ crafting.onUseItem = (itemId) => {
 };
 crafting.onCraftError = (msg) => ui.toast(msg, "bad");
 
+economy.onOpen = () => {
+  if (mode !== "play") return;
+  mode = "shop";
+  document.exitPointerLock();
+  ui.setTargetPrompt(null);
+  highlight.visible = false;
+  keys.clear();
+};
+economy.onClose = () => {
+  if (mode !== "shop") return;
+  mode = "play";
+  canvas.requestPointerLock();
+  saveGame();
+};
+economy.onError = (msg) => ui.toast(msg, "bad");
+bindShopTabs();
+
 function saveGame() {
   if (!state || !player) return;
   state.edits = world.edits;
@@ -344,14 +392,15 @@ async function startWorld(saved) {
   refreshPerks();
   progression.attach(state);
   stats.attach(state);
+  regions.attach(state);
+  economy.attach(state);
+  crafting.attach(state);
   interaction.clear();
   npcs.init(scene, world, interaction);
   quests.attach(state);
   trainers.attach(state);
   gyms.attach(state);
   gyms.setProgression(progression);
-  regions.attach(state);
-  crafting.attach(state);
   // El bioma inicial cuenta como descubierto (sin toast en la carga)
   state.stats.biomesDiscovered[world.biomeAt(px, pz)] = true;
   lastBiome = world.biomeAt(px, pz);
@@ -408,6 +457,10 @@ document.addEventListener("keydown", (e) => {
     if (e.code === "Escape" || e.code === "KeyE") crafting.close();
     else if (e.code === "KeyF") crafting.trySelected();
     else if (e.code === "KeyC") useCraftedItem("mist_tonic");
+    return;
+  }
+  if (mode === "shop") {
+    if (e.code === "Escape" || e.code === "KeyE") economy.close();
     return;
   }
   if (mode !== "play") return;
@@ -579,6 +632,10 @@ function isMistExitOpen() {
   return progression.hasBadge("mist_badge") || progression.isUnlocked("region_3_path_unlocked");
 }
 
+function isRegion3GateOpened() {
+  return regions.isGateOpened(REGION_3);
+}
+
 function registerGymInteractables(s, wanted) {
   const gymId = gymIdForStructure(s);
   const gym = gymId ? GYMS[gymId] : null;
@@ -661,21 +718,27 @@ function registerGymInteractables(s, wanted) {
       });
     }
 
-    const hookOpen = isMistExitOpen();
+    const hookOpen = isRegion3GateOpened();
     if (hookOpen) applyMistExitOpening(s);
-    put(`gym:${s.id}:exit-hook`, layout.exitHook, 3.2,
-      hookOpen ? "La barrera responde a la Insignia Bruma." : "Una antigua barrera bloquea el camino.",
+    let hookPrompt;
+    if (hookOpen) hookPrompt = "Cruzar hacia las Cumbres Carmesí";
+    else if (isMistExitOpen()) hookPrompt = "Abrir camino";
+    else hookPrompt = "Una antigua barrera bloquea el camino.";
+    put(`gym:${s.id}:exit-hook`, layout.exitHook, 3.2, hookPrompt,
       () => {
-        if (isMistExitOpen()) {
-          applyMistExitOpening(s);
-          ui.toast("La barrera responde a la Insignia Bruma. El camino queda abierto.", "good");
-          const [hx, hz] = layout.exitHook;
-          const destX = s.x + hx + 0.5;
-          const destZ = s.z + hz + 3.5;
-          teleportPlayer(destX, world.surfaceY(destX, destZ) + 1, destZ);
+        if (!isMistExitOpen()) {
+          ui.toast("Una antigua barrera bloquea el camino.", "bad");
           return;
         }
-        ui.toast("Una antigua barrera bloquea el camino.", "bad");
+        if (!isRegion3GateOpened()) {
+          tryOpenRegion3Gate({ x: s.x, z: s.z });
+        } else {
+          applyMistExitOpening(s);
+        }
+        const [hx, hz] = layout.exitHook;
+        const destX = s.x + hx + 0.5;
+        const destZ = s.z + hz + 18;
+        teleportPlayer(destX, world.surfaceY(destX, destZ) + 1, destZ);
       });
   }
 }
@@ -699,6 +762,7 @@ function applyGateOpening(gate) {
 }
 
 function tryOpenRegionGate({ regionId = REGION_2, x, z } = {}) {
+  if (regionId === REGION_3) return tryOpenRegion3Gate({ x, z });
   const px = x ?? player?.pos.x ?? 0;
   const pz = z ?? player?.pos.z ?? 0;
   const opened = regions.openGate(regionId, { x: px, z: pz });
@@ -706,6 +770,16 @@ function tryOpenRegionGate({ regionId = REGION_2, x, z } = {}) {
   if (gate && regions.isGateOpened(regionId)) applyGateOpening(gate);
   if (opened) saveGame();
   return opened || regions.isGateOpened(regionId);
+}
+
+function tryOpenRegion3Gate({ x, z } = {}) {
+  const px = x ?? player?.pos.x ?? 0;
+  const pz = z ?? player?.pos.z ?? 0;
+  const opened = regions.openGate(REGION_3, { x: px, z: pz });
+  const gym2 = findMistGym(px, pz);
+  if (gym2 && regions.isGateOpened(REGION_3)) applyMistExitOpening(gym2);
+  if (opened) saveGame();
+  return opened || regions.isGateOpened(REGION_3);
 }
 
 function canOpenRegionGate() {
@@ -783,13 +857,75 @@ function findMistGym(x, z) {
 }
 
 function applyMistExitOpening(s) {
-  if (!s || !world || !isMistExitOpen()) return;
+  if (!s || !world || !isRegion3GateOpened()) return;
   const [dx, dz] = MIST_GYM_LAYOUT.exitHook;
   for (let ox = -1; ox <= 1; ox++) {
     for (let dy = 1; dy <= 5; dy++) {
       world.setBlock(s.x + dx + ox, s.y + dy, s.z + dz, B.AIR);
     }
   }
+}
+
+function findCrimsonRuin(x, z) {
+  if (!world) return null;
+  const near = world.structures.near(x, z, 120).find((s) => s.type === "crimson_ruin");
+  if (near) return near;
+  const gym = nearestGymAnchor(x, z);
+  if (!gym) return null;
+  return world.structures.candidate("crimson_ruin", gym.cellX, gym.cellZ);
+}
+
+function findMiningCamp(x, z) {
+  if (!world) return null;
+  const near = world.structures.near(x, z, 120).find((s) => s.type === "mining_camp");
+  if (near) return near;
+  const gym = nearestGymAnchor(x, z);
+  if (!gym) return null;
+  return world.structures.candidate("mining_camp", gym.cellX, gym.cellZ);
+}
+
+function applyCrimsonSeal(s) {
+  if (!s || !world || !progression.isUnlocked("gym_3_clue_unlocked")) return;
+  const [dx, dz] = CRIMSON_RUIN_LAYOUT.seal;
+  world.setBlock(s.x + dx, s.y + 2, s.z + dz, B.RED_CRYSTAL);
+}
+
+function registerRuinInteractables(s, wanted) {
+  const [dx, dz] = CRIMSON_RUIN_LAYOUT.seal;
+  const id = `crimson_seal:${s.id}`;
+  wanted.add(id);
+  if (progression.isUnlocked("gym_3_clue_unlocked")) applyCrimsonSeal(s);
+  const awake = progression.isUnlocked("gym_3_clue_unlocked");
+  const prompt = awake
+    ? "El sello mineral comienza a resonar."
+    : "El sello permanece inerte.";
+  const x = s.x + dx + 0.5;
+  const y = s.y + 1.6;
+  const z = s.z + dz + 0.5;
+  const existing = interaction.items.get(id);
+  if (existing) {
+    existing.prompt = prompt;
+    existing.x = x;
+    existing.y = y;
+    existing.z = z;
+    return;
+  }
+  interaction.register({
+    id,
+    type: "crimson_seal",
+    x, y, z,
+    range: 3.2,
+    prompt,
+    data: s,
+    onInteract: () => {
+      if (progression.isUnlocked("gym_3_clue_unlocked")) {
+        applyCrimsonSeal(s);
+        ui.toast("El sello mineral comienza a resonar. Un eco señala más al sur… todavía no hay camino.", "good");
+      } else {
+        ui.toast("El sello permanece inerte.", "bad");
+      }
+    },
+  });
 }
 
 function registerMistInteractables(s, wanted) {
@@ -944,10 +1080,11 @@ function onPlace() {
   events.emit("blockPlaced", { x, y, z, block: b });
 }
 
-/** Suma o resta monedas y lo anuncia */
-function addMoney(delta) {
-  state.money = Math.max(0, (state.money ?? 0) + delta);
-  events.emit("moneyChanged", { money: state.money, delta });
+/** Suma o resta monedas y lo anuncia. Las tiendas usan economy.buy/sell. */
+function addMoney(delta, meta = {}) {
+  const n = Math.floor(Number(delta) || 0);
+  if (n > 0) economy.grantMoney(n, meta);
+  else if (n < 0) economy.spendMoney(Math.min(state.money || 0, -n), meta);
   ui.refreshHud();
 }
 
@@ -958,6 +1095,7 @@ function spawnBreakParticles(x, y, z, block) {
     [B.COAL_ORE]: 0x44464e, [B.COPPER_ORE]: 0xc07a4a, [B.IRON_ORE]: 0xc9b69e,
     [B.CRYSTAL]: 0x8ee4fa, [B.APRICORN]: 0xd98438, [B.HERB]: 0x8cd455,
     [B.ANCIENT_FRAGMENT]: 0xb48ad8, [B.MIST_BLOOM]: 0x8fd4e4, [B.MIST_GRASS]: 0x3a6152,
+    [B.CRIMSON_STONE]: 0x6a2c28, [B.EMBER_ORE]: 0xc85020, [B.RED_CRYSTAL]: 0xe04048,
   };
   for (let i = 0; i < 8; i++) {
     const m = new THREE.Mesh(
@@ -1269,6 +1407,16 @@ function loop(now) {
       teleportPlayer(gate.x + 0.5, world.surfaceY(gate.x, zx) + 1, zx + 0.5);
     }
   }
+  // Barrera lógica Región 3: sin gate abierta se empuja al norte de la frontera.
+  if (playing && state && getRegionAt(player.pos.x, player.pos.z) === REGION_3 &&
+      !regions.isGateOpened(REGION_3)) {
+    const gym2 = findMistGym(player.pos.x, player.pos.z);
+    if (gym2) {
+      const [hx, hz] = MIST_GYM_LAYOUT.exitHook;
+      const zx = gym2.z + hz - 3;
+      teleportPlayer(gym2.x + hx + 0.5, world.surfaceY(gym2.x + hx, zx) + 1, zx + 0.5);
+    }
+  }
 
   // Sondeo periódico: descubrimiento de biomas/estructuras y santuario cercano.
   // Las consultas son O(celdas vecinas) gracias al índice por celdas cacheado.
@@ -1298,6 +1446,7 @@ function loop(now) {
     const wantedGym = new Set();
     const wantedGate = new Set();
     const wantedMist = new Set();
+    const wantedRuin = new Set();
     let nearGym = null;
     fogMistGym = null;
     for (const s of world.structures.near(px, pz, 24)) {
@@ -1332,6 +1481,9 @@ function loop(now) {
       if (s.type === "mist_settlement") {
         registerMistInteractables(s, wantedMist);
       }
+      if (s.type === "crimson_ruin") {
+        registerRuinInteractables(s, wantedRuin);
+      }
     }
     for (const id of interaction.ids("shrine")) {
       if (!wantedShrines.has(id)) interaction.unregister(id);
@@ -1347,6 +1499,9 @@ function loop(now) {
     }
     for (const id of interaction.ids("ancient_path")) {
       if (!wantedMist.has(id)) interaction.unregister(id);
+    }
+    for (const id of interaction.ids("crimson_seal")) {
+      if (!wantedRuin.has(id)) interaction.unregister(id);
     }
     refreshGymTracker(nearGym);
 
@@ -1433,6 +1588,10 @@ function loop(now) {
     scene.fog.near = kit ? 16 : 8;
     scene.fog.far = 22 + 22 * beacons + (kit ? 28 : 0);
     scene.fog.color.lerp(new THREE.Color(0x6a7a88), 0.55);
+  } else if (getRegionAt(camera.position.x, camera.position.z) === REGION_3) {
+    scene.fog.near = 28;
+    scene.fog.far = 95;
+    scene.fog.color.lerp(new THREE.Color(0x3a2818), 0.4);
   } else if (getRegionAt(camera.position.x, camera.position.z) === REGION_2) {
     if (crafting.explorerActive()) {
       scene.fog.near = 28;
@@ -1487,6 +1646,7 @@ window.__vm = {
   gymSystem: gyms,
   regionSystem: regions,
   craftingSystem: crafting,
+  economySystem: economy,
   /** Herramientas de inspección del mundo vivo (Fase 2) */
   debug: {
     pos() {
@@ -1668,7 +1828,8 @@ window.__vm = {
       if (!world || !player) return [];
       return world.structures.near(player.pos.x, player.pos.z, r)
         .filter((s) => s.type === "regional_gate" || s.type === "watchtower" ||
-          s.type === "ancient_outpost" || s.type === "mist_settlement" || s.type === "gym_mist");
+          s.type === "ancient_outpost" || s.type === "mist_settlement" || s.type === "gym_mist" ||
+          s.type === "mining_camp" || s.type === "crimson_ruin");
     },
     mistSettlement() {
       if (!world || !player) return null;
@@ -1768,6 +1929,97 @@ window.__vm = {
       const t0 = performance.now();
       world.generateChunkData(cx, cz);
       return { ms: performance.now() - t0, lastGenMs: world.lastGenMs, cx, cz };
+    },
+    region3() {
+      if (!world || !player) return null;
+      const gym = nearestGymAnchor(player.pos.x, player.pos.z);
+      const b = gym ? region3BoundsFor(gym) : null;
+      const camp = findMiningCamp(player.pos.x, player.pos.z);
+      const ruin = findCrimsonRuin(player.pos.x, player.pos.z);
+      const gym2 = findMistGym(player.pos.x, player.pos.z);
+      const [hx, hz] = MIST_GYM_LAYOUT.exitHook;
+      const hook = gym2 ? { x: gym2.x + hx, z: gym2.z + hz } : null;
+      const hookBlock = gym2 ? world.getBlock(gym2.x + hx, gym2.y + 2, gym2.z + hz) : null;
+      return {
+        id: REGION_3,
+        name: getRegionName(REGION_3),
+        at: getRegionAt(player.pos.x, player.pos.z),
+        bounds: b,
+        gate: {
+          unlocked: isMistExitOpen(),
+          opened: regions.isGateOpened(REGION_3),
+          hook,
+          hookBlock,
+        },
+        miningCamp: camp,
+        crimsonRuin: ruin,
+        seal: ruin ? {
+          x: ruin.x, z: ruin.z,
+          block: world.getBlock(ruin.x, ruin.y + 2, ruin.z),
+          clue: progression.isUnlocked("gym_3_clue_unlocked"),
+        } : null,
+        discovered: !!state?.regions.discovered[REGION_3],
+      };
+    },
+    shop() {
+      return {
+        ...economy.snapshot(),
+        inventory: {
+          balls: state?.balls,
+          ember_ore: getItemCount(state, "ember_ore"),
+          red_crystal: getItemCount(state, "red_crystal"),
+          coal: getItemCount(state, "coal"),
+          mist_tonic: getItemCount(state, "mist_tonic"),
+          ancient_core: getItemCount(state, "ancient_core"),
+        },
+        catalog: PRICE_CATALOG,
+        healCost: HEAL_COST,
+      };
+    },
+    buy(id, n = 1) { const r = economy.buy(id, n); ui.refreshHud(); if (economy.open) economy.render(); return r; },
+    sell(id, n = 1) { const r = economy.sell(id, n); ui.refreshHud(); if (economy.open) economy.render(); return r; },
+    healCamp() { const r = economy.healParty(); ui.refreshHud(); return r; },
+    gotoCamp() {
+      const s = findMiningCamp(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s || !player || !world) return null;
+      player.pos.set(s.x + 0.5, s.y + 2, s.z + 0.5);
+      player.vel.set(0, 0, 0);
+      return s;
+    },
+    gotoRuin() {
+      const s = findCrimsonRuin(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s || !player || !world) return null;
+      player.pos.set(s.x + 0.5, s.y + 2, s.z + 0.5);
+      player.vel.set(0, 0, 0);
+      return s;
+    },
+    unlockRegion3() {
+      this.unlockGym2Clue();
+      progression.addBadge("mist_badge");
+      progression.unlock("second_gym_completed");
+      progression.unlock("region_3_path_unlocked");
+    },
+    openRegion3Gate() {
+      return tryOpenRegion3Gate({
+        x: player?.pos.x ?? 0,
+        z: player?.pos.z ?? 0,
+      });
+    },
+    giveShopGoods() {
+      if (!state) return null;
+      grantItems(state, [
+        { itemId: "coal", amount: 4 },
+        { itemId: "copper", amount: 3 },
+        { itemId: "iron", amount: 2 },
+        { itemId: "mist_bloom", amount: 2 },
+        { itemId: "ancient_fragment", amount: 1 },
+        { itemId: "ember_ore", amount: 3 },
+        { itemId: "red_crystal", amount: 1 },
+      ]);
+      economy.grantMoney(200, { source: "debug" });
+      ui.refreshHud();
+      if (economy.open) economy.render();
+      return this.shop();
     },
   },
 };

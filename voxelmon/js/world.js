@@ -10,7 +10,7 @@ import { B, BLOCK_NAMES, BLOCK_DROPS, COLORS } from "./blocks.js";
 import { BIOME_NAMES, getBiomeDefinition } from "./biomes.js";
 import { RESOURCES } from "./resources.js";
 import { StructureIndex } from "./structures.js";
-import { bindGymLookup, getRegionAt, REGION_2 } from "./regions.js";
+import { bindGymLookup, getRegionAt, REGION_2, REGION_3 } from "./regions.js";
 
 // Reexportados para los consumidores existentes (main.js, ui.js…)
 export { B, BLOCK_NAMES, BLOCK_DROPS } from "./blocks.js";
@@ -81,15 +81,21 @@ export class World {
   }
 
   /**
-   * Bioma jugable. En el rectángulo de Región 2, plains/forest se muestran
-   * como mist_forest. ocean/beach/desert/snow/mountain no se tocan.
-   * Fuera de ese rectángulo coincide con baseBiomeAt (saves antiguos intactos).
+   * Bioma jugable.
+   *   Región 2: plains/forest → mist_forest (ocean/beach/desert/snow/mountain intactos).
+   *   Región 3: overlay crimson_highlands sobre tierra firme (no ocean/beach).
+   * Fuera de esos rectángulos coincide con baseBiomeAt (saves antiguos intactos).
+   * terrainAt no se modifica: el overlay es solo clasificación + bloques superficiales.
    */
   biomeAt(x, z) {
     const fx = Math.floor(x);
     const fz = Math.floor(z);
     const base = this.biomeFromTerrain(this.terrainAt(fx, fz));
-    if (getRegionAt(fx, fz) === REGION_2 && (base === "plains" || base === "forest")) {
+    const region = getRegionAt(fx, fz);
+    if (region === REGION_3 && base !== "ocean" && base !== "beach") {
+      return "crimson_highlands";
+    }
+    if (region === REGION_2 && (base === "plains" || base === "forest")) {
       return "mist_forest";
     }
     return base;
@@ -98,7 +104,9 @@ export class World {
   hasTreeAt(x, z) {
     const t = this.terrainAt(x, z);
     if (t.h <= WATER_Y + 1 || t.mountain > 0.6) return null;
-    if (columnHash(x, z, this.seed + 999) >= t.treeDensity) return null;
+    // Región 3: vegetación muy escasa. No toca las densidades de R1/R2.
+    const density = getRegionAt(x, z) === REGION_3 ? 0.006 : t.treeDensity;
+    if (columnHash(x, z, this.seed + 999) >= density) return null;
     // Evita árboles pegados
     if (columnHash(x - 1, z, this.seed + 999) < this.terrainAt(x - 1, z).treeDensity) return null;
     if (columnHash(x, z - 1, this.seed + 999) < this.terrainAt(x, z - 1).treeDensity) return null;
@@ -157,10 +165,17 @@ export class World {
         }
         for (let y = h + 1; y <= WATER_Y; y++) data[idx(lx, y, lz)] = B.WATER;
 
-        // Overlay visual de mist_forest: solo dentro del rectángulo de Región 2.
+        // Overlays visuales: solo dentro de su rectángulo regional.
         const overlayBiome = this.biomeAt(wx, wz);
         if (overlayBiome === "mist_forest" && data[idx(lx, h, lz)] === B.GRASS) {
           data[idx(lx, h, lz)] = B.MIST_GRASS;
+        }
+        if (overlayBiome === "crimson_highlands") {
+          const top = data[idx(lx, h, lz)];
+          if (top === B.GRASS || top === B.STONE || top === B.SAND || top === B.SNOW ||
+              top === B.DIRT || top === B.MIST_GRASS) {
+            data[idx(lx, h, lz)] = B.CRIMSON_STONE;
+          }
         }
 
         // Recursos especiales según las reglas del bioma (hash determinista
@@ -174,7 +189,7 @@ export class World {
           if (res.surface) {
             // Brote superficial sobre hierba (o musgo brumoso en Región 2)
             const ground = data[idx(lx, h, lz)];
-            const okGround = ground === B.GRASS || ground === B.MIST_GRASS;
+            const okGround = ground === B.GRASS || ground === B.MIST_GRASS || ground === B.CRIMSON_STONE;
             if (h > WATER_Y + 1 && h + 1 < HEIGHT && okGround) {
               data[idx(lx, h + 1, lz)] = res.block;
             }

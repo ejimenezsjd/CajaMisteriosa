@@ -691,6 +691,67 @@ export const DIALOGUES = {
       },
     },
   },
+
+  regional_merchant_intro: {
+    npcName: "Kora",
+    nodes: {
+      start: {
+        text: "Carbón, cobre, hierbas… y cubos, si pagas. El valle comercia con trueque; aquí, con monedas.",
+        options: [
+          { text: "A comerciar.", actions: [{ type: "openShop" }], end: true },
+          { text: "Hasta luego.", end: true },
+        ],
+      },
+    },
+  },
+
+  prospector_intro: {
+    npcName: "Bren",
+    nodes: {
+      start: {
+        text: "¡Otro que cruza la bruma! Soy Bren. Estas cumbres esconden mena de ascuas en la roca y cristales rojos donde la piedra se abre.",
+        options: [
+          { text: "¿Qué se saca de aquí?", next: "ores" },
+          { text: "¿Hay algo más al sur?", next: "ruin" },
+          { text: "Gracias, Bren.", end: true },
+        ],
+      },
+      ores: {
+        text: "La mena de ascuas es el pan de este campamento: Kora la compra. El cristal rojo es otra historia. No lo malgastes: las ruinas lo reclaman.",
+        options: [{ text: "Lo tendré en cuenta.", next: "start" }],
+      },
+      ruin: {
+        text: "Hay una ruina más adentro, un sello mineral dormido. Cuando la montaña te acepte —mena vendida, ruina hallada— el sello empezará a cantar. No es un gimnasio. Todavía.",
+        options: [{ text: "Iré a verlo.", end: true }],
+      },
+    },
+  },
+
+  field_medic_intro: {
+    npcName: "Ysol",
+    nodes: {
+      start: {
+        text: "No soy Sena ni un altar. Curo aquí y ahora, pero cobro: 60 monedas. El santuario sigue siendo gratis, si llegas. El tónico, portable.",
+        options: [
+          {
+            text: "Curar equipo (60 ⌾)",
+            actions: [{ type: "paidHeal" }],
+            next: "healed",
+          },
+          { text: "¿Por qué cobras?", next: "why" },
+          { text: "Otro día.", end: true },
+        ],
+      },
+      healed: {
+        text: "Listo. Vuelve cuando el altiplano os muerda.",
+        options: [{ text: "Gracias, Ysol.", end: true }],
+      },
+      why: {
+        text: "Traer vendas hasta aquí no es barato. El altar recarga solo; yo no. El tónico de Mira os cubre en ruta. Tres caminos, tres precios.",
+        options: [{ text: "Entendido.", next: "start" }],
+      },
+    },
+  },
 };
 
 const $ = (id) => document.getElementById(id);

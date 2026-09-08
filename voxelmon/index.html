@@ -95,6 +95,7 @@
           <li><strong>Gimnasio Verde:</strong> con el camino desbloqueado, busca el edificio de madera y hojas. Entra (E), derrota a Nilo y Lira, resuelve el puzzle de pedestales (hoja → luz → agua) y vence a Iris para la Insignia Verde.</li>
           <li><strong>Tierras Brumosas:</strong> al sur del gimnasio, el Refugio Brumoso tiene banco de trabajo (E). Talo fabrica, Mira prepara tónicos (C para usarlos) y Eira señala el arco hacia el Gimnasio de las Brumas.</li>
           <li><strong>Gimnasio de las Brumas:</strong> con el núcleo antiguo, cruza el arco al sur del refugio. Enciende los tres faros (cualquier orden), derrota a Nox y Lumen y vence a Nyra para la Insignia Bruma. El kit de exploración aclara la niebla, pero no es obligatorio.</li>
+          <li><strong>Cumbres Carmesí:</strong> la barrera sur del segundo gimnasio abre el altiplano. En el puesto minero, Kora compra y vende (E), Ysol cura por monedas y Bren señala la Ruina Carmesí.</li>
         <li><strong>Objetivo:</strong> captura las 8 familias para invocar al legendario <strong>Prismatón</strong>.</li>
         <li>Tu equipo se recupera poco a poco fuera de combate. La partida se guarda sola.</li>
       </ul>
@@ -132,6 +133,25 @@
         <button id="btn-craft-close" class="btn ghost">Cerrar</button>
       </div>
       <div id="crafting-extras"></div>
+    </div>
+  </div>
+
+  <!-- Tienda regional (Fase 9) -->
+  <div id="shop-ui" class="hidden">
+    <div class="crafting-box shop-box">
+      <div id="shop-title">Puesto de Kora <span id="shop-money">⌾ 0</span></div>
+      <p id="shop-hint">Una unidad por acción. Los precios no cambian.</p>
+      <div class="shop-tabs">
+        <button id="btn-shop-tab-buy" class="btn craft-recipe selected">Comprar</button>
+        <button id="btn-shop-tab-sell" class="btn craft-recipe">Vender</button>
+      </div>
+      <div id="shop-list"></div>
+      <div id="shop-detail"></div>
+      <div class="crafting-actions">
+        <button id="btn-shop-buy" class="btn primary">Comprar 1</button>
+        <button id="btn-shop-sell" class="btn">Vender 1</button>
+        <button id="btn-shop-close" class="btn ghost">Cerrar</button>
+      </div>
     </div>
   </div>
 

@@ -31,6 +31,10 @@ export const B = {
   MIST_TONIC: 19,
   EXPLORER_KIT: 20,
   ANCIENT_CORE: 21,
+  // Superficie y recursos de las Cumbres Carmesí (Fase 9)
+  CRIMSON_STONE: 22,
+  EMBER_ORE: 23,
+  RED_CRYSTAL: 24,
 };
 
 export const BLOCK_NAMES = {
@@ -53,6 +57,9 @@ export const BLOCK_NAMES = {
   [B.MIST_TONIC]: "Tónico de bruma",
   [B.EXPLORER_KIT]: "Kit de exploración",
   [B.ANCIENT_CORE]: "Núcleo antiguo",
+  [B.CRIMSON_STONE]: "Piedra carmesí",
+  [B.EMBER_ORE]: "Mena de ascuas",
+  [B.RED_CRYSTAL]: "Cristal rojo",
 };
 
 /** Qué suelta cada bloque al minarlo */
@@ -77,6 +84,9 @@ export const BLOCK_DROPS = {
   [B.MIST_TONIC]: B.MIST_TONIC,
   [B.EXPLORER_KIT]: B.EXPLORER_KIT,
   [B.ANCIENT_CORE]: B.ANCIENT_CORE,
+  [B.CRIMSON_STONE]: B.STONE,
+  [B.EMBER_ORE]: B.EMBER_ORE,
+  [B.RED_CRYSTAL]: B.RED_CRYSTAL,
 };
 
 /** Colores por cara (top/side/bottom) para el meshing con vertex colors */
@@ -102,4 +112,7 @@ export const COLORS = {
   [B.MIST_TONIC]: { top: [0.45, 0.82, 0.78], side: [0.28, 0.55, 0.58], bottom: [0.22, 0.4, 0.44] },
   [B.EXPLORER_KIT]: { top: [0.7, 0.58, 0.32], side: [0.38, 0.32, 0.24], bottom: [0.28, 0.24, 0.18] },
   [B.ANCIENT_CORE]: { top: [0.82, 0.55, 0.95], side: [0.48, 0.28, 0.62], bottom: [0.32, 0.18, 0.42] },
+  [B.CRIMSON_STONE]: { top: [0.42, 0.18, 0.16], side: [0.32, 0.14, 0.14], bottom: [0.22, 0.1, 0.1] },
+  [B.EMBER_ORE]: { top: [0.78, 0.32, 0.12], side: [0.55, 0.2, 0.1], bottom: [0.38, 0.14, 0.08] },
+  [B.RED_CRYSTAL]: { top: [0.95, 0.28, 0.32], side: [0.78, 0.12, 0.22], bottom: [0.52, 0.08, 0.16] },
 };

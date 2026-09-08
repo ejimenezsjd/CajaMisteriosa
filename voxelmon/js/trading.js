@@ -1,10 +1,8 @@
 /**
- * Intercambios simples con NPC (Fase 3). Puente hacia el futuro
- * EconomySystem/InventorySystem: toda mutación de inventario/cubos por
- * comercio pasa por executeTrade — nunca se muta disperso desde la UI.
+ * Intercambios simples con NPC (Fase 3). Trueque de recursos (Bruno).
+ * La tienda monetaria vive en economy.js y coexiste con este módulo.
+ * Toda mutación de inventario por trueque pasa por executeTrade / items.js.
  *
- * Fase 7: la transacción atómica vive en items.js y la comparte el crafting.
- */
 
 import { events } from "./events.js";
 import { executeTransaction } from "./items.js";

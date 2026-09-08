@@ -1,17 +1,21 @@
 /**
- * RegionSystem mínimo (Fase 6).
+ * RegionSystem mínimo (Fases 6 y 9).
  *
- * BIOMA  → tipo de entorno local (plains, forest, mist_forest…)
- * REGIÓN → macrozona de progresión (region_1, region_2)
+ * BIOMA  → tipo de entorno local (plains, forest, mist_forest, crimson_highlands…)
+ * REGIÓN → macrozona de progresión (region_1, region_2, region_3)
  *
  * Estrategia geométrica O(1):
  *   Se localiza el gimnasio más cercano en la celda actual y sus 8 vecinas
- *   (candidate("gym") ya está cacheado). Si existe, la Región 2 es el
- *   rectángulo al sur (+Z) de ese gimnasio. El resto del mundo es region_1.
+ *   (candidate("gym") ya está cacheado).
  *
- * No se altera terrainAt ni la clasificación base: el overlay de bioma
- * (mist_forest) solo se aplica dentro de ese rectángulo, sobre plains/forest.
- * Los saves antiguos siguen viendo el mismo mundo en Región 1.
+ *   Región 2: rectángulo al sur (+Z) de ese gimnasio (z +58 … +220).
+ *   Región 3: continuación al sur del Gimnasio de las Brumas, empezando
+ *             DESPUÉS de Región 2 (z +221 … +442, anclada a gym2).
+ *   El resto del mundo es region_1.
+ *
+ * No se altera terrainAt ni la clasificación base: los overlays de bioma
+ * (mist_forest, crimson_highlands) solo se aplican dentro de su rectángulo.
+ * Los saves antiguos siguen viendo el mismo mundo en Región 1 y 2.
  *
  * El lookup del gimnasio se inyecta con bindGymLookup para no crear un
  * ciclo regions ↔ structures ↔ world.
@@ -21,8 +25,9 @@ import { events } from "./events.js";
 
 export const REGION_1 = "region_1";
 export const REGION_2 = "region_2";
+export const REGION_3 = "region_3";
 
-/** Offsets y tamaño del corredor post-gimnasio (bloques). */
+/** Offsets y tamaño de los corredores post-gimnasio (bloques). */
 export const REGION_GEOMETRY = {
   gymCell: 260,
   halfW: 68,
@@ -35,6 +40,13 @@ export const REGION_GEOMETRY = {
   outpost: { dx: 22, dz: 155 },
   settlement: { dx: 6, dz: 122 },
   gymMist: { dx: 6, dz: 192 },
+  // Región 3: gym2.x ± 80, z = gym1.z+221 … gym1.z+442
+  // (= gym2.z+29 … gym2.z+250). Empieza 1 bloque después de R2.
+  r3HalfW: 80,
+  r3z0: 221,
+  r3z1: 442,
+  miningCamp: { dx: -12, dz: 272 },
+  crimsonRuin: { dx: 30, dz: 362 },
 };
 
 export const REGIONS = {
@@ -48,6 +60,12 @@ export const REGIONS = {
     name: "Tierras Brumosas",
     shortName: "Bruma",
     gateId: "region_2",
+  },
+  [REGION_3]: {
+    id: REGION_3,
+    name: "Cumbres Carmesí",
+    shortName: "Carmesí",
+    gateId: "region_3",
   },
 };
 
@@ -84,6 +102,20 @@ export function region2BoundsFor(gym) {
   };
 }
 
+export function region3BoundsFor(gym) {
+  const g = REGION_GEOMETRY;
+  const gx = gym.x + g.gymMist.dx;
+  const gz = gym.z + g.gymMist.dz;
+  return {
+    x0: gx - g.r3HalfW,
+    x1: gx + g.r3HalfW,
+    z0: gym.z + g.r3z0,
+    z1: gym.z + g.r3z1,
+    gym,
+    gym2: { x: gx, z: gz },
+  };
+}
+
 /** Gimnasio más cercano en la vecindad de celdas 3×3. O(1) con caché. */
 export function nearestGymAnchor(x, z) {
   if (!_gymCandidate) return null;
@@ -108,13 +140,19 @@ export function nearestGymAnchor(x, z) {
 export function getRegionAt(x, z) {
   const gym = nearestGymAnchor(x, z);
   if (!gym) return REGION_1;
-  const b = region2BoundsFor(gym);
-  if (x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1) return REGION_2;
+  const b3 = region3BoundsFor(gym);
+  if (x >= b3.x0 && x <= b3.x1 && z >= b3.z0 && z <= b3.z1) return REGION_3;
+  const b2 = region2BoundsFor(gym);
+  if (x >= b2.x0 && x <= b2.x1 && z >= b2.z0 && z <= b2.z1) return REGION_2;
   return REGION_1;
 }
 
 export function isInRegion2(x, z) {
   return getRegionAt(x, z) === REGION_2;
+}
+
+export function isInRegion3(x, z) {
+  return getRegionAt(x, z) === REGION_3;
 }
 
 class RegionSystem {
