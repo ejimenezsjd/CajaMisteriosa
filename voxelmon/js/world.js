@@ -170,6 +170,7 @@ export class World {
           const rule = rules[ri];
           if (columnHash(wx, wz, this.seed + 90210 + ri * 7919) >= rule.chance) continue;
           const res = RESOURCES[rule.id];
+          if (!res || res.crafted) continue;
           if (res.surface) {
             // Brote superficial sobre hierba (o musgo brumoso en Región 2)
             const ground = data[idx(lx, h, lz)];

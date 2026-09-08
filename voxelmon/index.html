@@ -47,7 +47,7 @@
     </div>
 
     <div id="hotbar"></div>
-    <div id="hotbar-hint">Clic izq: minar / desafiar · E: hablar / curar / desafiar · Clic der: colocar · 1–6: bloque · Tab: Dex · Esc: menú</div>
+    <div id="hotbar-hint">Clic izq: minar / desafiar · E: hablar / curar / fabricar · C: tónico · Clic der: colocar · 1–6: bloque · Tab: Dex · Esc: menú</div>
 
     <div id="toasts"></div>
   </div>
@@ -93,6 +93,7 @@
           <li><strong>Asentamiento:</strong> busca el asentamiento y habla con sus habitantes (E). Alba da misiones, Bruno cambia 3 apricornos por 1 cubo y Sena cura a tu equipo.</li>
           <li><strong>Entrenadores:</strong> Milo, Vera y Ross esperan un desafío cerca del asentamiento. En sus combates no puedes capturar ni huir; derrótalos a los tres para abrir el camino al gimnasio.</li>
           <li><strong>Gimnasio Verde:</strong> con el camino desbloqueado, busca el edificio de madera y hojas. Entra (E), derrota a Nilo y Lira, resuelve el puzzle de pedestales (hoja → luz → agua) y vence a Iris para la Insignia Verde.</li>
+          <li><strong>Tierras Brumosas:</strong> al sur del gimnasio, el Refugio Brumoso tiene banco de trabajo (E). Talo fabrica, Mira prepara tónicos (C para usarlos) y Eira señala el arco sellado hacia el próximo gimnasio.</li>
         <li><strong>Objetivo:</strong> captura las 8 familias para invocar al legendario <strong>Prismatón</strong>.</li>
         <li>Tu equipo se recupera poco a poco fuera de combate. La partida se guarda sola.</li>
       </ul>
@@ -115,6 +116,21 @@
       <h3 class="dex-subtitle">Habilidades de familia</h3>
       <div id="dex-perks" class="perk-grid"></div>
       <div class="title-buttons"><button id="btn-dex-close" class="btn primary">Cerrar (Tab)</button></div>
+    </div>
+  </div>
+
+  <!-- Banco de trabajo (Fase 7) -->
+  <div id="crafting-ui" class="hidden">
+    <div class="crafting-box">
+      <div id="crafting-title">Banco de trabajo</div>
+      <p id="crafting-hint">Elige una receta. Fabricar consume los materiales de una vez.</p>
+      <div id="crafting-list"></div>
+      <div id="crafting-detail"></div>
+      <div class="crafting-actions">
+        <button id="btn-craft" class="btn primary">Fabricar</button>
+        <button id="btn-craft-close" class="btn ghost">Cerrar</button>
+      </div>
+      <div id="crafting-extras"></div>
     </div>
   </div>
 

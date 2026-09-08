@@ -27,9 +27,10 @@ import { REGION_GEOMETRY } from "./regions.js";
 const SALT = {
   camp: 11001, ruin: 22002, healing_shrine: 33003, settlement: 44004, gym: 55005,
   regional_gate: 66006, watchtower: 77007, ancient_outpost: 88008,
+  mist_settlement: 99009,
 };
 
-const REGIONAL_TYPES = new Set(["regional_gate", "watchtower", "ancient_outpost"]);
+const REGIONAL_TYPES = new Set(["regional_gate", "watchtower", "ancient_outpost", "mist_settlement"]);
 
 export const STRUCTURE_TYPES = {
   camp: {
@@ -124,6 +125,27 @@ export const STRUCTURE_TYPES = {
     maxSlope: 8,
     build: buildAncientOutpost,
   },
+  mist_settlement: {
+    id: "mist_settlement",
+    name: "Refugio Brumoso",
+    icon: "🏘",
+    cell: 260,
+    chance: 1,
+    radius: 11,
+    maxSlope: 8,
+    build: buildMistSettlement,
+    npcAnchors: [
+      { role: "craftsman", local: [6, 3], indoor: true },
+      { role: "herbalist", local: [-6, 3], indoor: true },
+      { role: "regional_guide", local: [0, -5], indoor: true },
+    ],
+  },
+};
+
+/** Locales del banco y del arco sellado (Gym 2 hook) respecto al centro */
+export const MIST_SETTLEMENT_LAYOUT = {
+  workbench: [3, 1],
+  ancientPath: [0, 10],
 };
 
 /** Radio máximo entre todos los tipos: margen de solape chunk/estructura */
@@ -139,6 +161,7 @@ export function npcAnchorsFor(s) {
     structureId: s.id,
     x: s.x + a.local[0],
     z: s.z + a.local[1],
+    y: a.indoor ? s.y + 1 : undefined,
   }));
 }
 
@@ -493,6 +516,56 @@ function buildAncientOutpost(stamp, x, y, z, rng, ground) {
   stamp(x - 1, y + 1, z + 2, B.MIST_BLOOM);
 }
 
+/**
+ * Refugio Brumoso (Fase 7): plaza, taller, herbolario, casa del guía
+ * y arco sellado al sur (preparación del Gimnasio 2, no el gimnasio).
+ */
+function buildMistSettlement(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 11, 10);
+
+  for (let d = -10; d <= 10; d++) {
+    fillFloor(stamp, ground, x, y, z, 0, d, B.STONE);
+    fillFloor(stamp, ground, x, y, z, d, 0, B.MIST_GRASS);
+  }
+  for (let dx = -3; dx <= 3; dx++) {
+    for (let dz = -3; dz <= 3; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.STONE);
+    }
+  }
+  stamp(x, y + 1, z, B.WOOD);
+  stamp(x, y + 2, z, B.CRYSTAL);
+
+  // Taller del artesano (este) y banco de trabajo frente a la puerta
+  buildHut(stamp, ground, x, y, z, 7, 4, 2, B.WOOD, B.MIST_GRASS, [-1, 0]);
+  fillFloor(stamp, ground, x, y, z, 3, 1, B.WOOD);
+  stamp(x + 3, y + 1, z + 1, B.WOOD);
+  stamp(x + 3, y + 2, z + 1, B.COPPER_ORE);
+
+  // Herbolario (oeste)
+  buildHut(stamp, ground, x, y, z, -7, 4, 2, B.STONE, B.LEAVES, [1, 0]);
+  for (let dx = -3; dx <= -1; dx++) {
+    for (let dz = 7; dz <= 9; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.DIRT);
+      if (rng() < 0.55) stamp(x + dx, y + 1, z + dz, B.MIST_BLOOM);
+      else if (rng() < 0.4) stamp(x + dx, y + 1, z + dz, B.HERB);
+    }
+  }
+
+  // Casa del explorador (norte de la plaza, dz negativo = hacia el gym)
+  buildHut(stamp, ground, x, y, z, 0, -5, 2, B.STONE, B.WOOD, [0, 1]);
+
+  // Arco sellado al sur: sendero hacia el futuro Gimnasio 2
+  for (const dx of [-3, 3]) {
+    for (let dy = 1; dy <= 6; dy++) stamp(x + dx, y + dy, z + 10, B.STONE);
+    stamp(x + dx, y + 7, z + 10, B.CRYSTAL);
+  }
+  for (let dx = -2; dx <= 2; dx++) stamp(x + dx, y + 6, z + 10, B.STONE);
+  for (const dx of [-1, 0, 1]) {
+    for (let dy = 1; dy <= 5; dy++) stamp(x + dx, y + dy, z + 10, B.CRYSTAL);
+  }
+  for (let dx = -2; dx <= 2; dx++) fillFloor(stamp, ground, x, y, z, dx, 11, B.STONE);
+}
+
 // ---------- Índice determinista por celdas ----------
 
 export class StructureIndex {
@@ -576,6 +649,9 @@ export class StructureIndex {
     } else if (type === "ancient_outpost") {
       x = gym.x + g.outpost.dx;
       z = gym.z + g.outpost.dz;
+    } else if (type === "mist_settlement") {
+      x = gym.x + g.settlement.dx;
+      z = gym.z + g.settlement.dz;
     }
     const t = this.world.terrainAt(x, z);
     return {

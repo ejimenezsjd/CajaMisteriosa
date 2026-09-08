@@ -178,9 +178,10 @@ export const BIOMES = {
       { id: "apricorn", chance: 0.004 },
       { id: "coal", chance: 0.05 },
       { id: "iron", chance: 0.03 },
+      { id: "copper", chance: 0.03 },
       { id: "crystal_shard", chance: 0.006 },
     ],
-    structures: ["watchtower", "ancient_outpost", "healing_shrine", "ruin"],
+    structures: ["watchtower", "ancient_outpost", "mist_settlement", "healing_shrine", "ruin"],
     ambience: { fog: true },
   },
 

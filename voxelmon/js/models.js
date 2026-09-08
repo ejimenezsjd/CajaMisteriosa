@@ -255,6 +255,19 @@ export function buildNpcModel(def) {
       box(g, 0.16, 0.16, 0.06, 0, 1.18, -0.2, accent, { emissive: accent, emissiveIntensity: 0.55 });
       box(g, 0.08, 0.7, 0.08, 0.42, 1.2, -0.12, accent);
       break;
+    case "craftsman": // delantal y martillo
+      box(g, 0.46, 0.36, 0.12, 0, 1.0, -0.16, accent);
+      box(g, 0.1, 0.28, 0.1, 0.42, 1.05, -0.08, "#b0b0b8");
+      box(g, 0.18, 0.08, 0.08, 0.42, 0.9, -0.08, "#8a6a3a");
+      break;
+    case "herbalist": // capucha de hojas y frasco
+      box(g, 0.5, 0.16, 0.5, 0, 1.9, 0.02, outfit);
+      box(g, 0.14, 0.2, 0.14, -0.38, 1.05, -0.08, accent, { emissive: accent, emissiveIntensity: 0.45 });
+      break;
+    case "regional_guide": // capa y broche de cristal
+      box(g, 0.66, 0.7, 0.16, 0, 1.1, 0.22, outfit);
+      box(g, 0.14, 0.14, 0.06, 0, 1.22, -0.2, accent, { emissive: accent, emissiveIntensity: 0.7 });
+      break;
   }
 
   g.userData = { height: 2.0, role: def.role };

@@ -30,6 +30,7 @@ class StatsSystem {
     events.on("battleWon", inc("battlesWon"));
     events.on("battleLost", inc("battlesLost"));
     events.on("itemCrafted", inc("itemsCrafted"));
+    events.on("craftCompleted", inc("recipesCrafted"));
     events.on("biomeDiscovered", ({ biome }) => {
       if (this.s) this.s.biomesDiscovered[biome] = true;
     });
@@ -53,7 +54,8 @@ class StatsSystem {
     });
     events.on("regionDiscovered", inc("regionsDiscovered"));
     events.on("structureDiscovered", ({ structureType }) => {
-      if (this.s && (structureType === "watchtower" || structureType === "ancient_outpost" || structureType === "regional_gate")) {
+      if (this.s && (structureType === "watchtower" || structureType === "ancient_outpost" ||
+          structureType === "regional_gate" || structureType === "mist_settlement")) {
         this.s.regionalStructuresDiscovered += 1;
       }
     });

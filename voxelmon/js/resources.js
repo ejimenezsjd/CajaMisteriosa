@@ -96,6 +96,33 @@ export const RESOURCES = {
     surface: true,
     futureUse: "medicina avanzada y consumibles",
   },
+  mist_tonic: {
+    id: "mist_tonic",
+    name: "Tónico de bruma",
+    icon: "🧪",
+    block: B.MIST_TONIC,
+    rarity: "poco común",
+    crafted: true,
+    futureUse: "cura portátil del equipo (40% PV)",
+  },
+  explorer_kit: {
+    id: "explorer_kit",
+    name: "Kit de exploración",
+    icon: "🔦",
+    block: B.EXPLORER_KIT,
+    rarity: "poco común",
+    crafted: true,
+    futureUse: "aclara la niebla y señala estructuras cercanas",
+  },
+  ancient_core: {
+    id: "ancient_core",
+    name: "Núcleo antiguo",
+    icon: "🔮",
+    block: B.ANCIENT_CORE,
+    rarity: "rara",
+    crafted: true,
+    futureUse: "activar el sendero hacia el segundo gimnasio",
+  },
 };
 
 const BY_BLOCK = Object.fromEntries(

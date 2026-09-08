@@ -65,6 +65,28 @@ export const NPC_DEFS = {
     colors: { skin: "#c9a078", outfit: "#3a3f52", accent: "#c4a646" },
     quests: ["quest_frontier"],
   },
+  craftsman: {
+    role: "craftsman",
+    name: "Talo",
+    dialogueId: "craftsman_intro",
+    colors: { skin: "#d4a074", outfit: "#8a5a32", accent: "#c8a060" },
+    quests: ["quest_hands_on"],
+  },
+  herbalist: {
+    role: "herbalist",
+    name: "Mira",
+    dialogueId: "herbalist_intro",
+    colors: { skin: "#e0c098", outfit: "#4a7a48", accent: "#8fdc9a" },
+    quests: ["quest_mist_remedy"],
+  },
+  regional_guide: {
+    role: "regional_guide",
+    name: "Eira",
+    dialogueId: "regional_guide_intro",
+    dialogueClueId: "regional_guide_clue",
+    colors: { skin: "#c9b090", outfit: "#3a5a6e", accent: "#7ec8e8" },
+    quests: ["quest_echo_past"],
+  },
 };
 
 const ACTIVATION_RADIUS = 90; // los asentamientos a menos de esto tienen NPC activos
@@ -98,7 +120,7 @@ class NPCSystem {
         for (const a of trainerAnchorsFor(s)) wanted.set(a.id, a);
       } else if (s.type === "gym") {
         for (const a of gymAnchorsFor(s)) wanted.set(a.id, a);
-      } else if (s.type === "regional_gate") {
+      } else if (s.type === "regional_gate" || s.type === "mist_settlement") {
         for (const a of npcAnchorsFor(s)) wanted.set(a.id, a);
       }
     }
@@ -182,6 +204,8 @@ class NPCSystem {
       else if (progression.isUnlocked("region_2_path_unlocked") || progression.hasBadge("verdant_badge")) {
         dialogueId = npc.def.dialogueUnlockId ?? dialogueId;
       }
+    } else if (npc.role === "regional_guide" && progression.isUnlocked("gym_2_clue_unlocked")) {
+      dialogueId = npc.def.dialogueClueId ?? dialogueId;
     }
     dialogue.start(dialogueId, { npc });
   }

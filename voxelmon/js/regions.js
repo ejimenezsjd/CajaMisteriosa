@@ -31,6 +31,7 @@ export const REGION_GEOMETRY = {
   gateZ: 52,
   watchtower: { dx: -24, dz: 100 },
   outpost: { dx: 22, dz: 155 },
+  settlement: { dx: 6, dz: 122 },
 };
 
 export const REGIONS = {
