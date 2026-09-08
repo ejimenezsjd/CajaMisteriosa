@@ -56,6 +56,15 @@ export const NPC_DEFS = {
     colors: { skin: "#e8c49a", outfit: "#2d6a44", accent: "#c8f0a8" },
     quests: [],
   },
+  mist_gym_guide: {
+    role: "mist_gym_guide",
+    name: "Syl",
+    dialogueId: "mist_gym_guide_intro",
+    dialogueCompletedId: "mist_gym_guide_done",
+    gymId: "gym_mist",
+    colors: { skin: "#c9b8a0", outfit: "#3a3f58", accent: "#8fdcff" },
+    quests: [],
+  },
   gatekeeper: {
     role: "gatekeeper",
     name: "Kael",
@@ -118,7 +127,7 @@ class NPCSystem {
       if (s.type === "settlement") {
         for (const a of npcAnchorsFor(s)) wanted.set(a.id, a);
         for (const a of trainerAnchorsFor(s)) wanted.set(a.id, a);
-      } else if (s.type === "gym") {
+      } else if (s.type === "gym" || s.type === "gym_mist") {
         for (const a of gymAnchorsFor(s)) wanted.set(a.id, a);
       } else if (s.type === "regional_gate" || s.type === "mist_settlement") {
         for (const a of npcAnchorsFor(s)) wanted.set(a.id, a);
@@ -197,7 +206,7 @@ class NPCSystem {
     let dialogueId = npc.def.dialogueId;
     if (npc.trainerId && trainers.isDefeated(npc.trainerId) && !npc.def.repeatable) {
       dialogueId = npc.def.dialogueDefeatedId ?? dialogueId;
-    } else if (npc.role === "gym_guide" && gyms.isCompleted(npc.def.gymId)) {
+    } else if ((npc.role === "gym_guide" || npc.role === "mist_gym_guide") && gyms.isCompleted(npc.def.gymId)) {
       dialogueId = npc.def.dialogueCompletedId ?? dialogueId;
     } else if (npc.role === "gatekeeper") {
       if (regions.isGateOpened("region_2")) dialogueId = npc.def.dialogueOpenedId ?? dialogueId;

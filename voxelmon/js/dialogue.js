@@ -325,6 +325,132 @@ export const DIALOGUES = {
     },
   },
 
+  // ---------- Gimnasio de las Brumas (Fase 8) ----------
+
+  mist_gym_guide_intro: {
+    npcName: "Syl",
+    nodes: {
+      start: {
+        text: "Bienvenida al Gimnasio de las Brumas. Soy Syl. El núcleo antiguo te abrió el arco; ahora la niebla decide quién pasa.",
+        options: [
+          { text: "¿Cómo se supera?", next: "rules" },
+          { text: "¿Los faros?", next: "puzzle" },
+          { text: "¿Quién queda?", next: "remain" },
+          { text: "¿El núcleo antiguo?", next: "core" },
+          { text: "¿El kit de exploración?", next: "kit" },
+          { text: "Gracias.", end: true },
+        ],
+      },
+      rules: {
+        text: "Derrota a Nox y a Lumen, y enciende los tres faros de bruma. No hay orden: cada faro despeja un tramo. Solo entonces se abre la cámara de Nyra.",
+        options: [{ text: "Entendido.", next: "start" }],
+      },
+      puzzle: {
+        text: "Norte, este y oeste. Actívalos en el orden que quieras. La niebla se aclara con cada uno. Un kit de exploración ayuda a verlos, pero no es la llave.",
+        options: [{ text: "Cualquier orden.", next: "start" }],
+      },
+      remain: {
+        text: "Nox guarda el ala oeste; Lumen, el este. Si ya cayeron, enciende los tres faros. Nyra no abre la cámara hasta que las tres pruebas estén hechas.",
+        options: [{ text: "Los buscaré.", next: "start" }],
+      },
+      core: {
+        text: "El núcleo que fabricaste con Talo despertó el arco del refugio. Sin él este edificio seguiría ciego. Ahora la niebla es el juez, no el cristal.",
+        options: [{ text: "Encaja.", next: "start" }],
+      },
+      kit: {
+        text: "El kit de Talo aclara la bruma y señala los faros que faltan. Puedes terminar el gimnasio a ciegas si hace falta. El tónico de Mira sirve entre combates.",
+        options: [{ text: "Útil, no obligatorio.", next: "start" }],
+      },
+    },
+  },
+  mist_gym_guide_done: {
+    npcName: "Syl",
+    nodes: {
+      start: {
+        text: "La Insignia Bruma te sienta bien. La barrera al sur del gimnasio responde a ella. Más allá… todavía no hay tierra, pero el camino ya no está ciego.",
+        options: [{ text: "Gracias, Syl.", end: true }],
+      },
+    },
+  },
+
+  gym_trainer_nox: {
+    npcName: "Nox",
+    nodes: {
+      start: {
+        text: "La sombra no espera a que se despeje la niebla. ¿Sigues?",
+        options: [
+          {
+            text: "¡Acepto el desafío!",
+            actions: [{ type: "startTrainerBattle", trainerId: "gym_trainer_mist_1" }],
+            end: true,
+          },
+          { text: "Todavía no.", end: true },
+        ],
+      },
+    },
+  },
+  gym_trainer_nox_done: {
+    npcName: "Nox",
+    nodes: {
+      start: {
+        text: "Bien. Enciende los faros. Lumen te espera al otro lado de la cámara.",
+        options: [{ text: "Gracias, Nox.", end: true }],
+      },
+    },
+  },
+
+  gym_trainer_lumen: {
+    npcName: "Lumen",
+    nodes: {
+      start: {
+        text: "Tres criaturas me acompañan. Si pretendes ver a Nyra, empieza por la luz.",
+        options: [
+          {
+            text: "¡Adelante!",
+            actions: [{ type: "startTrainerBattle", trainerId: "gym_trainer_mist_2" }],
+            end: true,
+          },
+          { text: "Mejor más tarde.", end: true },
+        ],
+      },
+    },
+  },
+  gym_trainer_lumen_done: {
+    npcName: "Lumen",
+    nodes: {
+      start: {
+        text: "La niebla te reconoce. Nyra no abre a cualquiera.",
+        options: [{ text: "Allá voy.", end: true }],
+      },
+    },
+  },
+
+  gym_leader_nyra: {
+    npcName: "Nyra",
+    nodes: {
+      start: {
+        text: "Has cruzado la bruma. Veamos si el equilibrio te reconoce.",
+        options: [
+          {
+            text: "Combatir",
+            actions: [{ type: "startTrainerBattle", trainerId: "leader_nyra" }],
+            end: true,
+          },
+          { text: "Todavía no", end: true },
+        ],
+      },
+    },
+  },
+  gym_leader_nyra_done: {
+    npcName: "Nyra",
+    nodes: {
+      start: {
+        text: "Esta insignia es tuya. La barrera del sur responde ahora. Un camino nuevo espera… cuando el mundo esté listo.",
+        options: [{ text: "Honor, Nyra.", end: true }],
+      },
+    },
+  },
+
   gatekeeper_closed: {
     npcName: "Kael",
     nodes: {
@@ -527,15 +653,15 @@ export const DIALOGUES = {
     npcName: "Eira",
     nodes: {
       start: {
-        text: "El núcleo reaccionó. El arco al sur late como si recordara el camino. Aún no hay gimnasio al otro lado… pero el sendero ya no está ciego.",
+        text: "El núcleo reaccionó. El arco al sur late. Sigue el sendero: el Gimnasio de las Brumas espera entre la niebla.",
         options: [
-          { text: "¿Qué vendrá después?", next: "after" },
+          { text: "¿Qué hay al otro lado?", next: "after" },
           { text: "Gracias, Eira.", end: true },
         ],
       },
       after: {
-        text: "Cuando alguien reconstruya ese gimnasio, las criaturas de la niebla no serán las mismas. Entrena. Lleva tónico. Y no cruces el arco pensando que el combate ya está listo.",
-        options: [{ text: "Esperaré.", end: true }],
+        text: "Syl os recibirá en la entrada. Lleva tónico. El kit de Talo ayuda a ver los faros, pero no es la llave. Nyra no abre a cualquiera.",
+        options: [{ text: "Allá voy.", end: true }],
       },
     },
   },

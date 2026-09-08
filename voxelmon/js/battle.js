@@ -111,7 +111,7 @@ export class Battle {
     if (!this.trainer) return;
     const cls = TRAINER_CLASSES[this.trainer.trainerClass]?.name ?? this.trainer.trainerClass;
     const left = 1 + this.ctx.queue.length;
-    const tag = this.trainer.leader ? "LÍDER" : "⚔";
+    const tag = this.trainer.leader ? "LÍDER DE GIMNASIO" : "⚔";
     this.ui.setTrainerBanner(`${tag} ${this.trainer.name} · ${cls} · ${left} criatura${left === 1 ? "" : "s"} restante${left === 1 ? "" : "s"}`);
   }
 

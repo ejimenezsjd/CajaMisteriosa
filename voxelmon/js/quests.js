@@ -15,8 +15,11 @@
  *   trade             ← tradeCompleted     (traderId opcional)
  *   mineBlock         ← blockMined         (block opcional)
  *   discoverRegion    ← regionDiscovered   (regionId opcional)
-   *   openRegionGate    ← regionGateOpened   (regionId opcional)
-   *   craftRecipe       ← craftCompleted     (recipeId opcional)
+ *   openRegionGate    ← regionGateOpened   (regionId opcional)
+ *   craftRecipe       ← craftCompleted     (recipeId opcional)
+ *   solveGymPuzzle    ← gymPuzzleSolved    (gymId opcional)
+ *   earnBadge         ← badgeEarned        (badgeId opcional)
+ *   defeatTrainer     ← trainerDefeated    (trainerId / trainerClass)
  *
  * Idempotencia: una quest completada nunca vuelve a activarse ni a entregar
  * recompensas; complete() ignora quests ya completadas.
@@ -27,6 +30,8 @@
 
 import { events } from "./events.js";
 import { progression } from "./progression.js";
+import { trainers } from "./trainers.js";
+import { gyms } from "./gyms.js";
 
 export const QUESTS = {
   quest_welcome: {
@@ -245,6 +250,54 @@ export const QUESTS = {
       { type: "craftRecipe", recipeId: "recipe_ancient_core", amount: 1, label: "Fabrica un núcleo antiguo" },
     ],
     rewards: { money: 120, unlock: "gym_2_clue_unlocked" },
+    next: "quest_into_mist",
+  },
+
+  // ---------- Fase 8: Gimnasio de las Brumas ----------
+
+  quest_into_mist: {
+    id: "quest_into_mist",
+    title: "Entre la bruma",
+    description: "El arco del Refugio Brumoso está abierto. Sigue el sendero al sur hasta el Gimnasio de las Brumas.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "discoverStructure", structureType: "gym_mist", amount: 1, label: "Descubre el Gimnasio de las Brumas" },
+    ],
+    rewards: { money: 50 },
+    next: "quest_mist_lights",
+  },
+  quest_mist_lights: {
+    id: "quest_mist_lights",
+    title: "Luces en la niebla",
+    description: "Enciende los tres faros de bruma. No hay orden: cada uno despeja un tramo.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "solveGymPuzzle", gymId: "gym_mist", amount: 1, label: "Enciende los tres faros de bruma" },
+    ],
+    rewards: { money: 80 },
+    next: "quest_mist_trial",
+  },
+  quest_mist_trial: {
+    id: "quest_mist_trial",
+    title: "Prueba de las Brumas",
+    description: "Derrota a Nox y a Lumen, los guardianes del gimnasio.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "defeatTrainer", trainerId: "gym_trainer_mist_1", amount: 1, label: "Derrota a Nox" },
+      { type: "defeatTrainer", trainerId: "gym_trainer_mist_2", amount: 1, label: "Derrota a Lumen" },
+    ],
+    rewards: { money: 100 },
+    next: "quest_mist_badge",
+  },
+  quest_mist_badge: {
+    id: "quest_mist_badge",
+    title: "Insignia Bruma",
+    description: "La cámara de Nyra está abierta. Gana la Insignia Bruma.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "earnBadge", badgeId: "mist_badge", amount: 1, label: "Consigue la Insignia Bruma" },
+    ],
+    rewards: { money: 80 },
   },
 };
 
@@ -255,6 +308,7 @@ export const QUEST_ORDER = [
   "quest_find_gym", "quest_gym_trial", "quest_verdant_badge",
   "quest_frontier", "quest_beyond_pass", "quest_unknown_lands",
   "quest_mist_refuge", "quest_hands_on", "quest_mist_remedy", "quest_echo_past",
+  "quest_into_mist", "quest_mist_lights", "quest_mist_trial", "quest_mist_badge",
 ];
 
 /** eventName → [tipo de objetivo, función de filtro, cantidad del payload] */
@@ -285,6 +339,7 @@ class QuestSystem {
 
   attach(state) {
     this.q = state.quests;
+    this.state = state;
     if (!this.bound) {
       this.bind();
       this.bound = true;
@@ -313,10 +368,10 @@ class QuestSystem {
       this.start("quest_frontier");
     }
     // Saves que ya exploraron Región 2 antes de existir el Refugio Brumoso
-    if (progression.isUnlocked("regional_explorer") &&
-        !this.isCompleted("quest_mist_refuge") && !this.isActive("quest_mist_refuge")) {
-      this.makeAvailable("quest_mist_refuge");
-      this.start("quest_mist_refuge");
+    if (progression.isUnlocked("gym_2_clue_unlocked") &&
+        !this.isCompleted("quest_into_mist") && !this.isActive("quest_into_mist")) {
+      this.makeAvailable("quest_into_mist");
+      this.start("quest_into_mist");
     }
   }
 
@@ -334,10 +389,10 @@ class QuestSystem {
         this.makeAvailable("quest_frontier");
         this.start("quest_frontier");
       }
-      if (id === "regional_explorer") {
-        if (this.isCompleted("quest_mist_refuge") || this.isActive("quest_mist_refuge")) return;
-        this.makeAvailable("quest_mist_refuge");
-        this.start("quest_mist_refuge");
+      if (id === "gym_2_clue_unlocked") {
+        if (this.isCompleted("quest_into_mist") || this.isActive("quest_into_mist")) return;
+        this.makeAvailable("quest_into_mist");
+        this.start("quest_into_mist");
       }
     });
   }
@@ -358,8 +413,33 @@ class QuestSystem {
     if (!this.q || !def || this.isActive(id) || this.isCompleted(id)) return false;
     delete this.q.available[id];
     this.q.active[id] = { progress: def.objectives.map(() => 0) };
+    this.hydrate(id);
     if (!silent) events.emit("questStarted", { questId: id });
+    if (this.q.active[id] && def.objectives.every((obj, i) => this.q.active[id].progress[i] >= obj.amount)) {
+      this.complete(id);
+    }
     return true;
+  }
+
+  /** Rellena objetivos ya cumplidos (p. ej. trainers derrotados antes de aceptar). */
+  hydrate(id) {
+    const def = QUESTS[id];
+    const st = this.q?.active[id];
+    if (!def || !st) return;
+    def.objectives.forEach((obj, i) => {
+      if (st.progress[i] >= obj.amount) return;
+      if (obj.type === "defeatTrainer" && obj.trainerId && trainers.isDefeated(obj.trainerId)) {
+        st.progress[i] = obj.amount;
+      } else if (obj.type === "solveGymPuzzle" && obj.gymId && gyms.isPuzzleSolved(obj.gymId)) {
+        st.progress[i] = obj.amount;
+      } else if (obj.type === "earnBadge" && obj.badgeId && progression.hasBadge(obj.badgeId)) {
+        st.progress[i] = obj.amount;
+      } else if (obj.type === "discoverStructure" && obj.structureType && this.state?.stats) {
+        const hit = Object.keys(this.state.stats.structuresDiscovered ?? {})
+          .some((id) => id.startsWith(`${obj.structureType}:`));
+        if (hit) st.progress[i] = obj.amount;
+      }
+    });
   }
 
   // ---------- Progreso ----------

@@ -28,9 +28,10 @@ const SALT = {
   camp: 11001, ruin: 22002, healing_shrine: 33003, settlement: 44004, gym: 55005,
   regional_gate: 66006, watchtower: 77007, ancient_outpost: 88008,
   mist_settlement: 99009,
+  gym_mist: 11110,
 };
 
-const REGIONAL_TYPES = new Set(["regional_gate", "watchtower", "ancient_outpost", "mist_settlement"]);
+const REGIONAL_TYPES = new Set(["regional_gate", "watchtower", "ancient_outpost", "mist_settlement", "gym_mist"]);
 
 export const STRUCTURE_TYPES = {
   camp: {
@@ -139,6 +140,16 @@ export const STRUCTURE_TYPES = {
       { role: "herbalist", local: [-6, 3], indoor: true },
       { role: "regional_guide", local: [0, -5], indoor: true },
     ],
+  },
+  gym_mist: {
+    id: "gym_mist",
+    name: "Gimnasio de las Brumas",
+    icon: "🌫",
+    cell: 260,
+    chance: 1,
+    radius: 16,
+    maxSlope: 8,
+    build: buildMistGym,
   },
 };
 
@@ -566,6 +577,100 @@ function buildMistSettlement(stamp, x, y, z, rng, ground) {
   for (let dx = -2; dx <= 2; dx++) fillFloor(stamp, ground, x, y, z, dx, 11, B.STONE);
 }
 
+/**
+ * Gimnasio de las Brumas (Fase 8): piedra, musgo y cristal.
+ * Norte → entrada (hacia el arco del refugio) → recepción → Nox
+ * → cámara de faros → Lumen → sala de Nyra → barrera sur (hook R3).
+ */
+function buildMistGym(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 16, 10);
+
+  for (let dx = -8; dx <= 8; dx++) {
+    for (let dz = -13; dz <= 15; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.STONE);
+      if (dz <= 13) stamp(x + dx, y + 6, z + dz, B.MIST_GRASS);
+    }
+  }
+
+  const wall = (dx, dz, block = B.STONE) => {
+    for (let dy = 1; dy <= 5; dy++) stamp(x + dx, y + dy, z + dz, block);
+  };
+
+  for (let dx = -8; dx <= 8; dx++) {
+    for (let dz = -12; dz <= 13; dz++) {
+      const edge = Math.abs(dx) === 8 || dz === -12 || dz === 13;
+      if (!edge) continue;
+      const mainDoor = dx === 0 && dz === -12;
+      if (mainDoor) {
+        stamp(x + dx, y + 1, z + dz, B.CRYSTAL);
+        stamp(x + dx, y + 2, z + dz, B.CRYSTAL);
+        for (let dy = 3; dy <= 5; dy++) stamp(x + dx, y + dy, z + dz, B.STONE);
+      } else {
+        wall(dx, dz);
+      }
+    }
+  }
+
+  // Tabique de la sala del líder (dz = 7)
+  for (let dx = -7; dx <= 7; dx++) {
+    if (dx === 0) {
+      stamp(x, y + 1, z + 7, B.CRYSTAL);
+      stamp(x, y + 2, z + 7, B.CRYSTAL);
+      for (let dy = 3; dy <= 5; dy++) stamp(x, y + dy, z + 7, B.STONE);
+    } else {
+      wall(dx, 7);
+    }
+  }
+
+  // Separación recepción / cámara de faros (dz = -6) con pasillo
+  for (let dx = -7; dx <= 7; dx++) {
+    if (dx === 0) continue;
+    wall(dx, -6);
+  }
+
+  // Sala oeste de Nox
+  for (let dz = -8; dz <= -1; dz++) {
+    if (dz === -3) continue;
+    wall(-3, dz);
+  }
+  // Sala este de Lumen
+  for (let dz = 2; dz <= 6; dz++) {
+    if (dz === 4) continue;
+    wall(3, dz);
+  }
+
+  // Faros: madera + cristal (cualquier orden)
+  for (const [dx, dz] of [[0, -4], [-5, 1], [5, 1]]) {
+    stamp(x + dx, y + 1, z + dz, B.STONE);
+    stamp(x + dx, y + 2, z + dz, B.CRYSTAL);
+    stamp(x + dx, y + 3, z + dz, B.ANCIENT_FRAGMENT);
+  }
+
+  stamp(x, y + 1, z - 9, B.STONE);
+  stamp(x, y + 2, z - 9, B.CRYSTAL);
+  stamp(x, y + 1, z + 10, B.STONE);
+  stamp(x, y + 2, z + 10, B.CRYSTAL);
+  // Madera oscura: pilares de recepción
+  stamp(x - 6, y + 1, z - 10, B.WOOD);
+  stamp(x - 6, y + 2, z - 10, B.WOOD);
+  stamp(x + 6, y + 1, z - 10, B.WOOD);
+  stamp(x + 6, y + 2, z - 10, B.WOOD);
+
+  for (let dx = -2; dx <= 2; dx++) fillFloor(stamp, ground, x, y, z, dx, -13, B.STONE);
+  stamp(x - 2, y + 1, z - 13, B.CRYSTAL);
+  stamp(x + 2, y + 1, z - 13, B.CRYSTAL);
+
+  // Barrera sur: hook hacia la siguiente región (no es Región 3)
+  for (let dx = -3; dx <= 3; dx++) {
+    fillFloor(stamp, ground, x, y, z, dx, 15, B.STONE);
+    if (Math.abs(dx) <= 1) {
+      for (let dy = 1; dy <= 5; dy++) stamp(x + dx, y + dy, z + 15, B.CRYSTAL);
+    } else {
+      wall(dx, 15);
+    }
+  }
+}
+
 // ---------- Índice determinista por celdas ----------
 
 export class StructureIndex {
@@ -652,6 +757,9 @@ export class StructureIndex {
     } else if (type === "mist_settlement") {
       x = gym.x + g.settlement.dx;
       z = gym.z + g.settlement.dz;
+    } else if (type === "gym_mist") {
+      x = gym.x + g.gymMist.dx;
+      z = gym.z + g.gymMist.dz;
     }
     const t = this.world.terrainAt(x, z);
     return {
