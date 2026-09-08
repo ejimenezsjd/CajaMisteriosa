@@ -27,11 +27,14 @@ export const REGION_GEOMETRY = {
   gymCell: 260,
   halfW: 68,
   z0: 58,
-  z1: 198,
+  // +220: deja margen para el Gimnasio de las Brumas (dz 192, radio 16)
+  // y su barrera sur (hook). No mueve gate/atalaya/puesto/refugio.
+  z1: 220,
   gateZ: 52,
   watchtower: { dx: -24, dz: 100 },
   outpost: { dx: 22, dz: 155 },
   settlement: { dx: 6, dz: 122 },
+  gymMist: { dx: 6, dz: 192 },
 };
 
 export const REGIONS = {

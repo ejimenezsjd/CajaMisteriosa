@@ -74,13 +74,20 @@ export function defaultState(seed) {
     // Fase 5: estado por gimnasio (puzzle, entrada, completado)
     gyms: {
       gym_verdant: { puzzleSolved: false, puzzleAttempt: [], completed: false, entered: false },
+      gym_mist: {
+        puzzleSolved: false,
+        puzzleAttempt: [],
+        beacons: { north: false, east: false, west: false },
+        completed: false,
+        entered: false,
+      },
     },
     // Fase 6: descubrimiento de regiones y estado de la frontera
     regions: {
       discovered: {},
       gates: { region_2: { opened: false } },
     },
-    // Fase 7: buffs temporales (kit de exploración). SAVE_VERSION sigue en 2.
+    // Fase 7–8: buffs temporales (kit) y gym_mist. SAVE_VERSION sigue en 2.
     buffs: { explorerUntil: 0 },
   };
 }

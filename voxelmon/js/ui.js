@@ -340,7 +340,7 @@ export class UI {
 
   badgeList() {
     const badges = this.state?.progression?.badges ?? {};
-    const names = { explorador: "Explorador", verdant_badge: "Insignia Verde" };
+    const names = { explorador: "Explorador", verdant_badge: "Insignia Verde", mist_badge: "Insignia Bruma" };
     const list = Object.keys(badges).filter((k) => badges[k]).map((k) => names[k] ?? k);
     return list.length ? ` · ${list.join(", ")}` : "";
   }

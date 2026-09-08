@@ -12,7 +12,7 @@ import { Player } from "./player.js";
 import { Spawner } from "./creatures.js";
 import { Battle, TrainerOpponent } from "./battle.js";
 import { TRAINERS, trainers } from "./trainers.js";
-import { GYMS, GYM_LAYOUT, SWITCH_LABELS, gyms } from "./gyms.js";
+import { GYMS, GYM_LAYOUT, MIST_GYM_LAYOUT, SWITCH_LABELS, BEACON_LABELS, gyms, gymIdForStructure } from "./gyms.js";
 import { UI } from "./ui.js";
 import { FAMILY_STARTERS, PERKS, activePerks, familyOf, createMonster } from "./data.js";
 import { sfx, toggleMute } from "./audio.js";
@@ -78,6 +78,7 @@ let state = null;
 let mode = "title"; // title | starter | play | battle | pause | dex | dialogue | crafting | victory
 let locked = false;
 let perks = activePerks({});
+let fogMistGym = null;
 
 /** Recalcula las habilidades activas según la dex y las aplica al jugador */
 function refreshPerks() {
@@ -119,7 +120,14 @@ events.on("resourceCollected", ({ resourceId, amount }) => {
 });
 events.on("badgeEarned", ({ id }) => {
   if (id === "verdant_badge") ui.toast("🏅 Has conseguido la Insignia Verde", "legendary");
-  else ui.toast(`🏅 ¡Insignia conseguida: ${id}!`, "legendary");
+  else if (id === "mist_badge") {
+    ui.toast("🏅 Has conseguido la Insignia Bruma", "legendary");
+    const s = findMistGym(player?.pos.x ?? 0, player?.pos.z ?? 0);
+    if (s) applyMistExitOpening(s);
+  } else ui.toast(`🏅 ¡Insignia conseguida: ${id}!`, "legendary");
+});
+events.on("structureDiscovered", ({ structureType }) => {
+  if (structureType === "gym_mist") ui.toast("🌫 Gimnasio de las Brumas descubierto", "good");
 });
 events.on("questStarted", ({ questId }) => {
   ui.toast(`◈ Nueva misión: ${QUESTS[questId]?.title ?? questId}`, "good");
@@ -161,18 +169,30 @@ events.on("progressUnlocked", ({ id }) => {
     const s = findMistSettlement(player?.pos.x ?? 0, player?.pos.z ?? 0);
     if (s) applyAncientPathOpening(s);
   }
+  if (id === "region_3_path_unlocked") {
+    ui.toast("🌄 La Insignia Bruma abre un camino más al sur.", "legendary");
+    const s = findMistGym(player?.pos.x ?? 0, player?.pos.z ?? 0);
+    if (s) applyMistExitOpening(s);
+  }
 });
-events.on("gymPuzzleProgress", ({ current, required, reset }) => {
-  if (reset) ui.toast("↺ Secuencia incorrecta. Los pedestales se reinician.", "bad");
+events.on("gymPuzzleProgress", ({ gymId, current, required, reset }) => {
+  if (gymId === "gym_mist") ui.toast(`🌫 Faros de bruma: ${current}/${required}`);
+  else if (reset) ui.toast("↺ Secuencia incorrecta. Los pedestales se reinician.", "bad");
   else ui.toast(`🌿 Pedestales activados: ${current}/${required}`);
   refreshGymTracker();
 });
-events.on("gymPuzzleSolved", () => {
-  ui.toast("🌿 ¡Puzzle resuelto! La puerta del líder puede abrirse.", "good");
+events.on("gymPuzzleSolved", ({ gymId }) => {
+  if (gymId === "gym_mist") ui.toast("🌫 Los tres faros están encendidos.", "good");
+  else ui.toast("🌿 ¡Puzzle resuelto! La puerta del líder puede abrirse.", "good");
+  maybeLeaderRoomToast(gymId ?? "gym_verdant");
   refreshGymTracker();
 });
-events.on("gymEntered", () => {
-  ui.toast("🌿 Gimnasio Verde", "good");
+events.on("gymEntered", ({ gymId }) => {
+  if (gymId === "gym_mist") ui.toast("🌫 Gimnasio de las Brumas", "good");
+  else ui.toast("🌿 Gimnasio Verde", "good");
+});
+events.on("trainerDefeated", ({ gymId }) => {
+  if (gymId) maybeLeaderRoomToast(gymId);
 });
 events.on("regionDiscovered", ({ regionName }) => {
   ui.toast(`🌄 Nueva región descubierta: ${regionName}`, "good");
@@ -535,6 +555,13 @@ function useShrine(s) {
   saveGame();
 }
 
+const leaderRoomAnnounced = new Set();
+function maybeLeaderRoomToast(gymId) {
+  if (!gymId || leaderRoomAnnounced.has(gymId) || !gyms.canEnterLeader(gymId)) return;
+  leaderRoomAnnounced.add(gymId);
+  ui.toast("La cámara del líder se ha abierto", "good");
+}
+
 function gymWorldPos(s, local) {
   return { x: s.x + local[0] + 0.5, y: s.y + 1.2, z: s.z + local[1] + 0.5 };
 }
@@ -544,13 +571,29 @@ function teleportPlayer(x, y, z) {
   player.vel.set(0, 0, 0);
 }
 
+function isInsideMistGym(s, x, z) {
+  return !!s && Math.abs(x - s.x) <= 8.5 && z >= s.z - 13.5 && z <= s.z + 15.5;
+}
+
+function isMistExitOpen() {
+  return progression.hasBadge("mist_badge") || progression.isUnlocked("region_3_path_unlocked");
+}
+
 function registerGymInteractables(s, wanted) {
+  const gymId = gymIdForStructure(s);
+  const gym = gymId ? GYMS[gymId] : null;
+  if (!gym) return;
+  const layout = gym.layout ?? (gymId === "gym_mist" ? MIST_GYM_LAYOUT : GYM_LAYOUT);
+
   const put = (id, local, range, prompt, onInteract) => {
     wanted.add(id);
     const p = gymWorldPos(s, local);
     const existing = interaction.items.get(id);
     if (existing) {
       existing.prompt = prompt;
+      existing.x = p.x;
+      existing.y = p.y;
+      existing.z = p.z;
       return;
     }
     interaction.register({
@@ -558,43 +601,82 @@ function registerGymInteractables(s, wanted) {
     });
   };
 
-  const open = gyms.canEnter();
-  put(`gym:${s.id}:door`, GYM_LAYOUT.door, 3.2,
-    open ? "Entrar al gimnasio" : "La puerta está cerrada. Necesitas demostrar tu experiencia como entrenador.",
+  const open = gyms.canEnter(gymId);
+  const closedPrompt = gymId === "gym_mist"
+    ? "La puerta está sellada. El arco del refugio debe despertar primero."
+    : "La puerta está cerrada. Necesitas demostrar tu experiencia como entrenador.";
+  put(`gym:${s.id}:door`, layout.door, 3.2,
+    open ? "Entrar al gimnasio" : closedPrompt,
     () => {
-      if (!gyms.canEnter()) {
-        ui.toast("La puerta está cerrada. Necesitas demostrar tu experiencia como entrenador.", "bad");
+      if (!gyms.canEnter(gymId)) {
+        ui.toast(closedPrompt, "bad");
         return;
       }
-      const dest = gymWorldPos(s, GYM_LAYOUT.reception);
+      const dest = gymWorldPos(s, layout.reception);
       teleportPlayer(dest.x, dest.y, dest.z);
-      if (gyms.markEntered()) events.emit("gymEntered", { gymId: "gym_verdant", structureId: s.id });
+      if (gyms.markEntered(gymId)) events.emit("gymEntered", { gymId, structureId: s.id });
       saveGame();
     });
 
-  put(`gym:${s.id}:exit`, GYM_LAYOUT.reception, 2.8, "Salir del gimnasio", () => {
-    const dest = gymWorldPos(s, GYM_LAYOUT.exit);
+  put(`gym:${s.id}:exit`, layout.reception, 2.8, "Salir del gimnasio", () => {
+    const dest = gymWorldPos(s, layout.exit);
     teleportPlayer(dest.x, dest.y, dest.z);
   });
 
-  const leaderOpen = gyms.canEnterLeader();
-  put(`gym:${s.id}:leader`, GYM_LAYOUT.leaderDoor, 2.8,
+  const leaderOpen = gyms.canEnterLeader(gymId);
+  put(`gym:${s.id}:leader`, layout.leaderDoor, 2.8,
     leaderOpen ? "Entrar a la sala del líder" : "La puerta del líder sigue cerrada.",
     () => {
-      if (!gyms.canEnterLeader()) {
+      if (!gyms.canEnterLeader(gymId)) {
         ui.toast("La puerta del líder sigue cerrada.", "bad");
         return;
       }
-      const dest = gymWorldPos(s, GYM_LAYOUT.leaderRoom);
+      const dest = gymWorldPos(s, layout.leaderRoom);
       teleportPlayer(dest.x, dest.y, dest.z);
     });
 
-  for (const [sid, local] of Object.entries(GYM_LAYOUT.switches)) {
-    put(`gym:${s.id}:switch:${sid}`, local, 2.4, SWITCH_LABELS[sid], () => {
-      const r = gyms.activateSwitch("gym_verdant", sid);
-      if (r.already) ui.toast("El puzzle ya está resuelto.");
-      saveGame();
-    });
+  if (gym.puzzle?.type === "switch_sequence" && layout.switches) {
+    for (const [sid, local] of Object.entries(layout.switches)) {
+      put(`gym:${s.id}:switch:${sid}`, local, 2.4, SWITCH_LABELS[sid], () => {
+        const r = gyms.activateSwitch(gymId, sid);
+        if (r.already) ui.toast("El puzzle ya está resuelto.");
+        saveGame();
+      });
+    }
+  }
+
+  if (gym.puzzle?.type === "mist_ruins" && layout.beacons) {
+    const st = gyms.gymState(gymId);
+    const kit = crafting.explorerActive();
+    for (const [bid, local] of Object.entries(layout.beacons)) {
+      const on = !!st.beacons?.[bid];
+      let prompt = BEACON_LABELS[bid] ?? bid;
+      if (on) prompt += " (activo)";
+      else if (kit) prompt = `✦ ${prompt}`;
+      put(`gym:${s.id}:beacon:${bid}`, local, 2.6, prompt, () => {
+        const r = gyms.activateBeacon(gymId, bid);
+        if (r.already) ui.toast("Los faros ya están encendidos.");
+        else if (r.first === false) ui.toast(`${BEACON_LABELS[bid]} ya brillaba.`);
+        saveGame();
+      });
+    }
+
+    const hookOpen = isMistExitOpen();
+    if (hookOpen) applyMistExitOpening(s);
+    put(`gym:${s.id}:exit-hook`, layout.exitHook, 3.2,
+      hookOpen ? "La barrera responde a la Insignia Bruma." : "Una antigua barrera bloquea el camino.",
+      () => {
+        if (isMistExitOpen()) {
+          applyMistExitOpening(s);
+          ui.toast("La barrera responde a la Insignia Bruma. El camino queda abierto.", "good");
+          const [hx, hz] = layout.exitHook;
+          const destX = s.x + hx + 0.5;
+          const destZ = s.z + hz + 3.5;
+          teleportPlayer(destX, world.surfaceY(destX, destZ) + 1, destZ);
+          return;
+        }
+        ui.toast("Una antigua barrera bloquea el camino.", "bad");
+      });
   }
 }
 
@@ -691,6 +773,25 @@ function applyAncientPathOpening(s) {
   }
 }
 
+function findMistGym(x, z) {
+  if (!world) return null;
+  const near = world.structures.near(x, z, 90).find((s) => s.type === "gym_mist");
+  if (near) return near;
+  const gym = nearestGymAnchor(x, z);
+  if (!gym) return null;
+  return world.structures.candidate("gym_mist", gym.cellX, gym.cellZ);
+}
+
+function applyMistExitOpening(s) {
+  if (!s || !world || !isMistExitOpen()) return;
+  const [dx, dz] = MIST_GYM_LAYOUT.exitHook;
+  for (let ox = -1; ox <= 1; ox++) {
+    for (let dy = 1; dy <= 5; dy++) {
+      world.setBlock(s.x + dx + ox, s.y + dy, s.z + dz, B.AIR);
+    }
+  }
+}
+
 function registerMistInteractables(s, wanted) {
   const [wdx, wdz] = MIST_SETTLEMENT_LAYOUT.workbench;
   const benchId = `workbench:${s.id}`;
@@ -724,7 +825,7 @@ function registerMistInteractables(s, wanted) {
   const unlocked = progression.isUnlocked("gym_2_clue_unlocked");
   if (unlocked) applyAncientPathOpening(s);
   const prompt = unlocked
-    ? "El núcleo antiguo reacciona. El camino parece haberse activado."
+    ? "Cruzar hacia el Gimnasio de las Brumas"
     : "El camino está bloqueado por una energía extraña.";
   const px = s.x + pdx + 0.5;
   const py = s.y + 1.5;
@@ -747,7 +848,11 @@ function registerMistInteractables(s, wanted) {
     onInteract: () => {
       if (progression.isUnlocked("gym_2_clue_unlocked")) {
         applyAncientPathOpening(s);
-        ui.toast("El núcleo antiguo reacciona. Un antiguo sendero continúa hacia el próximo gimnasio.", "good");
+        const [dx, dz] = MIST_SETTLEMENT_LAYOUT.ancientPath;
+        const destX = s.x + dx + 0.5;
+        const destZ = s.z + dz + 4.5;
+        teleportPlayer(destX, world.surfaceY(destX, destZ) + 1, destZ);
+        ui.toast("Cruzas el arco hacia el Gimnasio de las Brumas.", "good");
         return;
       }
       ui.toast("El camino está bloqueado por una energía extraña.", "bad");
@@ -774,6 +879,14 @@ function useCraftedItem(itemId) {
     }
     ui.toast("🔦 El kit aclara la niebla durante 90 segundos.", "good");
     if (world && player) {
+      const mist = findMistGym(player.pos.x, player.pos.z);
+      const st = gyms.gymState("gym_mist");
+      if (mist && !st.puzzleSolved && st.beacons) {
+        const left = Object.entries(st.beacons)
+          .filter(([, on]) => !on)
+          .map(([id]) => BEACON_LABELS[id] ?? id);
+        if (left.length) ui.toast(`✦ Faros por encender: ${left.join(" · ")}`, "good");
+      }
       const near = world.structures.near(player.pos.x, player.pos.z, 80)
         .filter((s) => s.type !== "camp");
       if (near.length) {
@@ -785,18 +898,29 @@ function useCraftedItem(itemId) {
 }
 
 function refreshGymTracker(nearGym = null) {
-  if (!nearGym || gyms.isCompleted()) {
+  if (!nearGym) {
     ui.updateGymTracker(null);
     return;
   }
-  const st = gyms.gymState();
-  const cur = st.puzzleSolved ? 3 : st.puzzleAttempt.length;
-  ui.updateGymTracker({
-    title: GYMS.gym_verdant.name,
-    label: st.puzzleSolved
+  const gymId = gymIdForStructure(nearGym);
+  if (!gymId || gyms.isCompleted(gymId)) {
+    ui.updateGymTracker(null);
+    return;
+  }
+  const st = gyms.gymState(gymId);
+  const gym = GYMS[gymId];
+  let label;
+  if (gymId === "gym_mist") {
+    label = st.puzzleSolved
+      ? (st.leaderReady ? "Sala del líder abierta" : "Faros encendidos")
+      : `Faros de bruma: ${st.beaconCount}/3`;
+  } else {
+    const cur = st.puzzleSolved ? 3 : st.puzzleAttempt.length;
+    label = st.puzzleSolved
       ? (st.leaderReady ? "Sala del líder abierta" : "Puzzle resuelto")
-      : `Pedestales activados: ${cur}/3`,
-  });
+      : `Pedestales activados: ${cur}/3`;
+  }
+  ui.updateGymTracker({ title: gym.name, label });
 }
 
 function onPlace() {
@@ -1175,6 +1299,7 @@ function loop(now) {
     const wantedGate = new Set();
     const wantedMist = new Set();
     let nearGym = null;
+    fogMistGym = null;
     for (const s of world.structures.near(px, pz, 24)) {
       if (!state.stats.structuresDiscovered[s.id]) {
         events.emit("structureDiscovered", {
@@ -1196,9 +1321,10 @@ function loop(now) {
           });
         }
       }
-      if (s.type === "gym") {
+      if (s.type === "gym" || s.type === "gym_mist") {
         nearGym = s;
         registerGymInteractables(s, wantedGym);
+        if (s.type === "gym_mist") fogMistGym = s;
       }
       if (s.type === "regional_gate") {
         registerGateInteractables(s, wantedGate);
@@ -1301,6 +1427,12 @@ function loop(now) {
     scene.fog.near = 1;
     scene.fog.far = 22;
     scene.fog.color.set(0x2a5fae);
+  } else if (fogMistGym && isInsideMistGym(fogMistGym, camera.position.x, camera.position.z)) {
+    const beacons = gyms.gymState("gym_mist").beaconCount ?? 0;
+    const kit = crafting.explorerActive();
+    scene.fog.near = kit ? 16 : 8;
+    scene.fog.far = 22 + 22 * beacons + (kit ? 28 : 0);
+    scene.fog.color.lerp(new THREE.Color(0x6a7a88), 0.55);
   } else if (getRegionAt(camera.position.x, camera.position.z) === REGION_2) {
     if (crafting.explorerActive()) {
       scene.fog.near = 28;
@@ -1471,8 +1603,40 @@ window.__vm = {
     gymState() {
       return gyms.gymState();
     },
+    /** Coordenadas y estado del Gimnasio de las Brumas (Fase 8) */
+    gym2() {
+      if (!world || !player) return null;
+      return findMistGym(player.pos.x, player.pos.z);
+    },
+    gym2State() {
+      const s = this.gym2();
+      const st = gyms.gymState("gym_mist");
+      return {
+        structure: s ? { id: s.id, x: s.x, y: s.y, z: s.z, biome: s.biome } : null,
+        ...st,
+        badge: progression.hasBadge("mist_badge"),
+        clue: progression.isUnlocked("gym_2_clue_unlocked"),
+        nextRegion: progression.isUnlocked("region_3_path_unlocked"),
+        kit: crafting.explorerActive(),
+        trainers: {
+          nox: trainers.isDefeated("gym_trainer_mist_1"),
+          lumen: trainers.isDefeated("gym_trainer_mist_2"),
+          nyra: trainers.isDefeated("leader_nyra"),
+        },
+      };
+    },
+    gotoGym2() {
+      const s = this.gym2();
+      if (!s || !player || !world) return null;
+      player.pos.set(s.x + 0.5, s.y + 2, s.z - 12.5);
+      player.vel.set(0, 0, 0);
+      return s;
+    },
     /** [debug] resetea el puzzle del gimnasio (solo desarrollo) */
-    resetGymPuzzle() { gyms.resetPuzzle(); },
+    resetGymPuzzle(id) { gyms.resetPuzzle(id); },
+    fog() {
+      return scene?.fog ? { near: scene.fog.near, far: scene.fog.far } : null;
+    },
     badges() {
       return state ? { ...state.progression.badges } : {};
     },
@@ -1503,7 +1667,7 @@ window.__vm = {
       if (!world || !player) return [];
       return world.structures.near(player.pos.x, player.pos.z, r)
         .filter((s) => s.type === "regional_gate" || s.type === "watchtower" ||
-          s.type === "ancient_outpost" || s.type === "mist_settlement");
+          s.type === "ancient_outpost" || s.type === "mist_settlement" || s.type === "gym_mist");
     },
     mistSettlement() {
       if (!world || !player) return null;
@@ -1587,6 +1751,10 @@ window.__vm = {
       progression.addBadge("verdant_badge");
       progression.unlock("region_2_path_unlocked");
       progression.unlock("first_gym_completed");
+    },
+    unlockGym2Clue() {
+      this.unlockRegion2();
+      progression.unlock("gym_2_clue_unlocked");
     },
     openGate() {
       return tryOpenRegionGate({

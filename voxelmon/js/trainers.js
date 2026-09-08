@@ -132,6 +132,63 @@ export const TRAINERS = {
     anchorOffset: [3, -10],
     colors: { skin: "#e8c49a", outfit: "#1e5a38", accent: "#7dffb0" },
   },
+
+  // ---------- Gimnasio de las Brumas (Fase 8) ----------
+
+  gym_trainer_mist_1: {
+    id: "gym_trainer_mist_1",
+    name: "Nox",
+    role: "trainer",
+    trainerClass: "ranger",
+    gymId: "gym_mist",
+    dialogueId: "gym_trainer_nox",
+    dialogueDefeatedId: "gym_trainer_nox_done",
+    team: [
+      { speciesId: "umbra", level: 14 },
+      { speciesId: "gotita", level: 15 },
+    ],
+    rewardMoney: 240,
+    repeatable: false,
+    anchorOffset: [-5, -3],
+    colors: { skin: "#c9b090", outfit: "#3a3a58", accent: "#7a5aa0" },
+  },
+  gym_trainer_mist_2: {
+    id: "gym_trainer_mist_2",
+    name: "Lumen",
+    role: "trainer",
+    trainerClass: "ace",
+    gymId: "gym_mist",
+    dialogueId: "gym_trainer_lumen",
+    dialogueDefeatedId: "gym_trainer_lumen_done",
+    team: [
+      { speciesId: "umbra", level: 15 },
+      { speciesId: "arbusto", level: 15 },
+      { speciesId: "lucier", level: 16 },
+    ],
+    rewardMoney: 320,
+    repeatable: false,
+    anchorOffset: [5, 4],
+    colors: { skin: "#e8d8b0", outfit: "#4a6a78", accent: "#f0e6a8" },
+  },
+  leader_nyra: {
+    id: "leader_nyra",
+    name: "Nyra",
+    role: "trainer",
+    trainerClass: "ace",
+    gymId: "gym_mist",
+    leader: true,
+    dialogueId: "gym_leader_nyra",
+    dialogueDefeatedId: "gym_leader_nyra_done",
+    team: [
+      { speciesId: "sombrio", level: 17 },
+      { speciesId: "riazor", level: 16 },
+      { speciesId: "clarion", level: 18 },
+    ],
+    rewardMoney: 800,
+    repeatable: false,
+    anchorOffset: [2, 10],
+    colors: { skin: "#d4c4b0", outfit: "#2a2438", accent: "#c9f0ff" },
+  },
 };
 
 /** Anchors deterministas de entrenadores asociados a un settlement */
