@@ -157,8 +157,8 @@ STYLIZED_MODELS.gotita = {
   height: 1,
   effects: ["mist"],
   parts: [
-    P({ name: "body", type: "ellipsoid", pos: [0, 0.4, 0], scale: [0.4, 0.52, 0.4], color: "#3a9fe0", mat: "glass", opacity: 0.82 }),
-    P({ name: "core", type: "sphere", parent: "body", pos: [0, -0.04, 0], scale: [0.22, 0.24, 0.22], color: "#80d0ff", mat: "bright" }),
+    P({ name: "body", type: "ellipsoid", pos: [0, 0.42, 0], scale: [0.38, 0.56, 0.38], color: "#3a9fe0", mat: "bright" }),
+    P({ name: "core", type: "sphere", parent: "body", pos: [0, -0.06, 0], scale: [0.2, 0.22, 0.2], color: "#b8e8ff", mat: "bright" }),
     P({ name: "head", type: "sphere", parent: "body", pos: [0, 0.16, -0.04], scale: [0.28, 0.26, 0.28], color: "#3a9fe0" }),
     P({ name: "crest", type: "ellipsoid", parent: "head", pos: [0, 0.16, 0], scale: [0.16, 0.1, 0.1], color: "#e8f6ff", mat: "bright" }),
     P({ name: "eye_l", type: "eye", parent: "head", pos: [-0.07, 0.02, -0.12], size: 0.048, iris: "#1a4a70" }),
