@@ -168,7 +168,7 @@ function tickEffects(nodes, t, effects) {
         p.position.set(Math.sin(a) * 0.16, 0.05 + Math.sin(a * 0.8) * 0.1, Math.cos(a) * 0.12);
       } else if (name === "spark") {
         p.position.set(Math.sin(a * 3) * 0.14, 0.2 + Math.sin(a * 5) * 0.08, Math.cos(a * 2) * 0.1);
-      } else if (name === "glow" || name === "crystal") {
+      } else if (name === "glow" || name === "crystal" || name === "prism") {
         const s = 0.05 + Math.sin(t * 3 + k) * 0.015;
         p.position.set((k - 1.5) * 0.06, 0.08 + Math.sin(t * 2 + k) * 0.04, 0);
         p.scale.setScalar(s);
@@ -382,6 +382,8 @@ const PROFILES = {
       if (p.body) p.body.scale.y = (p.body.userData.rest?.sy ?? 1) * (1 + Math.sin(t * 3.2) * 0.03);
       if (p.ear_l) p.ear_l.rotation.z = 0.2 + Math.sin(t * 6) * 0.12;
       if (p.ear_r) p.ear_r.rotation.z = -0.2 - Math.sin(t * 6 + 0.5) * 0.12;
+      if (p.horn_l) p.horn_l.rotation.z = 0.18 + Math.sin(t * 4.2) * 0.06;
+      if (p.horn_r) p.horn_r.rotation.z = -0.18 - Math.sin(t * 4.2 + 0.4) * 0.06;
       if (p.tail) p.tail.rotation.y = Math.sin(t * 5) * 0.2;
     },
     walk(p, t, spd) {
@@ -498,6 +500,7 @@ const FX_COLOR = {
   spark: "#ffe680",
   glow: "#fff0a0",
   crystal: "#ff6a40",
+  prism: "#80d8ff",
   shadow_wisp: "#6a48a0",
 };
 

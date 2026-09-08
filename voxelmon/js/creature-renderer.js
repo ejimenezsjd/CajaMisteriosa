@@ -57,7 +57,8 @@ function ensurePainted(speciesId) {
 
 /** Precarga pintores (síncrono) y intenta PNG (async, sustituye la caché). */
 export function preloadCreatureArt() {
-  preloadPortraitPngs(listStylizedSpecies());
+  // Los PNG de portrait son opcionales; el HUD renderiza en runtime.
+  try { preloadPortraitPngs(listStylizedSpecies()); } catch { /* ignore */ }
   for (const id of listPixelSpecies()) {
     if (hasPainter(id)) ensurePainted(id);
   }

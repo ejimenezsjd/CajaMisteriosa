@@ -287,7 +287,7 @@ export const CREATURE_ART = {
     shadow: true,
     shadowRadius: 0.52,
     concept: "ace de luz, halo roto y orbes, emissive contenido",
-    visual: { model: "aureon", shadowScale: 0.52, animationSet: "light_floater", effects: ["glow", "crystal"] },
+    visual: { model: "aureon", shadowScale: 0.52, animationSet: "light_floater", effects: ["glow"] },
     portraitScale: 0.7, portraitYaw: 0.35, portraitPitch: -0.12, portraitOffsetY: -0.1,
   },
   prismaton: {
@@ -297,7 +297,7 @@ export const CREATURE_ART = {
     shadow: true,
     shadowRadius: 0.6,
     concept: "entidad prismática legendaria, placas y órbitas, no un cristal suelto",
-    visual: { model: "prismaton", shadowScale: 0.6, animationSet: "crystal_entity", effects: ["crystal", "glow"] },
+    visual: { model: "prismaton", shadowScale: 0.6, animationSet: "crystal_entity", effects: ["prism", "glow"] },
     portraitScale: 0.68, portraitYaw: 0.4, portraitPitch: -0.1, portraitOffsetY: -0.12,
   },
 };

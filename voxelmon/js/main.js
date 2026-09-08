@@ -1970,6 +1970,7 @@ window.__vm = {
   get spawner() { return spawner; },
   get state() { return state; },
   get mode() { return mode; },
+  get ui() { return ui; },
   creatureInSight,
   startBattle,
   createMonster,
