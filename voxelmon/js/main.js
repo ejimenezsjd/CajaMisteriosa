@@ -1536,6 +1536,7 @@ window.__vm = {
       if (s) useShrine(s);
     },
     save() { saveGame(); },
+    pause() { showPause(); },
     // ---- Fase 3 ----
     /** NPC actualmente activos (cercanos) */
     npcs() { return npcs.list(); },
