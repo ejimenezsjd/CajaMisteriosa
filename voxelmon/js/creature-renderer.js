@@ -1,21 +1,21 @@
 /**
- * CreatureRenderer (Fase 10.5): fachada visual pixel | voxel.
+ * CreatureRenderer (Fase 10.5 + 10.6): fachada visual.
+ *
+ *   stylized3d → pixel → voxel
  *
  * El resto del juego pide un THREE.Group con userData.height y anima con
- * animateCreatureVisual. No conoce Sprite vs Mesh.
- *
- * Caché: una textura fuente por speciesId. Las instancias clonan offset/repeat.
- * Si el PNG falta o falla, se usa la hoja pintada en canvas. Si no hay arte,
- * se usa el modelo voxel existente.
+ * animateCreatureVisual. No conoce Sprite vs Mesh vs modelo 3D.
  */
 
 import * as THREE from "three";
 import { buildCreatureModel, animateModel } from "./models.js";
 import {
-  ANIM_ROWS, SHEET_COLS, SHEET_ROWS, getCreatureArt, isPixelSpecies,
+  ANIM_ROWS, SHEET_COLS, SHEET_ROWS, getCreatureArt, hasPixelArt,
   getPreferredRenderer, listPixelSpecies,
 } from "./creature-art.js";
 import { hasPainter, renderSheet, sheetToCanvas } from "./creature-pixels.js";
+import { buildStylized3d, inspectGeometryCache, inspectMaterialCache, countMeshes } from "./creature-3d.js";
+import { getStylizedModel, listStylizedSpecies } from "./creature-3d-defs.js";
 
 const TEX_CACHE = new Map(); // speciesId -> { texture, canvas, source: "png"|"paint", art }
 let loader = null;
@@ -217,23 +217,55 @@ function buildVoxelGroup(speciesId) {
   return g;
 }
 
-/**
- * Construye el visual de una especie. Nunca devuelve null: voxel si no hay pixel.
- */
-export function buildCreatureVisual(speciesId) {
-  if (!isPixelSpecies(speciesId)) return buildVoxelGroup(speciesId);
+export function resolveCreatureRenderer(speciesId) {
+  const pref = getPreferredRenderer();
+  const art = getCreatureArt(speciesId);
+  const has3d = !!getStylizedModel(speciesId);
+  const hasPix = hasPixelArt(speciesId) || hasPainter(speciesId);
+  if (pref === "voxel") return "voxel";
+  if (pref === "pixel") return hasPix ? "pixel" : "voxel";
+  if (pref === "stylized3d") return has3d ? "stylized3d" : (hasPix ? "pixel" : "voxel");
+  if (has3d && (art?.renderer === "stylized3d" || !art)) return "stylized3d";
+  if (has3d) return "stylized3d";
+  if (hasPix) return "pixel";
+  return "voxel";
+}
+
+function buildStylizedGroup(speciesId) {
+  const art = getCreatureArt(speciesId) ?? { speciesId, scale: 1, visual: {} };
+  const model = getStylizedModel(speciesId);
+  return buildStylized3d(speciesId, art, model);
+}
+
+function buildPixelOrNull(speciesId) {
   let packed = TEX_CACHE.get(speciesId);
   if (!packed && hasPainter(speciesId)) packed = ensurePainted(speciesId);
-  if (!packed?.texture) {
-    console.info(`[creature-art] fallback voxel para ${speciesId}`);
-    return buildVoxelGroup(speciesId);
+  if (!packed?.texture) return null;
+  return buildPixelGroup(speciesId, packed);
+}
+
+/**
+ * Construye el visual de una especie. Nunca devuelve null.
+ */
+export function buildCreatureVisual(speciesId) {
+  const want = resolveCreatureRenderer(speciesId);
+  if (want === "stylized3d") {
+    try {
+      return buildStylizedGroup(speciesId);
+    } catch (err) {
+      console.warn(`[creature-art] error stylized3d ${speciesId}, pixel/voxel:`, err);
+    }
   }
-  try {
-    return buildPixelGroup(speciesId, packed);
-  } catch (err) {
-    console.warn(`[creature-art] error pixel ${speciesId}, voxel:`, err);
-    return buildVoxelGroup(speciesId);
+  if (want === "stylized3d" || want === "pixel") {
+    try {
+      const pix = buildPixelOrNull(speciesId);
+      if (pix) return pix;
+    } catch (err) {
+      console.warn(`[creature-art] error pixel ${speciesId}, voxel:`, err);
+    }
   }
+  if (want !== "voxel") console.info(`[creature-art] fallback voxel para ${speciesId}`);
+  return buildVoxelGroup(speciesId);
 }
 
 export function animateCreatureVisual(group, t, mode = "idle", speed = 0) {
@@ -254,11 +286,30 @@ export function animateCreatureVisual(group, t, mode = "idle", speed = 0) {
     }
     return;
   }
+  if (vis.type === "stylized3d") {
+    vis.update(t, mode, speed);
+    return;
+  }
   animateModel(group, t, vis.anim === "attack" ? "idle" : mode, speed);
 }
 
 export function setCreatureAnimation(group, name) {
   group?.userData?.visual?.setAnimation(name);
+}
+
+/** Aparición breve en combate: scale-in. No cambia reglas. */
+export function playCreatureIntro(group, ms = 320) {
+  if (!group) return;
+  group.scale.setScalar(0.05);
+  const t0 = performance.now();
+  const tick = () => {
+    const k = Math.min(1, (performance.now() - t0) / ms);
+    const e = 1 - (1 - k) ** 2;
+    group.scale.setScalar(0.05 + 0.95 * e);
+    if (k < 1) requestAnimationFrame(tick);
+    else group.scale.setScalar(1);
+  };
+  requestAnimationFrame(tick);
 }
 
 export function disposeCreatureVisual(group) {
@@ -302,24 +353,35 @@ export function creatureArtDebugSnapshot(group) {
   const vis = group?.userData?.visual;
   const id = group?.userData?.speciesId ?? vis?.speciesId;
   const cached = id ? TEX_CACHE.get(id) : null;
+  const renderer = group?.userData?.renderer ?? vis?.type ?? "unknown";
   return {
     species: id ?? null,
-    renderer: group?.userData?.renderer ?? vis?.type ?? "unknown",
+    renderer,
     spriteLoaded: !!(cached && cached.texture),
     source: cached?.source ?? vis?.source ?? null,
     animation: vis?.anim ?? null,
+    animationProfile: vis?.profile ?? null,
     frame: vis?.frame ?? null,
     scale: vis?.art?.scale ?? group?.scale?.x ?? null,
-    fallback: (group?.userData?.renderer ?? vis?.type) !== "pixel",
+    effects: vis?.effects ?? [],
+    partCount: vis?.partCount ?? null,
+    meshes: countMeshes(group),
+    fallback: renderer === "voxel" || renderer === "pixel",
     preferred: getPreferredRenderer(),
+    resolved: id ? resolveCreatureRenderer(id) : null,
     cacheSize: TEX_CACHE.size,
+    geoCache: inspectGeometryCache().size,
+    matCache: inspectMaterialCache().size,
     pngFailed: [...pngFailed],
+    stylized: listStylizedSpecies(),
   };
 }
 
 export function textureCacheSize() {
   return TEX_CACHE.size;
 }
+
+export { inspectGeometryCache, inspectMaterialCache, countMeshes };
 
 export function inspectTextureCache() {
   const out = {};

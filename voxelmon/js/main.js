@@ -8,8 +8,8 @@ import { World, B, BLOCK_DROPS, BIOME_NAMES } from "./world.js";
 import { getBiomeName, getBiomeDefinition } from "./biomes.js";
 import { RESOURCES, resourceForBlock } from "./resources.js";
 import { STRUCTURE_TYPES, MIST_SETTLEMENT_LAYOUT, CRIMSON_RUIN_LAYOUT } from "./structures.js";
-import { buildCreatureVisual, disposeCreatureVisual, preloadCreatureArt, creatureArtDebugSnapshot, textureCacheSize, inspectTextureCache, animateCreatureVisual, simulatePngLoadFailure } from "./creature-renderer.js";
-import { setPreferredRenderer, getPreferredRenderer, listPixelSpecies, getCreatureArt } from "./creature-art.js";
+import { buildCreatureVisual, disposeCreatureVisual, preloadCreatureArt, creatureArtDebugSnapshot, textureCacheSize, inspectTextureCache, animateCreatureVisual, simulatePngLoadFailure, inspectGeometryCache, inspectMaterialCache, resolveCreatureRenderer } from "./creature-renderer.js";
+import { setPreferredRenderer, getPreferredRenderer, listPixelSpecies, getCreatureArt, listArtSpecies } from "./creature-art.js";
 import { bosses, BOSSES } from "./bosses.js";
 import { Player } from "./player.js";
 import { Spawner, WildCreature } from "./creatures.js";
@@ -2050,8 +2050,11 @@ window.__vm = {
       return {
         preferred: getPreferredRenderer(),
         pixelSpecies: listPixelSpecies(),
+        stylizedSpecies: listArtSpecies().filter((id) => getCreatureArt(id)?.renderer === "stylized3d"),
         cacheSize: textureCacheSize(),
         cache: inspectTextureCache(),
+        geoCache: inspectGeometryCache(),
+        matCache: inspectMaterialCache(),
         nearby: list,
         sample: list[0] ?? creatureArtDebugSnapshot(bossVisual),
         boss: bossVisual ? creatureArtDebugSnapshot(bossVisual) : null,
@@ -2095,7 +2098,7 @@ window.__vm = {
       return snap;
     },
     artCatalog() {
-      return listPixelSpecies().map((id) => {
+      return listArtSpecies().map((id) => {
         const art = getCreatureArt(id);
         const sp = SPECIES[id];
         return {
@@ -2104,8 +2107,10 @@ window.__vm = {
           stage: sp?.stage ?? null,
           type: sp?.type ?? null,
           renderer: art.renderer,
+          resolved: resolveCreatureRenderer(id),
           scale: art.scale,
-          frameSize: art.frameSize,
+          profile: art.visual?.animationSet ?? null,
+          effects: art.visual?.effects ?? [],
           concept: art.concept,
         };
       });

@@ -5,7 +5,7 @@
 
 import * as THREE from "three";
 import { SPECIES, movesFor, typeMultiplier, gainXp, activePerks } from "./data.js";
-import { buildCreatureVisual, animateCreatureVisual, disposeCreatureVisual, setCreatureAnimation } from "./creature-renderer.js";
+import { buildCreatureVisual, animateCreatureVisual, disposeCreatureVisual, setCreatureAnimation, playCreatureIntro } from "./creature-renderer.js";
 import { buildCubeBall } from "./models.js";
 import { makeLabel } from "./creatures.js";
 import { TRAINER_CLASSES } from "./trainers.js";
@@ -143,6 +143,7 @@ export class Battle {
     this.mid.y = Math.max(this.allyPos.y, this.enemyPos.y) + 1.2;
 
     this.spawnAllyModel();
+    playCreatureIntro(this.wild.group);
 
     // Orienta enemigo y aliado cara a cara
     this.wild.yaw = Math.atan2(-(this.allyPos.x - this.enemyPos.x), -(this.allyPos.z - this.enemyPos.z));
@@ -161,6 +162,7 @@ export class Battle {
       -(this.enemyPos.z - this.allyPos.z)
     );
     this.scene.add(this.allyModel);
+    playCreatureIntro(this.allyModel);
   }
 
   /** Llamado desde el bucle principal mientras dura la batalla */
@@ -243,6 +245,7 @@ export class Battle {
     if (this.active.hp <= 0) {
       sfx.faint();
       this.ui.battleLog(`¡${this.active.name} se debilitó!`);
+      setCreatureAnimation(this.allyModel, "faint");
       await animate(400, (k) => { this.allyModel.scale.setScalar(Math.max(0.01, 1 - k)); this.allyModel.rotation.z = k * 1.2; });
       await sleep(300);
       const next = this.team.find((m) => m.hp > 0);
@@ -332,12 +335,19 @@ export class Battle {
       } else if (ev.type === "evolve") {
         sfx.evolve();
         this.ui.battleLog(`✦ ¡${ev.fromName} está evolucionando…!`);
+        const glow = new THREE.PointLight(0xffe6a0, 2, 8);
+        glow.position.copy(this.allyModel.position);
+        glow.position.y += 1.3;
+        this.scene.add(glow);
         await animate(900, (k) => {
           const s = 1 + Math.sin(k * Math.PI * 6) * 0.15;
           this.allyModel.scale.setScalar(s);
           this.allyModel.rotation.y += 0.15;
+          glow.intensity = 1.2 + Math.sin(k * Math.PI) * 5;
         });
+        this.scene.remove(glow);
         this.spawnAllyModel();
+        playCreatureIntro(this.allyModel, 380);
         this.ui.battleLog(`✦ ¡…se convirtió en ${ev.toName}!`);
         this.ui.onEvolve?.(this.active);
         await sleep(700);
@@ -428,6 +438,7 @@ export class Battle {
           await this.doMove(this.active, this.enemy, move, this.allyModel, this.wild.group, this.active.name);
           if (this.enemy.hp <= 0) {
             sfx.faint();
+            setCreatureAnimation(this.wild.group, "faint");
             this.ui.battleLog(`¡${this.enemyTag()} se debilitó!`);
             await animate(450, (k) => {
               this.wild.group.scale.setScalar(Math.max(0.01, this.wild.group.scale.x * (1 - k * 0.2)));
@@ -441,6 +452,7 @@ export class Battle {
               const next = this.ctx.queue.shift();
               this.enemy = next;
               this.wild.setMonster(next);
+              playCreatureIntro(this.wild.group);
               this.refreshTrainerBanner();
               const owner = this.trainer?.name ?? this.boss?.name ?? "Rival";
               this.ui.battleLog(`¡${owner} saca a ${next.name} (Nv ${next.level})!`);
