@@ -665,6 +665,89 @@ html, body {
   border-color: rgba(143, 220, 255, 0.4);
 }
 
+/* ---------- Fase 7: banco de trabajo ---------- */
+
+#crafting-ui {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 16px 42px;
+  pointer-events: none;
+}
+
+#crafting-ui.hidden { display: none; }
+
+.crafting-box {
+  pointer-events: auto;
+  width: min(520px, 100%);
+  background: rgba(12, 15, 26, 0.94);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  padding: 18px 22px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+
+#crafting-title {
+  font-family: "Syne", sans-serif;
+  font-weight: 700;
+  color: #c8a060;
+  font-size: 1.05rem;
+  margin-bottom: 4px;
+}
+
+#crafting-hint {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: var(--text-dim, #9aa3b8);
+}
+
+#crafting-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.craft-recipe.selected {
+  background: rgba(200, 160, 96, 0.22);
+  border-color: rgba(200, 160, 96, 0.55);
+}
+
+.craft-result {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+}
+
+.craft-ing {
+  font-size: 0.85rem;
+  margin: 2px 0;
+}
+
+.craft-ing.ok { color: #b8f0c8; }
+.craft-ing.missing { color: #f0a0a0; }
+
+.craft-empty {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-dim, #9aa3b8);
+}
+
+.crafting-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+#crafting-extras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 /* ---------- Fase 3: panel de misiones en pausa ---------- */
 
 .pause-quests {

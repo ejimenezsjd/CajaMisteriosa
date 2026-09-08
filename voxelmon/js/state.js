@@ -38,6 +38,8 @@ export function defaultStats() {
     // Fase 6
     regionsDiscovered: 0,
     regionalStructuresDiscovered: 0,
+    // Fase 7
+    recipesCrafted: 0,
   };
 }
 
@@ -78,6 +80,8 @@ export function defaultState(seed) {
       discovered: {},
       gates: { region_2: { opened: false } },
     },
+    // Fase 7: buffs temporales (kit de exploración). SAVE_VERSION sigue en 2.
+    buffs: { explorerUntil: 0 },
   };
 }
 

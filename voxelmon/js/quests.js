@@ -15,7 +15,8 @@
  *   trade             ← tradeCompleted     (traderId opcional)
  *   mineBlock         ← blockMined         (block opcional)
  *   discoverRegion    ← regionDiscovered   (regionId opcional)
- *   openRegionGate    ← regionGateOpened   (regionId opcional)
+   *   openRegionGate    ← regionGateOpened   (regionId opcional)
+   *   craftRecipe       ← craftCompleted     (recipeId opcional)
  *
  * Idempotencia: una quest completada nunca vuelve a activarse ni a entregar
  * recompensas; complete() ignora quests ya completadas.
@@ -194,6 +195,56 @@ export const QUESTS = {
       { type: "discoverStructure", structureType: "watchtower", amount: 1, label: "Descubre la atalaya brumosa" },
     ],
     rewards: { money: 120, unlock: "regional_explorer" },
+    next: "quest_mist_refuge",
+  },
+
+  // ---------- Fase 7: refugio regional y crafting ----------
+
+  quest_mist_refuge: {
+    id: "quest_mist_refuge",
+    title: "Refugio entre la niebla",
+    description: "Más adentro de las Tierras Brumosas hay un refugio. Encuéntralo.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "discoverStructure", structureType: "mist_settlement", amount: 1, label: "Descubre el Refugio Brumoso" },
+    ],
+    rewards: { money: 50, unlock: "basic_crafting_unlocked" },
+    next: "quest_hands_on",
+  },
+  quest_hands_on: {
+    id: "quest_hands_on",
+    title: "Manos a la obra",
+    description: "Talo, el artesano del refugio, te enseña el banco de trabajo. Fabrica un cubo de captura.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "craftRecipe", recipeId: "recipe_capture_cube", amount: 1, label: "Fabrica un cubo de captura" },
+    ],
+    rewards: { money: 40, unlock: "ancient_core_recipe_unlocked" },
+    next: "quest_mist_remedy",
+  },
+  quest_mist_remedy: {
+    id: "quest_mist_remedy",
+    title: "Remedio de las Tierras Brumosas",
+    description: "Mira necesita que prepares medicina portátil: flor de bruma y tónico.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "collectResource", resourceId: "mist_bloom", amount: 1, label: "Recoge una flor de bruma" },
+      { type: "craftRecipe", recipeId: "recipe_mist_tonic", amount: 1, label: "Fabrica un tónico de bruma" },
+    ],
+    rewards: { money: 70, unlock: "mist_crafting_unlocked" },
+    next: "quest_echo_past",
+  },
+  quest_echo_past: {
+    id: "quest_echo_past",
+    title: "Eco del pasado",
+    description: "El puesto ancestral guarda fragmentos. Ensambla un núcleo y despierta el sendero del próximo gimnasio.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "collectResource", resourceId: "ancient_fragment", amount: 1, label: "Recoge un fragmento antiguo" },
+      { type: "discoverStructure", structureType: "ancient_outpost", amount: 1, label: "Descubre el puesto ancestral" },
+      { type: "craftRecipe", recipeId: "recipe_ancient_core", amount: 1, label: "Fabrica un núcleo antiguo" },
+    ],
+    rewards: { money: 120, unlock: "gym_2_clue_unlocked" },
   },
 };
 
@@ -203,6 +254,7 @@ export const QUEST_ORDER = [
   "quest_first_challenge", "quest_trainer_road", "quest_final_test",
   "quest_find_gym", "quest_gym_trial", "quest_verdant_badge",
   "quest_frontier", "quest_beyond_pass", "quest_unknown_lands",
+  "quest_mist_refuge", "quest_hands_on", "quest_mist_remedy", "quest_echo_past",
 ];
 
 /** eventName → [tipo de objetivo, función de filtro, cantidad del payload] */
@@ -221,6 +273,7 @@ const EVENT_OBJECTIVES = {
   badgeEarned: ["earnBadge", (o, p) => !o.badgeId || o.badgeId === p.id, () => 1],
   regionDiscovered: ["discoverRegion", (o, p) => !o.regionId || o.regionId === p.regionId, () => 1],
   regionGateOpened: ["openRegionGate", (o, p) => !o.regionId || o.regionId === p.regionId, () => 1],
+  craftCompleted: ["craftRecipe", (o, p) => !o.recipeId || o.recipeId === p.recipeId, () => 1],
 };
 
 class QuestSystem {
@@ -259,6 +312,12 @@ class QuestSystem {
       this.makeAvailable("quest_frontier");
       this.start("quest_frontier");
     }
+    // Saves que ya exploraron Región 2 antes de existir el Refugio Brumoso
+    if (progression.isUnlocked("regional_explorer") &&
+        !this.isCompleted("quest_mist_refuge") && !this.isActive("quest_mist_refuge")) {
+      this.makeAvailable("quest_mist_refuge");
+      this.start("quest_mist_refuge");
+    }
   }
 
   setRewardHandler(fn) {
@@ -270,10 +329,16 @@ class QuestSystem {
       events.on(event, (payload) => this.progress(type, filter, amountOf(payload), payload));
     }
     events.on("progressUnlocked", ({ id }) => {
-      if (id !== "region_2_path_unlocked") return;
-      if (this.isCompleted("quest_frontier") || this.isActive("quest_frontier")) return;
-      this.makeAvailable("quest_frontier");
-      this.start("quest_frontier");
+      if (id === "region_2_path_unlocked") {
+        if (this.isCompleted("quest_frontier") || this.isActive("quest_frontier")) return;
+        this.makeAvailable("quest_frontier");
+        this.start("quest_frontier");
+      }
+      if (id === "regional_explorer") {
+        if (this.isCompleted("quest_mist_refuge") || this.isActive("quest_mist_refuge")) return;
+        this.makeAvailable("quest_mist_refuge");
+        this.start("quest_mist_refuge");
+      }
     });
   }
 

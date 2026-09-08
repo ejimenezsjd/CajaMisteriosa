@@ -371,6 +371,175 @@ export const DIALOGUES = {
     },
   },
 
+  craftsman_intro: {
+    npcName: "Talo",
+    nodes: {
+      start: {
+        text: "¡Un viajero con las manos sucias de musgo! Bienvenido al Refugio Brumoso. Aquí no se vive de comerciar dados: se vive de fabricar.",
+        options: [
+          { text: "¿Cómo funciona el banco?", next: "bench" },
+          {
+            text: "Enséñame a fabricar.",
+            next: "quest_offer",
+            when: { questAvailable: "quest_hands_on" },
+          },
+          {
+            text: "Sigo juntando materiales para el cubo.",
+            next: "encourage",
+            when: { questActive: "quest_hands_on" },
+          },
+          {
+            text: "¿Y el núcleo antiguo?",
+            next: "ancient",
+            when: { unlocked: "ancient_core_recipe_unlocked" },
+          },
+          { text: "Hasta luego.", end: true },
+        ],
+      },
+      bench: {
+        text: "El banco de trabajo está junto a mi taller, a la derecha de la plaza. Tres apricornos y un cobre hacen un cubo de captura. Flor de bruma y hierba, un tónico. Carbón y hierro, un kit para ver entre la niebla.",
+        options: [{ text: "Entendido.", next: "start" }],
+      },
+      quest_offer: {
+        text: "Empieza por lo básico: fabrica un cubo de captura en el banco. Cuando sepas usar la mesa, te enseñaré a ensamblar fragmentos antiguos.",
+        options: [
+          {
+            text: "Manos a la obra.",
+            actions: [{ type: "startQuest", questId: "quest_hands_on" }],
+            next: "quest_accepted",
+          },
+          { text: "Ahora no.", end: true },
+        ],
+      },
+      quest_accepted: {
+        text: "Tres apricornos y un cobre. El cobre asoma en el musgo y en las vetas del bosque. ¡Al banco!",
+        options: [{ text: "Voy.", end: true }],
+      },
+      encourage: {
+        text: "Si te faltan apricornos, el bosque del valle sigue siendo el mejor sitio. El cobre lo encuentras también entre la niebla.",
+        options: [{ text: "Sigo buscando.", end: true }],
+      },
+      ancient: {
+        text: "Un fragmento antiguo y un cristal. El núcleo no es adorno: despierta el arco del sur. Eira te dirá el resto.",
+        options: [{ text: "Lo fabricaré.", end: true }],
+      },
+    },
+  },
+
+  herbalist_intro: {
+    npcName: "Mira",
+    nodes: {
+      start: {
+        text: "El musgo guarda la niebla. Las flores, el calor. Soy Mira. Si te internas en el bosque, lleva medicina encima.",
+        options: [
+          { text: "¿Qué es la flor de bruma?", next: "bloom" },
+          {
+            text: "¿Puedo preparar un remedio?",
+            next: "quest_offer",
+            when: { questAvailable: "quest_mist_remedy" },
+          },
+          {
+            text: "Sigo buscando flores.",
+            next: "encourage",
+            when: { questActive: "quest_mist_remedy" },
+          },
+          { text: "Gracias, Mira.", end: true },
+        ],
+      },
+      bloom: {
+        text: "Crece sobre el musgo del bosque denso. Con una hierba medicinal se vuelve tónico de bruma: cura a todo el equipo, pero no del todo. No es el altar de Sena. Es portable.",
+        options: [{ text: "Lo tendré en cuenta.", next: "start" }],
+      },
+      quest_offer: {
+        text: "Recoge una flor de bruma y fabrica un tónico en el banco de Talo. Cuando lo tengas, estarás listo para internarte más al sur.",
+        options: [
+          {
+            text: "Lo prepararé.",
+            actions: [{ type: "startQuest", questId: "quest_mist_remedy" }],
+            next: "quest_accepted",
+          },
+          { text: "Más tarde.", end: true },
+        ],
+      },
+      quest_accepted: {
+        text: "El jardín detrás de mi puesto tiene algunas, pero el bosque guarda más. El tónico se usa con C, o desde el propio banco.",
+        options: [{ text: "Voy a por la flor.", end: true }],
+      },
+      encourage: {
+        text: "Flor de bruma más hierba medicinal. El banco hace el resto. Úsalo cuando el equipo flaquee lejos de un santuario.",
+        options: [{ text: "Sigo.", end: true }],
+      },
+    },
+  },
+
+  regional_guide_intro: {
+    npcName: "Eira",
+    nodes: {
+      start: {
+        text: "Este refugio es el último techo antes de las ruinas. Soy Eira. Guío a quien aún no ha visto el puesto ancestral.",
+        options: [
+          { text: "¿Qué hay más al sur?", next: "south" },
+          { text: "¿Un segundo gimnasio?", next: "gym" },
+          {
+            text: "Quiero seguir el eco del pasado.",
+            next: "quest_offer",
+            when: { questAvailable: "quest_echo_past" },
+          },
+          {
+            text: "Sigo buscando el fragmento.",
+            next: "encourage",
+            when: { questActive: "quest_echo_past" },
+          },
+          { text: "Hasta luego.", end: true },
+        ],
+      },
+      south: {
+        text: "Al sur del bosque hay un puesto antiguo. Allí aparecen fragmentos que no son de este tiempo. El arco de cristal al sur del pueblo no se abre con fuerza: necesita un núcleo antiguo.",
+        options: [{ text: "Entendido.", next: "start" }],
+      },
+      gym: {
+        text: "Dicen que un sendero sellado conduce a otro gimnasio, más duro que el Verde. Todavía no está construido… pero el arco recuerda el camino. Las criaturas de la niebla tampoco perdonan a los entrenadores despistados.",
+        options: [{ text: "Lo tendré presente.", next: "start" }],
+      },
+      quest_offer: {
+        text: "Encuentra el puesto ancestral, recoge un fragmento y fabrica el núcleo en el banco. Si el arco reacciona, el próximo gimnasio tendrá por dónde nacer.",
+        options: [
+          {
+            text: "Seguiré el eco.",
+            actions: [{ type: "startQuest", questId: "quest_echo_past" }],
+            next: "quest_accepted",
+          },
+          { text: "Más tarde.", end: true },
+        ],
+      },
+      quest_accepted: {
+        text: "El puesto está más al sur, entre la niebla. Un fragmento y un cristal. Talo ya conoce la receta si fabricaste el cubo.",
+        options: [{ text: "Allá voy.", end: true }],
+      },
+      encourage: {
+        text: "Puesto ancestral, fragmento antiguo, núcleo en el banco. El arco del sur te dirá si funcionó.",
+        options: [{ text: "Sigo.", end: true }],
+      },
+    },
+  },
+
+  regional_guide_clue: {
+    npcName: "Eira",
+    nodes: {
+      start: {
+        text: "El núcleo reaccionó. El arco al sur late como si recordara el camino. Aún no hay gimnasio al otro lado… pero el sendero ya no está ciego.",
+        options: [
+          { text: "¿Qué vendrá después?", next: "after" },
+          { text: "Gracias, Eira.", end: true },
+        ],
+      },
+      after: {
+        text: "Cuando alguien reconstruya ese gimnasio, las criaturas de la niebla no serán las mismas. Entrena. Lleva tónico. Y no cruces el arco pensando que el combate ya está listo.",
+        options: [{ text: "Esperaré.", end: true }],
+      },
+    },
+  },
+
   healer_intro: {
     npcName: "Sena",
     nodes: {

@@ -36,7 +36,9 @@
  *  - gymCompleted      { gymId, badgeId, trainerId }
  *  - regionDiscovered  { regionId, regionName, x, z }
  *  - regionGateOpened  { regionId, regionName, x, z }
- * (futuros: itemCrafted, itemCollected)
+ *  - craftCompleted    { recipeId, inputs, outputs, stationId }
+ *  - itemCrafted       { recipeId, stationId }
+ *  - itemUsed          { itemId, ... }
  */
 
 const handlers = new Map();

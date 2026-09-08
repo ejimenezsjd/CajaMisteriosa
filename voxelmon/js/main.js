@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { World, B, BLOCK_DROPS, BIOME_NAMES } from "./world.js";
 import { getBiomeName, getBiomeDefinition } from "./biomes.js";
 import { RESOURCES, resourceForBlock } from "./resources.js";
-import { STRUCTURE_TYPES } from "./structures.js";
+import { STRUCTURE_TYPES, MIST_SETTLEMENT_LAYOUT } from "./structures.js";
 import { Player } from "./player.js";
 import { Spawner } from "./creatures.js";
 import { Battle, TrainerOpponent } from "./battle.js";
@@ -25,6 +25,8 @@ import { npcs } from "./npcs.js";
 import { dialogue } from "./dialogue.js";
 import { quests, QUESTS } from "./quests.js";
 import { executeTrade } from "./trading.js";
+import { crafting, RECIPES } from "./crafting.js";
+import { getItemCount, grantItems } from "./items.js";
 import {
   regions, getRegionAt, getRegionName, nearestGymAnchor,
   REGION_1, REGION_2,
@@ -73,7 +75,7 @@ let spawner = null;
 let battle = null;
 let state = null;
 
-let mode = "title"; // title | starter | play | battle | pause | dex | dialogue | victory
+let mode = "title"; // title | starter | play | battle | pause | dex | dialogue | crafting | victory
 let locked = false;
 let perks = activePerks({});
 
@@ -148,6 +150,17 @@ events.on("progressUnlocked", ({ id }) => {
   if (id === "regional_explorer") {
     ui.toast("🗺 Has sido reconocido como explorador regional.", "good");
   }
+  if (id === "basic_crafting_unlocked") {
+    ui.toast("⚒ El banco de trabajo del refugio está listo.", "good");
+  }
+  if (id === "ancient_core_recipe_unlocked") {
+    ui.toast("🔮 Talo te enseña a ensamblar el núcleo antiguo.", "good");
+  }
+  if (id === "gym_2_clue_unlocked") {
+    ui.toast("🔮 El núcleo antiguo reacciona. El camino parece haberse activado.", "legendary");
+    const s = findMistSettlement(player?.pos.x ?? 0, player?.pos.z ?? 0);
+    if (s) applyAncientPathOpening(s);
+  }
 });
 events.on("gymPuzzleProgress", ({ current, required, reset }) => {
   if (reset) ui.toast("↺ Secuencia incorrecta. Los pedestales se reinician.", "bad");
@@ -166,6 +179,19 @@ events.on("regionDiscovered", ({ regionName }) => {
 });
 events.on("regionGateOpened", () => {
   ui.toast("🚪 El paso fronterizo se ha abierto.", "good");
+});
+events.on("craftCompleted", ({ recipeId }) => {
+  const r = RECIPES[recipeId];
+  ui.toast(`⚒ Has fabricado: ${r?.name ?? recipeId}`, "good");
+  ui.refreshHud();
+  if (crafting.open) crafting.render();
+});
+events.on("itemUsed", ({ itemId }) => {
+  if (itemId === "mist_tonic") {
+    ui.toast("🧪 El tónico restaura parte de la salud del equipo.", "good");
+  }
+  ui.refreshHud();
+  if (crafting.open) crafting.render();
 });
 
 // ---------- Diálogos: acciones controladas, condiciones y modo de juego ----------
@@ -244,6 +270,26 @@ dialogue.onClose = () => {
   saveGame();
 };
 
+crafting.onOpen = () => {
+  if (mode !== "play") return;
+  mode = "crafting";
+  document.exitPointerLock();
+  ui.setTargetPrompt(null);
+  highlight.visible = false;
+  keys.clear();
+};
+crafting.onClose = () => {
+  if (mode !== "crafting") return;
+  mode = "play";
+  canvas.requestPointerLock();
+  saveGame();
+};
+
+crafting.onUseItem = (itemId) => {
+  useCraftedItem(itemId);
+};
+crafting.onCraftError = (msg) => ui.toast(msg, "bad");
+
 function saveGame() {
   if (!state || !player) return;
   state.edits = world.edits;
@@ -285,6 +331,7 @@ async function startWorld(saved) {
   gyms.attach(state);
   gyms.setProgression(progression);
   regions.attach(state);
+  crafting.attach(state);
   // El bioma inicial cuenta como descubierto (sin toast en la carga)
   state.stats.biomesDiscovered[world.biomeAt(px, pz)] = true;
   lastBiome = world.biomeAt(px, pz);
@@ -337,6 +384,12 @@ document.addEventListener("keydown", (e) => {
     dialogue.close();
     return;
   }
+  if (mode === "crafting") {
+    if (e.code === "Escape" || e.code === "KeyE") crafting.close();
+    else if (e.code === "KeyF") crafting.trySelected();
+    else if (e.code === "KeyC") useCraftedItem("mist_tonic");
+    return;
+  }
   if (mode !== "play") return;
   keys.add(e.code);
   if (e.code === "KeyE") {
@@ -344,6 +397,10 @@ document.addEventListener("keydown", (e) => {
     if (interaction.interact(player.pos)) return;
     const c = creatureInSight();
     if (c) startBattle(c.entity);
+    return;
+  }
+  if (e.code === "KeyC") {
+    useCraftedItem("mist_tonic");
     return;
   }
   const n = parseInt(e.key, 10);
@@ -613,6 +670,118 @@ function registerGateInteractables(s, wanted) {
       tryOpenRegionGate({ x: s.x, z: s.z });
     },
   });
+}
+
+function findMistSettlement(x, z) {
+  if (!world) return null;
+  const near = world.structures.near(x, z, 90).find((s) => s.type === "mist_settlement");
+  if (near) return near;
+  const gym = nearestGymAnchor(x, z);
+  if (!gym) return null;
+  return world.structures.candidate("mist_settlement", gym.cellX, gym.cellZ);
+}
+
+function applyAncientPathOpening(s) {
+  if (!s || !world || !progression.isUnlocked("gym_2_clue_unlocked")) return;
+  const [dx, dz] = MIST_SETTLEMENT_LAYOUT.ancientPath;
+  for (let ox = -1; ox <= 1; ox++) {
+    for (let dy = 1; dy <= 5; dy++) {
+      world.setBlock(s.x + dx + ox, s.y + dy, s.z + dz, B.AIR);
+    }
+  }
+}
+
+function registerMistInteractables(s, wanted) {
+  const [wdx, wdz] = MIST_SETTLEMENT_LAYOUT.workbench;
+  const benchId = `workbench:${s.id}`;
+  wanted.add(benchId);
+  const bx = s.x + wdx + 0.5;
+  const by = s.y + 1.4;
+  const bz = s.z + wdz + 0.5;
+  const existingBench = interaction.items.get(benchId);
+  if (existingBench) {
+    existingBench.x = bx;
+    existingBench.y = by;
+    existingBench.z = bz;
+  } else {
+    interaction.register({
+      id: benchId,
+      type: "workbench",
+      x: bx, y: by, z: bz,
+      range: 3.2,
+      prompt: "Usar banco de trabajo",
+      data: s,
+      onInteract: () => {
+        if (dialogue.isOpen) return;
+        crafting.show("basic_workbench");
+      },
+    });
+  }
+
+  const [pdx, pdz] = MIST_SETTLEMENT_LAYOUT.ancientPath;
+  const pathId = `ancient_path:${s.id}`;
+  wanted.add(pathId);
+  const unlocked = progression.isUnlocked("gym_2_clue_unlocked");
+  if (unlocked) applyAncientPathOpening(s);
+  const prompt = unlocked
+    ? "El núcleo antiguo reacciona. El camino parece haberse activado."
+    : "El camino está bloqueado por una energía extraña.";
+  const px = s.x + pdx + 0.5;
+  const py = s.y + 1.5;
+  const pz = s.z + pdz - 0.6;
+  const existingPath = interaction.items.get(pathId);
+  if (existingPath) {
+    existingPath.prompt = prompt;
+    existingPath.x = px;
+    existingPath.y = py;
+    existingPath.z = pz;
+    return;
+  }
+  interaction.register({
+    id: pathId,
+    type: "ancient_path",
+    x: px, y: py, z: pz,
+    range: 3.4,
+    prompt,
+    data: s,
+    onInteract: () => {
+      if (progression.isUnlocked("gym_2_clue_unlocked")) {
+        applyAncientPathOpening(s);
+        ui.toast("El núcleo antiguo reacciona. Un antiguo sendero continúa hacia el próximo gimnasio.", "good");
+        return;
+      }
+      ui.toast("El camino está bloqueado por una energía extraña.", "bad");
+    },
+  });
+}
+
+function useCraftedItem(itemId) {
+  if (!state) return;
+  if (itemId === "mist_tonic") {
+    const r = crafting.useTonic();
+    if (!r.ok) {
+      ui.toast(r.error, "bad");
+      return;
+    }
+    sfx.heal();
+    return;
+  }
+  if (itemId === "explorer_kit") {
+    const r = crafting.useExplorerKit();
+    if (!r.ok) {
+      ui.toast(r.error, "bad");
+      return;
+    }
+    ui.toast("🔦 El kit aclara la niebla durante 90 segundos.", "good");
+    if (world && player) {
+      const near = world.structures.near(player.pos.x, player.pos.z, 80)
+        .filter((s) => s.type !== "camp");
+      if (near.length) {
+        const names = near.slice(0, 4).map((s) => s.name).join(" · ");
+        ui.toast(`🧭 Cerca: ${names}`, "good");
+      }
+    }
+  }
 }
 
 function refreshGymTracker(nearGym = null) {
@@ -1004,6 +1173,7 @@ function loop(now) {
     const wantedShrines = new Set();
     const wantedGym = new Set();
     const wantedGate = new Set();
+    const wantedMist = new Set();
     let nearGym = null;
     for (const s of world.structures.near(px, pz, 24)) {
       if (!state.stats.structuresDiscovered[s.id]) {
@@ -1033,6 +1203,9 @@ function loop(now) {
       if (s.type === "regional_gate") {
         registerGateInteractables(s, wantedGate);
       }
+      if (s.type === "mist_settlement") {
+        registerMistInteractables(s, wantedMist);
+      }
     }
     for (const id of interaction.ids("shrine")) {
       if (!wantedShrines.has(id)) interaction.unregister(id);
@@ -1042,6 +1215,12 @@ function loop(now) {
     }
     for (const id of interaction.ids("gate")) {
       if (!wantedGate.has(id)) interaction.unregister(id);
+    }
+    for (const id of interaction.ids("workbench")) {
+      if (!wantedMist.has(id)) interaction.unregister(id);
+    }
+    for (const id of interaction.ids("ancient_path")) {
+      if (!wantedMist.has(id)) interaction.unregister(id);
     }
     refreshGymTracker(nearGym);
 
@@ -1123,9 +1302,15 @@ function loop(now) {
     scene.fog.far = 22;
     scene.fog.color.set(0x2a5fae);
   } else if (getRegionAt(camera.position.x, camera.position.z) === REGION_2) {
-    scene.fog.near = 14;
-    scene.fog.far = 82;
-    scene.fog.color.lerp(new THREE.Color(0x6a8074), 0.45);
+    if (crafting.explorerActive()) {
+      scene.fog.near = 28;
+      scene.fog.far = 130;
+      scene.fog.color.lerp(new THREE.Color(0x8aa090), 0.25);
+    } else {
+      scene.fog.near = 14;
+      scene.fog.far = 82;
+      scene.fog.color.lerp(new THREE.Color(0x6a8074), 0.45);
+    }
   } else {
     scene.fog.near = 40;
     scene.fog.far = 150;
@@ -1169,6 +1354,7 @@ window.__vm = {
   trainerSystem: trainers,
   gymSystem: gyms,
   regionSystem: regions,
+  craftingSystem: crafting,
   /** Herramientas de inspección del mundo vivo (Fase 2) */
   debug: {
     pos() {
@@ -1316,7 +1502,86 @@ window.__vm = {
     regionalStructures(r = 400) {
       if (!world || !player) return [];
       return world.structures.near(player.pos.x, player.pos.z, r)
-        .filter((s) => s.type === "regional_gate" || s.type === "watchtower" || s.type === "ancient_outpost");
+        .filter((s) => s.type === "regional_gate" || s.type === "watchtower" ||
+          s.type === "ancient_outpost" || s.type === "mist_settlement");
+    },
+    mistSettlement() {
+      if (!world || !player) return null;
+      const s = findMistSettlement(player.pos.x, player.pos.z);
+      const [wdx, wdz] = MIST_SETTLEMENT_LAYOUT.workbench;
+      const [pdx, pdz] = MIST_SETTLEMENT_LAYOUT.ancientPath;
+      return {
+        settlement: s,
+        npcs: npcs.list().filter((n) => n.role === "craftsman" || n.role === "herbalist" || n.role === "regional_guide"),
+        workbench: s ? { x: s.x + wdx, y: s.y + 1, z: s.z + wdz } : null,
+        ancientPath: s ? { x: s.x + pdx, y: s.y + 1, z: s.z + pdz } : null,
+        clueUnlocked: progression.isUnlocked("gym_2_clue_unlocked"),
+        pathBlock: s ? world.getBlock(s.x + pdx, s.y + 2, s.z + pdz) : null,
+      };
+    },
+    crafting() {
+      if (!state) return null;
+      return {
+        recipes: Object.values(RECIPES).map((r) => ({
+          id: r.id,
+          name: r.name,
+          unlocked: crafting.isUnlocked(r),
+          can: crafting.canCraft(r.id),
+          inputs: r.inputs.map((c) => ({ itemId: c.itemId, need: c.amount, have: getItemCount(state, c.itemId) })),
+          outputs: r.outputs,
+        })),
+        unlocks: {
+          basic_crafting_unlocked: progression.isUnlocked("basic_crafting_unlocked"),
+          mist_crafting_unlocked: progression.isUnlocked("mist_crafting_unlocked"),
+          ancient_core_recipe_unlocked: progression.isUnlocked("ancient_core_recipe_unlocked"),
+          gym_2_clue_unlocked: progression.isUnlocked("gym_2_clue_unlocked"),
+        },
+        items: {
+          balls: state.balls,
+          mist_tonic: getItemCount(state, "mist_tonic"),
+          explorer_kit: getItemCount(state, "explorer_kit"),
+          ancient_core: getItemCount(state, "ancient_core"),
+        },
+        buffs: { ...(state.buffs ?? {}) },
+        open: crafting.open,
+      };
+    },
+    giveCraftMats() {
+      if (!state) return null;
+      grantItems(state, [
+        { itemId: "apricorn", amount: 12 },
+        { itemId: "copper", amount: 4 },
+        { itemId: "mist_bloom", amount: 4 },
+        { itemId: "medicinal_herb", amount: 4 },
+        { itemId: "coal", amount: 6 },
+        { itemId: "iron", amount: 3 },
+        { itemId: "ancient_fragment", amount: 3 },
+        { itemId: "crystal_shard", amount: 3 },
+      ]);
+      ui.refreshHud();
+      if (crafting.open) crafting.render();
+      return this.crafting();
+    },
+    craft(id) {
+      const r = crafting.craft(id);
+      if (crafting.open) crafting.render();
+      ui.refreshHud();
+      return r;
+    },
+    useItem(id) {
+      useCraftedItem(id);
+      return this.crafting();
+    },
+    unlockCrafting() {
+      progression.unlock("basic_crafting_unlocked");
+      progression.unlock("ancient_core_recipe_unlocked");
+    },
+    gotoMist() {
+      const s = this.mistSettlement()?.settlement;
+      if (!s || !player || !world) return null;
+      player.pos.set(s.x + 0.5, s.y + 2, s.z + 0.5);
+      player.vel.set(0, 0, 0);
+      return s;
     },
     unlockRegion2() {
       progression.addBadge("verdant_badge");

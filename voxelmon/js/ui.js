@@ -207,7 +207,8 @@ export class UI {
       <span>🎖 Entrenadores: <b>${st.trainersDefeated ?? 0}</b></span>
       <span>🏅 Insignias: <b>${this.badgeCount()}</b>${this.badgeList()}</span>
       <span>🏟 Gimnasios: <b>${st.gymsCompleted ?? 0}</b></span>
-      <span>🗺 Regiones: <b>${st.regionsDiscovered ?? 0}</b></span>` +
+      <span>🗺 Regiones: <b>${st.regionsDiscovered ?? 0}</b></span>
+      <span>⚒ Fabricados: <b>${st.itemsCrafted ?? 0}</b></span>` +
       (resources ? `<span class="stats-wide">🎒 Recursos: ${resources}</span>` : "");
     box.classList.remove("hidden");
   }

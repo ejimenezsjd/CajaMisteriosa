@@ -27,6 +27,10 @@ export const B = {
   MIST_BLOOM: 17,
   // Superficie visual del bosque brumoso (no es recurso)
   MIST_GRASS: 18,
+  // Objetos crafteados (Fase 7 — no se generan en el mundo)
+  MIST_TONIC: 19,
+  EXPLORER_KIT: 20,
+  ANCIENT_CORE: 21,
 };
 
 export const BLOCK_NAMES = {
@@ -46,6 +50,9 @@ export const BLOCK_NAMES = {
   [B.ANCIENT_FRAGMENT]: "Fragmento antiguo",
   [B.MIST_BLOOM]: "Flor de bruma",
   [B.MIST_GRASS]: "Musgo brumoso",
+  [B.MIST_TONIC]: "Tónico de bruma",
+  [B.EXPLORER_KIT]: "Kit de exploración",
+  [B.ANCIENT_CORE]: "Núcleo antiguo",
 };
 
 /** Qué suelta cada bloque al minarlo */
@@ -67,6 +74,9 @@ export const BLOCK_DROPS = {
   [B.ANCIENT_FRAGMENT]: B.ANCIENT_FRAGMENT,
   [B.MIST_BLOOM]: B.MIST_BLOOM,
   [B.MIST_GRASS]: B.DIRT,
+  [B.MIST_TONIC]: B.MIST_TONIC,
+  [B.EXPLORER_KIT]: B.EXPLORER_KIT,
+  [B.ANCIENT_CORE]: B.ANCIENT_CORE,
 };
 
 /** Colores por cara (top/side/bottom) para el meshing con vertex colors */
@@ -89,4 +99,7 @@ export const COLORS = {
   [B.ANCIENT_FRAGMENT]: { top: [0.72, 0.58, 0.86], side: [0.52, 0.4, 0.64], bottom: [0.38, 0.3, 0.48] },
   [B.MIST_BLOOM]: { top: [0.72, 0.88, 0.92], side: [0.42, 0.62, 0.7], bottom: [0.28, 0.42, 0.48] },
   [B.MIST_GRASS]: { top: [0.22, 0.38, 0.32], side: [0.32, 0.28, 0.22], bottom: [0.28, 0.22, 0.18] },
+  [B.MIST_TONIC]: { top: [0.45, 0.82, 0.78], side: [0.28, 0.55, 0.58], bottom: [0.22, 0.4, 0.44] },
+  [B.EXPLORER_KIT]: { top: [0.7, 0.58, 0.32], side: [0.38, 0.32, 0.24], bottom: [0.28, 0.24, 0.18] },
+  [B.ANCIENT_CORE]: { top: [0.82, 0.55, 0.95], side: [0.48, 0.28, 0.62], bottom: [0.32, 0.18, 0.42] },
 };
