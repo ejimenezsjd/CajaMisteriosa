@@ -40,6 +40,11 @@ export function defaultStats() {
     regionalStructuresDiscovered: 0,
     // Fase 7
     recipesCrafted: 0,
+    // Fase 9
+    moneySpent: 0,
+    moneyEarnedFromSales: 0,
+    itemsPurchased: 0,
+    itemsSold: 0,
   };
 }
 
@@ -85,7 +90,10 @@ export function defaultState(seed) {
     // Fase 6: descubrimiento de regiones y estado de la frontera
     regions: {
       discovered: {},
-      gates: { region_2: { opened: false } },
+      gates: {
+        region_2: { opened: false },
+        region_3: { opened: false },
+      },
     },
     // Fase 7–8: buffs temporales (kit) y gym_mist. SAVE_VERSION sigue en 2.
     buffs: { explorerUntil: 0 },

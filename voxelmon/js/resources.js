@@ -123,6 +123,24 @@ export const RESOURCES = {
     crafted: true,
     futureUse: "activar el sendero hacia el segundo gimnasio",
   },
+  ember_ore: {
+    id: "ember_ore",
+    name: "Mena de ascuas",
+    icon: "🔶",
+    block: B.EMBER_ORE,
+    rarity: "rara",
+    depth: { minY: 6, maxY: 28, belowSurface: 5 },
+    futureUse: "mejora de equipo y crafting de calor (Fase 10)",
+  },
+  red_crystal: {
+    id: "red_crystal",
+    name: "Cristal rojo",
+    icon: "♦️",
+    block: B.RED_CRYSTAL,
+    rarity: "muy rara",
+    surface: true,
+    futureUse: "quest del tercer arco, evolución y sello del gimnasio 3",
+  },
 };
 
 const BY_BLOCK = Object.fromEntries(

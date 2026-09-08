@@ -55,9 +55,22 @@ class StatsSystem {
     events.on("regionDiscovered", inc("regionsDiscovered"));
     events.on("structureDiscovered", ({ structureType }) => {
       if (this.s && (structureType === "watchtower" || structureType === "ancient_outpost" ||
-          structureType === "regional_gate" || structureType === "mist_settlement")) {
+          structureType === "regional_gate" || structureType === "mist_settlement" ||
+          structureType === "mining_camp" || structureType === "crimson_ruin")) {
         this.s.regionalStructuresDiscovered += 1;
       }
+    });
+    events.on("itemPurchased", (p) => {
+      if (this.s) this.s.itemsPurchased += (p?.amount ?? 1);
+    });
+    events.on("itemSold", (p) => {
+      if (this.s) {
+        this.s.itemsSold += (p?.amount ?? 1);
+        this.s.moneyEarnedFromSales += (p?.total ?? 0);
+      }
+    });
+    events.on("moneyChanged", (p) => {
+      if (this.s && (p?.delta ?? 0) < 0) this.s.moneySpent += Math.abs(p.delta);
     });
   }
 

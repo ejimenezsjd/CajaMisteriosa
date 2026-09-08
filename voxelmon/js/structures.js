@@ -29,9 +29,14 @@ const SALT = {
   regional_gate: 66006, watchtower: 77007, ancient_outpost: 88008,
   mist_settlement: 99009,
   gym_mist: 11110,
+  mining_camp: 12111,
+  crimson_ruin: 13112,
 };
 
-const REGIONAL_TYPES = new Set(["regional_gate", "watchtower", "ancient_outpost", "mist_settlement", "gym_mist"]);
+const REGIONAL_TYPES = new Set([
+  "regional_gate", "watchtower", "ancient_outpost", "mist_settlement", "gym_mist",
+  "mining_camp", "crimson_ruin",
+]);
 
 export const STRUCTURE_TYPES = {
   camp: {
@@ -151,12 +156,47 @@ export const STRUCTURE_TYPES = {
     maxSlope: 8,
     build: buildMistGym,
   },
+  mining_camp: {
+    id: "mining_camp",
+    name: "Puesto minero",
+    icon: "⛏",
+    cell: 260,
+    chance: 1,
+    radius: 10,
+    maxSlope: 8,
+    build: buildMiningCamp,
+    npcAnchors: [
+      { role: "regional_merchant", local: [-4, 3] },
+      { role: "prospector", local: [0, 0] },
+      { role: "field_medic", local: [5, -2] },
+    ],
+  },
+  crimson_ruin: {
+    id: "crimson_ruin",
+    name: "Ruina Carmesí",
+    icon: "🏛",
+    cell: 260,
+    chance: 1,
+    radius: 6,
+    maxSlope: 8,
+    build: buildCrimsonRuin,
+  },
 };
 
 /** Locales del banco y del arco sellado (Gym 2 hook) respecto al centro */
 export const MIST_SETTLEMENT_LAYOUT = {
   workbench: [3, 1],
   ancientPath: [0, 10],
+};
+
+/** Puesto minero (Fase 9): landmark central y sello de la ruina. */
+export const MINING_CAMP_LAYOUT = {
+  landmark: [0, 0],
+  stall: [-4, 4],
+};
+
+export const CRIMSON_RUIN_LAYOUT = {
+  seal: [0, 0],
 };
 
 /** Radio máximo entre todos los tipos: margen de solape chunk/estructura */
@@ -671,6 +711,81 @@ function buildMistGym(stamp, x, y, z, rng, ground) {
   }
 }
 
+/**
+ * Puesto minero (Fase 9): plaza, forja-landmark, tenderete y tienda médica.
+ * Útil: NPCs de economía, no decoración vacía.
+ */
+function buildMiningCamp(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 10, 10);
+
+  for (let dx = -8; dx <= 8; dx++) {
+    for (let dz = -8; dz <= 8; dz++) {
+      if (Math.abs(dx) + Math.abs(dz) > 14) continue;
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.CRIMSON_STONE);
+    }
+  }
+  for (let dx = -3; dx <= 3; dx++) {
+    for (let dz = -3; dz <= 3; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.STONE);
+    }
+  }
+
+  // Landmark: pilar de forja
+  stamp(x, y + 1, z, B.STONE);
+  stamp(x, y + 2, z, B.COAL_ORE);
+  stamp(x, y + 3, z, B.EMBER_ORE);
+  stamp(x, y + 4, z, B.RED_CRYSTAL);
+
+  // Tenderete del mercader (oeste)
+  buildHut(stamp, ground, x, y, z, -5, 4, 2, B.WOOD, B.CRIMSON_STONE, [1, 0]);
+  stamp(x - 4, y + 1, z + 4, B.WOOD);
+  stamp(x - 4, y + 2, z + 4, B.COPPER_ORE);
+
+  // Tienda médica (este)
+  buildHut(stamp, ground, x, y, z, 6, -2, 2, B.STONE, B.WOOD, [-1, 0]);
+  stamp(x + 4, y + 1, z - 2, B.HERB);
+
+  // Vagoneta / vetas a la vista (sur)
+  stamp(x - 1, y + 1, z + 6, B.WOOD);
+  stamp(x, y + 1, z + 6, B.EMBER_ORE);
+  stamp(x + 1, y + 1, z + 6, B.WOOD);
+  if (rng() < 0.9) stamp(x + 2, y + 1, z + 5, B.RED_CRYSTAL);
+  stamp(x - 6, y + 1, z - 5, B.IRON_ORE);
+  stamp(x + 7, y + 1, z + 3, B.COAL_ORE);
+}
+
+/**
+ * Ruina Carmesí: lore, recursos y sello inerte del tercer arco.
+ * No es un gimnasio ni un boss.
+ */
+function buildCrimsonRuin(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 6, 8);
+
+  for (let dx = -5; dx <= 5; dx++) {
+    for (let dz = -5; dz <= 5; dz++) {
+      if (rng() < 0.82) fillFloor(stamp, ground, x, y, z, dx, dz, B.CRIMSON_STONE);
+    }
+  }
+  for (const [cx, cz] of [[5, 5], [5, -5], [-5, 5], [-5, -5]]) {
+    fillFloor(stamp, ground, x, y, z, cx, cz, B.STONE);
+    const h = 2 + Math.floor(rng() * 3);
+    for (let dy = 1; dy <= h; dy++) stamp(x + cx, y + dy, z + cz, B.CRIMSON_STONE);
+  }
+  for (let d = -4; d <= 4; d++) {
+    if (rng() < 0.65) stamp(x + d, y + 1, z - 5, B.CRIMSON_STONE);
+    if (rng() < 0.65) stamp(x + 5, y + 1, z + d, B.CRIMSON_STONE);
+  }
+
+  // Sello mineral (inerte hasta gym_3_clue_unlocked)
+  stamp(x, y + 1, z, B.STONE);
+  stamp(x, y + 2, z, B.CRYSTAL);
+
+  stamp(x + 2, y + 1, z + 1, B.EMBER_ORE);
+  stamp(x - 2, y + 1, z - 1, B.RED_CRYSTAL);
+  if (rng() < 0.8) stamp(x - 1, y + 1, z + 3, B.EMBER_ORE);
+  if (rng() < 0.7) stamp(x + 3, y + 1, z - 2, B.RED_CRYSTAL);
+}
+
 // ---------- Índice determinista por celdas ----------
 
 export class StructureIndex {
@@ -760,6 +875,12 @@ export class StructureIndex {
     } else if (type === "gym_mist") {
       x = gym.x + g.gymMist.dx;
       z = gym.z + g.gymMist.dz;
+    } else if (type === "mining_camp") {
+      x = gym.x + g.miningCamp.dx;
+      z = gym.z + g.miningCamp.dz;
+    } else if (type === "crimson_ruin") {
+      x = gym.x + g.crimsonRuin.dx;
+      z = gym.z + g.crimsonRuin.dz;
     }
     const t = this.world.terrainAt(x, z);
     return {

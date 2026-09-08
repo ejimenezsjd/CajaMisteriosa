@@ -185,6 +185,32 @@ export const BIOMES = {
     ambience: { fog: true },
   },
 
+  crimson_highlands: {
+    id: "crimson_highlands",
+    name: "Altiplano Carmesí",
+    climate: { temperature: 0.88, humidity: 0.18 },
+    terrain: { surfaceBlock: B.CRIMSON_STONE, subsurfaceBlock: B.STONE },
+    vegetation: { treeDensity: 0.006 },
+    difficulty: 3,
+    creatures: [
+      { family: "emberin", weight: 4, time: "day", regions: ["region_3"] },
+      { family: "piedrita", weight: 4, time: "any", regions: ["region_3"] },
+      { family: "lucier", weight: 3, time: "day", regions: ["region_3"] },
+      { family: "umbra", weight: 1, time: "night", regions: ["region_3"] },
+    ],
+    resources: [
+      { id: "ember_ore", chance: 0.042 },
+      { id: "red_crystal", chance: 0.007 },
+      { id: "coal", chance: 0.06 },
+      { id: "iron", chance: 0.04 },
+      { id: "copper", chance: 0.03 },
+      { id: "medicinal_herb", chance: 0.004 },
+      { id: "crystal_shard", chance: 0.005 },
+    ],
+    structures: ["mining_camp", "crimson_ruin", "healing_shrine"],
+    ambience: { heat: true },
+  },
+
   ocean: {
     id: "ocean",
     name: "Océano",

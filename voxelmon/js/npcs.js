@@ -23,6 +23,7 @@ import { TRAINERS, trainerAnchorsFor, trainers } from "./trainers.js";
 import { gymAnchorsFor, gyms } from "./gyms.js";
 import { regions } from "./regions.js";
 import { progression } from "./progression.js";
+import { economy } from "./economy.js";
 
 /** Definiciones data-driven de los NPC por rol */
 export const NPC_DEFS = {
@@ -96,6 +97,27 @@ export const NPC_DEFS = {
     colors: { skin: "#c9b090", outfit: "#3a5a6e", accent: "#7ec8e8" },
     quests: ["quest_echo_past"],
   },
+  regional_merchant: {
+    role: "regional_merchant",
+    name: "Kora",
+    dialogueId: "regional_merchant_intro",
+    colors: { skin: "#d8a070", outfit: "#8a3028", accent: "#e0a040" },
+    quests: [],
+  },
+  prospector: {
+    role: "prospector",
+    name: "Bren",
+    dialogueId: "prospector_intro",
+    colors: { skin: "#c09068", outfit: "#4a3a32", accent: "#d07030" },
+    quests: ["quest_mining_post"],
+  },
+  field_medic: {
+    role: "field_medic",
+    name: "Ysol",
+    dialogueId: "field_medic_intro",
+    colors: { skin: "#e8c4a8", outfit: "#7a3030", accent: "#f0c070" },
+    quests: [],
+  },
 };
 
 const ACTIVATION_RADIUS = 90; // los asentamientos a menos de esto tienen NPC activos
@@ -129,7 +151,7 @@ class NPCSystem {
         for (const a of trainerAnchorsFor(s)) wanted.set(a.id, a);
       } else if (s.type === "gym" || s.type === "gym_mist") {
         for (const a of gymAnchorsFor(s)) wanted.set(a.id, a);
-      } else if (s.type === "regional_gate" || s.type === "mist_settlement") {
+      } else if (s.type === "regional_gate" || s.type === "mist_settlement" || s.type === "mining_camp") {
         for (const a of npcAnchorsFor(s)) wanted.set(a.id, a);
       }
     }
@@ -174,7 +196,9 @@ class NPCSystem {
       y: y + 1,
       z: group.position.z,
       range: 3.5,
-      prompt: anchor.trainerId ? `Hablar con ${def.name} (entrenador)` : `Hablar con ${def.name}`,
+      prompt: anchor.role === "regional_merchant"
+        ? "Comerciar"
+        : (anchor.trainerId ? `Hablar con ${def.name} (entrenador)` : `Hablar con ${def.name}`),
       data: npc,
       onInteract: () => this.talk(npc),
     });
@@ -203,6 +227,10 @@ class NPCSystem {
       name: npc.def.name,
       structureId: npc.structureId,
     });
+    if (npc.role === "regional_merchant") {
+      economy.show();
+      return;
+    }
     let dialogueId = npc.def.dialogueId;
     if (npc.trainerId && trainers.isDefeated(npc.trainerId) && !npc.def.repeatable) {
       dialogueId = npc.def.dialogueDefeatedId ?? dialogueId;

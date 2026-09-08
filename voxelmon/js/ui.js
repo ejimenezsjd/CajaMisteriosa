@@ -49,6 +49,9 @@ const BLOCK_CSS = {
   6: "#7d5a30",
   7: "#48a03c",
   8: "#eef2f5",
+  22: "#6a2c28",
+  23: "#c85020",
+  24: "#e04048",
 };
 
 export class UI {
@@ -209,6 +212,7 @@ export class UI {
       <span>🏟 Gimnasios: <b>${st.gymsCompleted ?? 0}</b></span>
       <span>🗺 Regiones: <b>${st.regionsDiscovered ?? 0}</b></span>
       <span>⚒ Fabricados: <b>${st.itemsCrafted ?? 0}</b></span>` +
+      (st.itemsPurchased || st.itemsSold ? `<span>💱 Compras/ventas: <b>${st.itemsPurchased ?? 0}</b>/<b>${st.itemsSold ?? 0}</b></span>` : "") +
       (resources ? `<span class="stats-wide">🎒 Recursos: ${resources}</span>` : "");
     box.classList.remove("hidden");
   }

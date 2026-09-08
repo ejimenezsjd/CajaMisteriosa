@@ -6,7 +6,7 @@ import { buildCreatureModel, animateModel } from "./models.js";
 import { WATER_Y } from "./world.js";
 import { getBiomeDefinition } from "./biomes.js";
 import { events } from "./events.js";
-import { getRegionAt, REGION_2 } from "./regions.js";
+import { getRegionAt, REGION_2, REGION_3 } from "./regions.js";
 
 export function makeLabel(text, color = "#ffffff") {
   const canvas = document.createElement("canvas");
@@ -181,7 +181,10 @@ export class Spawner {
       const id = this.pickSpecies(biomeId, distOrigin, dayFactor, regionId);
       if (!id) return; // el bioma no admite criaturas ahora mismo
       let level;
-      if (regionId === REGION_2) {
+      if (regionId === REGION_3) {
+        level = Math.max(18, Math.min(24,
+          18 + Math.floor(Math.random() * 5) + (SPECIES[id].stage - 1)));
+      } else if (regionId === REGION_2) {
         level = Math.max(10, Math.min(15,
           10 + Math.floor(Math.random() * 4) + (SPECIES[id].stage - 1)));
       } else {
