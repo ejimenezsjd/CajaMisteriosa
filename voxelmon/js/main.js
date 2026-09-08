@@ -8,7 +8,7 @@ import { World, B, BLOCK_DROPS, BIOME_NAMES } from "./world.js";
 import { getBiomeName, getBiomeDefinition } from "./biomes.js";
 import { RESOURCES, resourceForBlock } from "./resources.js";
 import { STRUCTURE_TYPES, MIST_SETTLEMENT_LAYOUT, CRIMSON_RUIN_LAYOUT } from "./structures.js";
-import { buildCreatureVisual, disposeCreatureVisual, preloadCreatureArt, creatureArtDebugSnapshot, textureCacheSize, inspectTextureCache, animateCreatureVisual, simulatePngLoadFailure, inspectGeometryCache, inspectMaterialCache, resolveCreatureRenderer } from "./creature-renderer.js";
+import { buildCreatureVisual, disposeCreatureVisual, preloadCreatureArt, creatureArtDebugSnapshot, textureCacheSize, inspectTextureCache, animateCreatureVisual, simulatePngLoadFailure, inspectGeometryCache, inspectMaterialCache, resolveCreatureRenderer, creatureArtIcon } from "./creature-renderer.js";
 import { setPreferredRenderer, getPreferredRenderer, listPixelSpecies, getCreatureArt, listArtSpecies } from "./creature-art.js";
 import { bosses, BOSSES } from "./bosses.js";
 import { Player } from "./player.js";
@@ -2097,8 +2097,37 @@ window.__vm = {
       disposeCreatureVisual(g);
       return snap;
     },
+    previewCreature(id) {
+      this.despawnAllWild();
+      return this.spawnSpecies(id, 8);
+    },
+    dumpPortrait(id) {
+      const icon = creatureArtIcon(id, false);
+      return {
+        speciesId: id,
+        hasIcon: !!icon,
+        icon: icon ?? null,
+        resolved: resolveCreatureRenderer(id),
+      };
+    },
+    measureMixedSpawn(n) {
+      const ids = Object.keys(SPECIES);
+      this.despawnAllWild();
+      const t0 = performance.now();
+      const spawned = [];
+      for (let i = 0; i < n; i++) {
+        spawned.push(this.spawnSpecies(ids[i % ids.length], 6));
+      }
+      const ms = performance.now() - t0;
+      return {
+        n, ms, per: ms / n,
+        renderers: spawned.map((s) => s.renderer),
+        geo: inspectGeometryCache(),
+        mat: inspectMaterialCache(),
+      };
+    },
     artCatalog() {
-      return listArtSpecies().map((id) => {
+      return Object.keys(SPECIES).map((id) => {
         const art = getCreatureArt(id);
         const sp = SPECIES[id];
         return {

@@ -243,6 +243,311 @@ STYLIZED_MODELS.titanor = {
     P({ name: "leg_l", type: "taper", parent: "body", pos: [-0.18, -0.28, 0.04], scale: [0.22, 0.42, 0.22], color: "#5a3c20", meshPos: [0, -0.21, 0] }),
     P({ name: "leg_r", type: "taper", parent: "body", pos: [0.2, -0.28, 0.06], scale: [0.2, 0.4, 0.2], color: "#5a3c20", meshPos: [0, -0.2, 0] }),
     P({ name: "crack", type: "ellipsoid", parent: "body", pos: [0.08, 0.04, 0.1], scale: [0.06, 0.4, 0.08], color: "#e07030", mat: "emissive", emissive: "#ff6a30" }),
+    P({ name: "chip", type: "icosahedron", parent: "head", pos: [0.06, 0.06, -0.08], scale: [0.08, 0.1, 0.06], color: "#e07030", mat: "emissive", emissive: "#ff6a30", emissiveIntensity: 0.7 }),
+  ],
+};
+
+STYLIZED_MODELS.chispin = {
+  profile: "electric_runner",
+  height: 1,
+  effects: ["spark"],
+  parts: [
+    P({ name: "body", type: "icosahedron", pos: [0, 0.36, 0], scale: [0.36, 0.32, 0.4], color: "#e0c23a" }),
+    P({ name: "belly", type: "ellipsoid", parent: "body", pos: [0, -0.04, -0.06], scale: [0.2, 0.16, 0.22], color: "#ffe680", mat: "bright" }),
+    P({ name: "head", type: "ellipsoid", parent: "body", pos: [0, 0.2, -0.2], scale: [0.32, 0.3, 0.3], color: "#e0c23a" }),
+    P({ name: "ear_l", type: "cone", parent: "head", pos: [-0.1, 0.16, 0.02], rot: [0.1, 0, 0.55], scale: [0.06, 0.22, 0.06], color: "#c09010", mat: "emissive", emissive: "#ffe680", emissiveIntensity: 0.55 }),
+    P({ name: "ear_r", type: "cone", parent: "head", pos: [0.1, 0.16, 0.02], rot: [0.1, 0, -0.55], scale: [0.06, 0.22, 0.06], color: "#c09010", mat: "emissive", emissive: "#ffe680", emissiveIntensity: 0.55 }),
+    P({ name: "eye_l", type: "eye", parent: "head", pos: [-0.08, 0.04, -0.13], size: 0.06 }),
+    P({ name: "eye_r", type: "eye", parent: "head", pos: [0.08, 0.04, -0.13], size: 0.06 }),
+    P({ name: "tail", type: "cone", parent: "body", pos: [0, 0.04, 0.22], rot: [1.0, 0, 0], scale: [0.08, 0.28, 0.08], color: "#ffe680", mat: "emissive", emissive: "#ffe680" }),
+    P({ name: "leg_fl", type: "taper", parent: "body", pos: [-0.1, -0.14, -0.1], scale: [0.08, 0.18, 0.08], color: "#c09010", meshPos: [0, -0.09, 0] }),
+    P({ name: "leg_fr", type: "taper", parent: "body", pos: [0.1, -0.14, -0.1], scale: [0.08, 0.18, 0.08], color: "#c09010", meshPos: [0, -0.09, 0] }),
+    P({ name: "leg_bl", type: "taper", parent: "body", pos: [-0.1, -0.14, 0.12], scale: [0.08, 0.18, 0.08], color: "#c09010", meshPos: [0, -0.09, 0] }),
+    P({ name: "leg_br", type: "taper", parent: "body", pos: [0.1, -0.14, 0.12], scale: [0.08, 0.18, 0.08], color: "#c09010", meshPos: [0, -0.09, 0] }),
+  ],
+};
+
+STYLIZED_MODELS.voltajo = {
+  profile: "electric_runner",
+  height: 1,
+  effects: ["spark"],
+  parts: [
+    P({ name: "body", type: "ellipsoid", pos: [0, 0.48, 0.02], scale: [0.4, 0.34, 0.62], color: "#d0a820" }),
+    P({ name: "plate_l", type: "icosahedron", parent: "body", pos: [-0.16, 0.1, -0.08], scale: [0.16, 0.12, 0.18], color: "#ffe680", mat: "emissive", emissive: "#ffe680", emissiveIntensity: 0.5 }),
+    P({ name: "plate_r", type: "icosahedron", parent: "body", pos: [0.16, 0.1, -0.08], scale: [0.16, 0.12, 0.18], color: "#ffe680", mat: "emissive", emissive: "#ffe680", emissiveIntensity: 0.5 }),
+    P({ name: "head", type: "ellipsoid", parent: "body", pos: [0, 0.14, -0.32], scale: [0.28, 0.26, 0.3], color: "#d0a820" }),
+    P({ name: "ear_l", type: "cone", parent: "head", pos: [-0.1, 0.14, 0], rot: [0.05, 0, 0.4], scale: [0.05, 0.2, 0.05], color: "#ffe680", mat: "emissive", emissive: "#ffe680" }),
+    P({ name: "ear_r", type: "cone", parent: "head", pos: [0.1, 0.14, 0], rot: [0.05, 0, -0.4], scale: [0.05, 0.2, 0.05], color: "#ffe680", mat: "emissive", emissive: "#ffe680" }),
+    P({ name: "eye_l", type: "eye", parent: "head", pos: [-0.08, 0.04, -0.13], size: 0.048, brow: "#6a5010", browTilt: 0.28 }),
+    P({ name: "eye_r", type: "eye", parent: "head", pos: [0.08, 0.04, -0.13], size: 0.048, brow: "#6a5010", browTilt: -0.28 }),
+    P({ name: "tail", type: "cone", parent: "body", pos: [0, 0.06, 0.32], rot: [0.85, 0, 0], scale: [0.1, 0.36, 0.1], color: "#ffe680", mat: "emissive", emissive: "#ffe680" }),
+    P({ name: "fork", type: "cone", parent: "tail", pos: [0.06, 0.18, 0], rot: [0, 0, -0.5], scale: [0.05, 0.16, 0.05], color: "#fff6b0", mat: "emissive", emissive: "#fff6b0" }),
+    P({ name: "leg_fl", type: "taper", parent: "body", pos: [-0.12, -0.16, -0.16], scale: [0.09, 0.32, 0.09], color: "#8a7010", meshPos: [0, -0.16, 0] }),
+    P({ name: "leg_fr", type: "taper", parent: "body", pos: [0.12, -0.16, -0.16], scale: [0.09, 0.32, 0.09], color: "#8a7010", meshPos: [0, -0.16, 0] }),
+    P({ name: "leg_bl", type: "taper", parent: "body", pos: [-0.12, -0.16, 0.18], scale: [0.1, 0.32, 0.1], color: "#8a7010", meshPos: [0, -0.16, 0] }),
+    P({ name: "leg_br", type: "taper", parent: "body", pos: [0.12, -0.16, 0.18], scale: [0.1, 0.32, 0.1], color: "#8a7010", meshPos: [0, -0.16, 0] }),
+  ],
+};
+
+STYLIZED_MODELS.truena = {
+  profile: "electric_runner",
+  height: 1,
+  effects: ["spark", "glow"],
+  parts: [
+    P({ name: "body", type: "ellipsoid", pos: [0, 0.55, 0.02], scale: [0.52, 0.4, 0.82], color: "#c09010" }),
+    P({ name: "crest", type: "cone", parent: "body", pos: [0, 0.22, -0.04], rot: [1.15, 0, 0], scale: [0.08, 0.5, 0.16], color: "#ffe680", mat: "emissive", emissive: "#ffe680" }),
+    P({ name: "plate_l", type: "icosahedron", parent: "body", pos: [-0.22, 0.12, -0.1], scale: [0.2, 0.16, 0.22], color: "#fff0a0", mat: "emissive", emissive: "#fff0a0", emissiveIntensity: 0.45 }),
+    P({ name: "plate_r", type: "icosahedron", parent: "body", pos: [0.22, 0.12, -0.1], scale: [0.2, 0.16, 0.22], color: "#fff0a0", mat: "emissive", emissive: "#fff0a0", emissiveIntensity: 0.45 }),
+    P({ name: "head", type: "ellipsoid", parent: "body", pos: [0, 0.14, -0.42], scale: [0.3, 0.26, 0.32], color: "#c09010" }),
+    P({ name: "horn_l", type: "cone", parent: "head", pos: [-0.1, 0.14, -0.02], rot: [0.2, 0, 0.45], scale: [0.06, 0.24, 0.06], color: "#ffe680", mat: "emissive", emissive: "#ffe680" }),
+    P({ name: "horn_r", type: "cone", parent: "head", pos: [0.1, 0.14, -0.02], rot: [0.2, 0, -0.45], scale: [0.06, 0.24, 0.06], color: "#ffe680", mat: "emissive", emissive: "#ffe680" }),
+    P({ name: "eye_l", type: "eye", parent: "head", pos: [-0.08, 0.04, -0.14], size: 0.05, iris: "#3a2808", brow: "#4a3808", browTilt: 0.35 }),
+    P({ name: "eye_r", type: "eye", parent: "head", pos: [0.08, 0.04, -0.14], size: 0.05, iris: "#3a2808", brow: "#4a3808", browTilt: -0.35 }),
+    P({ name: "tail", type: "cone", parent: "body", pos: [0, 0.06, 0.42], rot: [0.7, 0, 0], scale: [0.12, 0.32, 0.12], color: "#c09010" }),
+    P({ name: "flame_l", type: "cone", parent: "tail", pos: [-0.1, 0.2, 0], rot: [0.1, 0, 0.5], scale: [0.07, 0.28, 0.07], color: "#ffe680", mat: "emissive", emissive: "#ffe680" }),
+    P({ name: "flame_r", type: "cone", parent: "tail", pos: [0.1, 0.2, 0], rot: [0.1, 0, -0.5], scale: [0.07, 0.28, 0.07], color: "#fff6b0", mat: "emissive", emissive: "#fff6b0" }),
+    P({ name: "leg_fl", type: "taper", parent: "body", pos: [-0.16, -0.16, -0.22], scale: [0.12, 0.4, 0.12], color: "#6a5010", meshPos: [0, -0.2, 0] }),
+    P({ name: "leg_fr", type: "taper", parent: "body", pos: [0.16, -0.16, -0.22], scale: [0.12, 0.4, 0.12], color: "#6a5010", meshPos: [0, -0.2, 0] }),
+    P({ name: "leg_bl", type: "taper", parent: "body", pos: [-0.16, -0.16, 0.24], scale: [0.14, 0.4, 0.14], color: "#6a5010", meshPos: [0, -0.2, 0] }),
+    P({ name: "leg_br", type: "taper", parent: "body", pos: [0.16, -0.16, 0.24], scale: [0.14, 0.4, 0.14], color: "#6a5010", meshPos: [0, -0.2, 0] }),
+  ],
+};
+
+STYLIZED_MODELS.piedrita = {
+  profile: "sprout",
+  height: 1,
+  effects: ["crystal"],
+  parts: [
+    P({ name: "body", type: "dodecahedron", pos: [0, 0.34, 0], scale: [0.42, 0.38, 0.4], color: "#c4925a" }),
+    P({ name: "belly", type: "ellipsoid", parent: "body", pos: [0, -0.04, -0.08], scale: [0.22, 0.16, 0.18], color: "#e0b888" }),
+    P({ name: "head", type: "icosahedron", parent: "body", pos: [0, 0.22, -0.08], scale: [0.3, 0.28, 0.28], color: "#c4925a" }),
+    P({ name: "chip", type: "icosahedron", parent: "head", pos: [0.08, 0.1, -0.06], scale: [0.1, 0.12, 0.08], color: "#e07030", mat: "emissive", emissive: "#ff6a30", emissiveIntensity: 0.7 }),
+    P({ name: "eye_l", type: "eye", parent: "head", pos: [-0.08, 0.02, -0.12], size: 0.058 }),
+    P({ name: "eye_r", type: "eye", parent: "head", pos: [0.08, 0.02, -0.12], size: 0.058 }),
+    P({ name: "leg_l", type: "taper", parent: "body", pos: [-0.1, -0.16, 0.02], scale: [0.12, 0.2, 0.12], color: "#8a6030", meshPos: [0, -0.1, 0] }),
+    P({ name: "leg_r", type: "taper", parent: "body", pos: [0.1, -0.16, 0.02], scale: [0.12, 0.2, 0.12], color: "#8a6030", meshPos: [0, -0.1, 0] }),
+    P({ name: "arm_l", type: "taper", parent: "body", pos: [-0.18, 0.02, 0], rot: [0, 0, 0.5], scale: [0.08, 0.16, 0.08], color: "#a87840", meshPos: [0, -0.08, 0] }),
+    P({ name: "arm_r", type: "taper", parent: "body", pos: [0.18, 0.02, 0], rot: [0, 0, -0.5], scale: [0.08, 0.16, 0.08], color: "#a87840", meshPos: [0, -0.08, 0] }),
+  ],
+};
+
+STYLIZED_MODELS.rocal = {
+  profile: "heavy",
+  height: 1,
+  effects: ["crystal"],
+  parts: [
+    P({ name: "body", type: "dodecahedron", pos: [0, 0.48, 0.02], scale: [0.58, 0.48, 0.7], color: "#a87840" }),
+    P({ name: "plate", type: "dodecahedron", parent: "body", pos: [0, 0.16, 0], scale: [0.36, 0.12, 0.5], color: "#5a3c20", mat: "dark" }),
+    P({ name: "chip", type: "icosahedron", parent: "body", pos: [0, 0.08, -0.22], scale: [0.16, 0.18, 0.1], color: "#e07030", mat: "emissive", emissive: "#ff6a30", emissiveIntensity: 0.85 }),
+    P({ name: "head", type: "icosahedron", parent: "body", pos: [0, 0.16, -0.36], scale: [0.28, 0.24, 0.26], color: "#a87840" }),
+    P({ name: "brow", type: "ellipsoid", parent: "head", pos: [0, 0.08, -0.08], scale: [0.2, 0.06, 0.08], color: "#5a3c20", mat: "dark" }),
+    P({ name: "eye_l", type: "eye", parent: "head", pos: [-0.07, 0.02, -0.1], size: 0.046, iris: "#2a1810" }),
+    P({ name: "eye_r", type: "eye", parent: "head", pos: [0.07, 0.02, -0.1], size: 0.046, iris: "#2a1810" }),
+    P({ name: "leg_fl", type: "taper", parent: "body", pos: [-0.16, -0.18, -0.16], scale: [0.14, 0.28, 0.14], color: "#5a3c20", meshPos: [0, -0.14, 0] }),
+    P({ name: "leg_fr", type: "taper", parent: "body", pos: [0.16, -0.18, -0.16], scale: [0.14, 0.28, 0.14], color: "#5a3c20", meshPos: [0, -0.14, 0] }),
+    P({ name: "leg_bl", type: "taper", parent: "body", pos: [-0.16, -0.18, 0.2], scale: [0.16, 0.28, 0.16], color: "#5a3c20", meshPos: [0, -0.14, 0] }),
+    P({ name: "leg_br", type: "taper", parent: "body", pos: [0.16, -0.18, 0.2], scale: [0.16, 0.28, 0.16], color: "#5a3c20", meshPos: [0, -0.14, 0] }),
+    P({ name: "crack", type: "ellipsoid", parent: "body", pos: [0.1, 0.02, 0.08], scale: [0.05, 0.28, 0.06], color: "#e07030", mat: "emissive", emissive: "#ff6a30" }),
+  ],
+};
+
+STYLIZED_MODELS.plumin = {
+  profile: "flyer_small",
+  height: 1,
+  effects: ["mist"],
+  parts: [
+    P({ name: "body", type: "ellipsoid", pos: [0, 0.42, 0], scale: [0.32, 0.3, 0.36], color: "#8eb6e0" }),
+    P({ name: "belly", type: "ellipsoid", parent: "body", pos: [0, -0.04, -0.04], scale: [0.18, 0.14, 0.2], color: "#c0dcf0", mat: "bright" }),
+    P({ name: "head", type: "sphere", parent: "body", pos: [0, 0.16, -0.16], scale: [0.26, 0.24, 0.26], color: "#8eb6e0" }),
+    P({ name: "crest", type: "ellipsoid", parent: "head", pos: [0, 0.14, 0.02], scale: [0.08, 0.14, 0.1], color: "#c0dcf0" }),
+    P({ name: "beak", type: "cone", parent: "head", pos: [0, -0.02, -0.14], rot: [1.2, 0, 0], scale: [0.06, 0.1, 0.06], color: "#f0d080" }),
+    P({ name: "eye_l", type: "eye", parent: "head", pos: [-0.07, 0.04, -0.1], size: 0.058 }),
+    P({ name: "eye_r", type: "eye", parent: "head", pos: [0.07, 0.04, -0.1], size: 0.058 }),
+    P({ name: "wing_l", type: "ellipsoid", parent: "body", pos: [-0.18, 0.04, 0.02], rot: [0.2, 0.3, 0.7], scale: [0.28, 0.06, 0.16], color: "#6090c8" }),
+    P({ name: "wing_r", type: "ellipsoid", parent: "body", pos: [0.18, 0.04, 0.02], rot: [0.2, -0.3, -0.7], scale: [0.28, 0.06, 0.16], color: "#6090c8" }),
+    P({ name: "tail", type: "ellipsoid", parent: "body", pos: [0, 0.02, 0.2], scale: [0.08, 0.1, 0.16], color: "#c0dcf0" }),
+    P({ name: "leg_l", type: "taper", parent: "body", pos: [-0.06, -0.14, 0], scale: [0.05, 0.1, 0.05], color: "#f0d080", meshPos: [0, -0.05, 0] }),
+    P({ name: "leg_r", type: "taper", parent: "body", pos: [0.06, -0.14, 0], scale: [0.05, 0.1, 0.05], color: "#f0d080", meshPos: [0, -0.05, 0] }),
+  ],
+};
+
+STYLIZED_MODELS.alazan = {
+  profile: "flyer_small",
+  height: 1,
+  effects: ["mist"],
+  parts: [
+    P({ name: "body", type: "ellipsoid", pos: [0, 0.5, 0.02], scale: [0.34, 0.3, 0.55], color: "#6090c8" }),
+    P({ name: "belly", type: "ellipsoid", parent: "body", pos: [0, -0.06, 0], scale: [0.2, 0.14, 0.36], color: "#90b8e8", mat: "bright" }),
+    P({ name: "head", type: "ellipsoid", parent: "body", pos: [0, 0.12, -0.28], scale: [0.26, 0.22, 0.26], color: "#6090c8" }),
+    P({ name: "crest", type: "cone", parent: "head", pos: [0, 0.14, 0.02], rot: [-0.3, 0, 0], scale: [0.08, 0.2, 0.1], color: "#90b8e8" }),
+    P({ name: "beak", type: "cone", parent: "head", pos: [0, -0.02, -0.14], rot: [1.15, 0, 0], scale: [0.06, 0.12, 0.06], color: "#e0c070" }),
+    P({ name: "eye_l", type: "eye", parent: "head", pos: [-0.07, 0.04, -0.1], size: 0.048, brow: "#4070b0", browTilt: 0.15 }),
+    P({ name: "eye_r", type: "eye", parent: "head", pos: [0.07, 0.04, -0.1], size: 0.048, brow: "#4070b0", browTilt: -0.15 }),
+    P({ name: "wing_l", type: "ellipsoid", parent: "body", pos: [-0.26, 0.06, 0], rot: [0.15, 0.2, 0.55], scale: [0.48, 0.07, 0.22], color: "#4070b0" }),
+    P({ name: "wing_r", type: "ellipsoid", parent: "body", pos: [0.26, 0.06, 0], rot: [0.15, -0.2, -0.55], scale: [0.48, 0.07, 0.22], color: "#4070b0" }),
+    P({ name: "tail", type: "ellipsoid", parent: "body", pos: [0, 0.04, 0.32], scale: [0.1, 0.08, 0.28], color: "#90b8e8" }),
+  ],
+};
+
+STYLIZED_MODELS.celestor = {
+  profile: "flyer_mythic",
+  height: 1,
+  effects: ["mist", "glow"],
+  parts: [
+    P({ name: "body", type: "ellipsoid", pos: [0, 0.58, 0], scale: [0.4, 0.36, 0.7], color: "#4070b0" }),
+    P({ name: "belly", type: "ellipsoid", parent: "body", pos: [0, -0.06, 0], scale: [0.24, 0.16, 0.42], color: "#70a0e0", mat: "bright" }),
+    P({ name: "head", type: "ellipsoid", parent: "body", pos: [0, 0.14, -0.36], scale: [0.3, 0.26, 0.3], color: "#4070b0" }),
+    P({ name: "crown", type: "cone", parent: "head", pos: [0, 0.18, 0.02], scale: [0.12, 0.22, 0.1], color: "#c0dcf0", mat: "emissive", emissive: "#c0dcf0", emissiveIntensity: 0.4 }),
+    P({ name: "beak", type: "cone", parent: "head", pos: [0, -0.02, -0.16], rot: [1.1, 0, 0], scale: [0.07, 0.14, 0.07], color: "#e8d090" }),
+    P({ name: "eye_l", type: "eye", parent: "head", pos: [-0.08, 0.04, -0.12], size: 0.05, white: "#e8f4ff", iris: "#102038" }),
+    P({ name: "eye_r", type: "eye", parent: "head", pos: [0.08, 0.04, -0.12], size: 0.05, white: "#e8f4ff", iris: "#102038" }),
+    P({ name: "wing_l", type: "ellipsoid", parent: "body", pos: [-0.34, 0.08, 0], rot: [0.1, 0.15, 0.45], scale: [0.7, 0.08, 0.3], color: "#70a0e0" }),
+    P({ name: "wing_r", type: "ellipsoid", parent: "body", pos: [0.34, 0.08, 0], rot: [0.1, -0.15, -0.45], scale: [0.7, 0.08, 0.3], color: "#70a0e0" }),
+    P({ name: "feather_l", type: "ellipsoid", parent: "wing_l", pos: [-0.2, 0, 0.04], scale: [0.22, 0.04, 0.12], color: "#c0dcf0", mat: "bright" }),
+    P({ name: "feather_r", type: "ellipsoid", parent: "wing_r", pos: [0.2, 0, 0.04], scale: [0.22, 0.04, 0.12], color: "#c0dcf0", mat: "bright" }),
+    P({ name: "tail", type: "ellipsoid", parent: "body", pos: [0, 0.06, 0.42], scale: [0.12, 0.1, 0.4], color: "#70a0e0" }),
+    P({ name: "core", type: "sphere", parent: "body", pos: [0, 0.02, -0.12], scale: [0.1, 0.1, 0.08], color: "#c0dcf0", mat: "emissive", emissive: "#c0dcf0", emissiveIntensity: 0.45 }),
+  ],
+};
+
+STYLIZED_MODELS.umbra = {
+  profile: "shadow_stalker",
+  height: 1,
+  effects: ["shadow_wisp"],
+  parts: [
+    P({ name: "body", type: "ellipsoid", pos: [0, 0.4, 0], scale: [0.32, 0.4, 0.3], color: "#4a3868" }),
+    P({ name: "cloak", type: "cone", parent: "body", pos: [0, -0.04, 0.04], rot: [3.14, 0, 0], scale: [0.34, 0.36, 0.28], color: "#3a2060", mat: "dark" }),
+    P({ name: "head", type: "sphere", parent: "body", pos: [0, 0.2, -0.06], scale: [0.26, 0.24, 0.24], color: "#5a3a80" }),
+    P({ name: "ear_l", type: "cone", parent: "head", pos: [-0.1, 0.12, 0.02], rot: [0.1, 0, 0.4], scale: [0.08, 0.16, 0.06], color: "#3a2060", mat: "dark" }),
+    P({ name: "ear_r", type: "cone", parent: "head", pos: [0.1, 0.12, 0.02], rot: [0.1, 0, -0.4], scale: [0.08, 0.16, 0.06], color: "#3a2060", mat: "dark" }),
+    P({ name: "eye_l", type: "eye", parent: "head", pos: [-0.07, 0.02, -0.1], size: 0.062, white: "#e8d8ff", iris: "#1a1030" }),
+    P({ name: "eye_r", type: "eye", parent: "head", pos: [0.07, 0.02, -0.1], size: 0.062, white: "#e8d8ff", iris: "#1a1030" }),
+    P({ name: "tail", type: "cone", parent: "body", pos: [0, -0.02, 0.16], rot: [1.0, 0, 0], scale: [0.1, 0.24, 0.1], color: "#3a2060", mat: "dark" }),
+    P({ name: "leg_l", type: "taper", parent: "body", pos: [-0.08, -0.18, 0.02], scale: [0.08, 0.16, 0.08], color: "#2a1848", meshPos: [0, -0.08, 0] }),
+    P({ name: "leg_r", type: "taper", parent: "body", pos: [0.08, -0.18, 0.02], scale: [0.08, 0.16, 0.08], color: "#2a1848", meshPos: [0, -0.08, 0] }),
+  ],
+};
+
+STYLIZED_MODELS.sombrio = {
+  profile: "shadow_stalker",
+  height: 1,
+  effects: ["shadow_wisp"],
+  parts: [
+    P({ name: "body", type: "ellipsoid", pos: [0, 0.52, 0], scale: [0.34, 0.5, 0.32], color: "#3a2060" }),
+    P({ name: "cloak", type: "cone", parent: "body", pos: [0, 0.04, 0.06], rot: [3.05, 0, 0], scale: [0.4, 0.48, 0.28], color: "#2a1848", mat: "dark" }),
+    P({ name: "head", type: "icosahedron", parent: "body", pos: [0, 0.26, -0.08], scale: [0.26, 0.24, 0.24], color: "#5a3a80" }),
+    P({ name: "mask", type: "ellipsoid", parent: "head", pos: [0, 0.02, -0.1], scale: [0.2, 0.1, 0.08], color: "#1a1030", mat: "dark" }),
+    P({ name: "eye_l", type: "eye", parent: "head", pos: [-0.07, 0.04, -0.1], size: 0.05, white: "#d0b8ff", iris: "#100818", brow: "#1a1030", browTilt: 0.3 }),
+    P({ name: "eye_r", type: "eye", parent: "head", pos: [0.07, 0.04, -0.1], size: 0.05, white: "#d0b8ff", iris: "#100818", brow: "#1a1030", browTilt: -0.3 }),
+    P({ name: "arm_l", type: "taper", parent: "body", pos: [-0.2, 0.1, 0], rot: [0, 0, 0.55], scale: [0.08, 0.36, 0.08], color: "#2a1848", meshPos: [0, -0.16, 0] }),
+    P({ name: "arm_r", type: "taper", parent: "body", pos: [0.2, 0.1, 0], rot: [0, 0, -0.55], scale: [0.08, 0.36, 0.08], color: "#2a1848", meshPos: [0, -0.16, 0] }),
+    P({ name: "claw_r", type: "cone", parent: "arm_r", pos: [0, -0.32, -0.02], rot: [1.1, 0, 0], scale: [0.05, 0.1, 0.05], color: "#1a1030", mat: "dark" }),
+    P({ name: "leg_l", type: "taper", parent: "body", pos: [-0.1, -0.22, 0.02], scale: [0.1, 0.3, 0.1], color: "#2a1848", meshPos: [0, -0.15, 0] }),
+    P({ name: "leg_r", type: "taper", parent: "body", pos: [0.1, -0.22, 0.02], scale: [0.1, 0.3, 0.1], color: "#2a1848", meshPos: [0, -0.15, 0] }),
+    P({ name: "tail", type: "cone", parent: "body", pos: [0, -0.04, 0.18], rot: [0.9, 0, 0], scale: [0.1, 0.3, 0.1], color: "#3a2060", mat: "dark" }),
+  ],
+};
+
+STYLIZED_MODELS.nocrix = {
+  profile: "shadow_stalker",
+  height: 1,
+  effects: ["shadow_wisp", "glow"],
+  parts: [
+    P({ name: "body", type: "ellipsoid", pos: [0, 0.58, 0], scale: [0.42, 0.55, 0.38], color: "#2a1848" }),
+    P({ name: "cloak", type: "cone", parent: "body", pos: [0, 0.08, 0.08], rot: [3.0, 0, 0], scale: [0.55, 0.55, 0.32], color: "#1a1030", mat: "dark" }),
+    P({ name: "head", type: "icosahedron", parent: "body", pos: [0, 0.28, -0.1], scale: [0.28, 0.26, 0.26], color: "#3a2060" }),
+    P({ name: "horn_l", type: "cone", parent: "head", pos: [-0.1, 0.14, 0], rot: [0.15, 0, 0.5], scale: [0.06, 0.22, 0.06], color: "#1a1030", mat: "dark" }),
+    P({ name: "horn_r", type: "cone", parent: "head", pos: [0.1, 0.14, 0], rot: [0.15, 0, -0.5], scale: [0.06, 0.22, 0.06], color: "#1a1030", mat: "dark" }),
+    P({ name: "eye_l", type: "eye", parent: "head", pos: [-0.08, 0.04, -0.11], size: 0.055, white: "#c8a0ff", iris: "#080410", brow: "#100818", browTilt: 0.35 }),
+    P({ name: "eye_r", type: "eye", parent: "head", pos: [0.08, 0.04, -0.11], size: 0.055, white: "#c8a0ff", iris: "#080410", brow: "#100818", browTilt: -0.35 }),
+    P({ name: "wing_l", type: "ellipsoid", parent: "cloak", pos: [-0.22, 0.1, 0], rot: [0.2, 0.2, 0.6], scale: [0.4, 0.08, 0.22], color: "#3a2060" }),
+    P({ name: "wing_r", type: "ellipsoid", parent: "cloak", pos: [0.22, 0.1, 0], rot: [0.2, -0.2, -0.6], scale: [0.4, 0.08, 0.22], color: "#3a2060" }),
+    P({ name: "arm_l", type: "taper", parent: "body", pos: [-0.22, 0.12, 0], rot: [0, 0, 0.45], scale: [0.09, 0.42, 0.09], color: "#1a1030", meshPos: [0, -0.2, 0] }),
+    P({ name: "arm_r", type: "taper", parent: "body", pos: [0.22, 0.12, 0], rot: [0, 0, -0.45], scale: [0.09, 0.42, 0.09], color: "#1a1030", meshPos: [0, -0.2, 0] }),
+    P({ name: "leg_l", type: "taper", parent: "body", pos: [-0.12, -0.24, 0.02], scale: [0.12, 0.36, 0.12], color: "#1a1030", meshPos: [0, -0.18, 0] }),
+    P({ name: "leg_r", type: "taper", parent: "body", pos: [0.12, -0.24, 0.02], scale: [0.12, 0.36, 0.12], color: "#1a1030", meshPos: [0, -0.18, 0] }),
+    P({ name: "core", type: "sphere", parent: "body", pos: [0, 0.04, -0.12], scale: [0.1, 0.1, 0.08], color: "#7040a0", mat: "emissive", emissive: "#9040c0", emissiveIntensity: 0.55 }),
+  ],
+};
+
+STYLIZED_MODELS.lucier = {
+  profile: "light_floater",
+  height: 1,
+  effects: ["glow"],
+  parts: [
+    P({ name: "body", type: "ellipsoid", pos: [0, 0.4, 0], scale: [0.3, 0.36, 0.28], color: "#e8d878" }),
+    P({ name: "core", type: "sphere", parent: "body", pos: [0, -0.04, -0.04], scale: [0.16, 0.18, 0.14], color: "#fff8d0", mat: "emissive", emissive: "#fff0a0", emissiveIntensity: 0.7 }),
+    P({ name: "head", type: "sphere", parent: "body", pos: [0, 0.2, -0.06], scale: [0.24, 0.22, 0.24], color: "#f0e6a8" }),
+    P({ name: "ear_l", type: "cone", parent: "head", pos: [-0.08, 0.12, 0.02], rot: [0.1, 0, 0.35], scale: [0.04, 0.16, 0.04], color: "#d8c050" }),
+    P({ name: "ear_r", type: "cone", parent: "head", pos: [0.08, 0.12, 0.02], rot: [0.1, 0, -0.35], scale: [0.04, 0.16, 0.04], color: "#d8c050" }),
+    P({ name: "eye_l", type: "eye", parent: "head", pos: [-0.06, 0.02, -0.1], size: 0.055, iris: "#4a4018" }),
+    P({ name: "eye_r", type: "eye", parent: "head", pos: [0.06, 0.02, -0.1], size: 0.055, iris: "#4a4018" }),
+    P({ name: "leg_l", type: "taper", parent: "body", pos: [-0.08, -0.16, 0.02], scale: [0.07, 0.16, 0.07], color: "#d8c050", meshPos: [0, -0.08, 0] }),
+    P({ name: "leg_r", type: "taper", parent: "body", pos: [0.08, -0.16, 0.02], scale: [0.07, 0.16, 0.07], color: "#d8c050", meshPos: [0, -0.08, 0] }),
+    P({ name: "leg_bl", type: "taper", parent: "body", pos: [-0.08, -0.14, 0.1], scale: [0.06, 0.14, 0.06], color: "#d8c050", meshPos: [0, -0.07, 0] }),
+    P({ name: "leg_br", type: "taper", parent: "body", pos: [0.08, -0.14, 0.1], scale: [0.06, 0.14, 0.06], color: "#d8c050", meshPos: [0, -0.07, 0] }),
+  ],
+};
+
+STYLIZED_MODELS.clarion = {
+  profile: "light_floater",
+  height: 1,
+  effects: ["glow"],
+  parts: [
+    P({ name: "body", type: "ellipsoid", pos: [0, 0.5, 0], scale: [0.36, 0.48, 0.32], color: "#e8d878" }),
+    P({ name: "core", type: "icosahedron", parent: "body", pos: [0, 0.02, -0.1], scale: [0.14, 0.16, 0.1], color: "#fff8d0", mat: "emissive", emissive: "#fff0a0", emissiveIntensity: 0.55 }),
+    P({ name: "head", type: "ellipsoid", parent: "body", pos: [0, 0.26, -0.08], scale: [0.28, 0.26, 0.26], color: "#f0e6a8" }),
+    P({ name: "horn_l", type: "cone", parent: "head", pos: [-0.08, 0.14, 0], rot: [0.1, 0, 0.35], scale: [0.05, 0.16, 0.05], color: "#fff0a0", mat: "bright" }),
+    P({ name: "horn_r", type: "cone", parent: "head", pos: [0.08, 0.14, 0], rot: [0.1, 0, -0.35], scale: [0.05, 0.16, 0.05], color: "#fff0a0", mat: "bright" }),
+    P({ name: "eye_l", type: "eye", parent: "head", pos: [-0.07, 0.03, -0.11], size: 0.05, iris: "#5a4818" }),
+    P({ name: "eye_r", type: "eye", parent: "head", pos: [0.07, 0.03, -0.11], size: 0.05, iris: "#5a4818" }),
+    P({ name: "orb_l", type: "icosahedron", parent: "body", pos: [-0.22, 0.12, 0], scale: [0.08, 0.08, 0.08], color: "#fff8d0", mat: "emissive", emissive: "#fff0a0", emissiveIntensity: 0.45 }),
+    P({ name: "orb_r", type: "icosahedron", parent: "body", pos: [0.22, 0.12, 0], scale: [0.08, 0.08, 0.08], color: "#fff8d0", mat: "emissive", emissive: "#fff0a0", emissiveIntensity: 0.45 }),
+    P({ name: "tail", type: "cone", parent: "body", pos: [0, -0.04, 0.16], rot: [0.9, 0, 0], scale: [0.08, 0.28, 0.08], color: "#fff0a0", mat: "bright" }),
+    P({ name: "leg_l", type: "taper", parent: "body", pos: [-0.1, -0.2, 0.02], scale: [0.08, 0.24, 0.08], color: "#d8c050", meshPos: [0, -0.12, 0] }),
+    P({ name: "leg_r", type: "taper", parent: "body", pos: [0.1, -0.2, 0.02], scale: [0.08, 0.24, 0.08], color: "#d8c050", meshPos: [0, -0.12, 0] }),
+  ],
+};
+
+STYLIZED_MODELS.aureon = {
+  profile: "light_floater",
+  height: 1,
+  effects: ["glow", "crystal"],
+  parts: [
+    P({ name: "body", type: "ellipsoid", pos: [0, 0.58, 0], scale: [0.42, 0.55, 0.38], color: "#d8c050" }),
+    P({ name: "plate", type: "icosahedron", parent: "body", pos: [0, 0.1, -0.04], scale: [0.28, 0.16, 0.2], color: "#fff0a0", mat: "bright" }),
+    P({ name: "core", type: "icosahedron", parent: "body", pos: [0, 0.04, -0.14], scale: [0.14, 0.16, 0.1], color: "#fff8d0", mat: "emissive", emissive: "#fff0a0", emissiveIntensity: 0.6 }),
+    P({ name: "head", type: "ellipsoid", parent: "body", pos: [0, 0.28, -0.1], scale: [0.3, 0.28, 0.28], color: "#e8d878" }),
+    P({ name: "horn_l", type: "cone", parent: "head", pos: [-0.1, 0.16, 0], rot: [0.1, 0, 0.4], scale: [0.06, 0.22, 0.06], color: "#fff0a0", mat: "bright" }),
+    P({ name: "horn_r", type: "cone", parent: "head", pos: [0.1, 0.16, 0], rot: [0.1, 0, -0.4], scale: [0.06, 0.22, 0.06], color: "#fff0a0", mat: "bright" }),
+    P({ name: "halo", type: "torus", parent: "head", pos: [0, 0.2, 0], rot: [1.2, 0, 0], scale: [0.28, 0.28, 0.08], color: "#fff8d0", mat: "emissive", emissive: "#fff0a0", emissiveIntensity: 0.4 }),
+    P({ name: "eye_l", type: "eye", parent: "head", pos: [-0.08, 0.04, -0.12], size: 0.052, white: "#fff8e8", iris: "#4a3810" }),
+    P({ name: "eye_r", type: "eye", parent: "head", pos: [0.08, 0.04, -0.12], size: 0.052, white: "#fff8e8", iris: "#4a3810" }),
+    P({ name: "orb_l", type: "icosahedron", parent: "body", pos: [-0.28, 0.16, 0.02], scale: [0.1, 0.1, 0.1], color: "#fff8d0", mat: "emissive", emissive: "#fff0a0", emissiveIntensity: 0.5 }),
+    P({ name: "orb_r", type: "icosahedron", parent: "body", pos: [0.28, 0.16, 0.02], scale: [0.1, 0.1, 0.1], color: "#fff8d0", mat: "emissive", emissive: "#fff0a0", emissiveIntensity: 0.5 }),
+    P({ name: "tail", type: "cone", parent: "body", pos: [0, 0, 0.2], rot: [0.85, 0, 0], scale: [0.1, 0.36, 0.1], color: "#fff0a0", mat: "bright" }),
+    P({ name: "leg_l", type: "taper", parent: "body", pos: [-0.12, -0.24, 0.02], scale: [0.1, 0.32, 0.1], color: "#c0a838", meshPos: [0, -0.16, 0] }),
+    P({ name: "leg_r", type: "taper", parent: "body", pos: [0.12, -0.24, 0.02], scale: [0.1, 0.32, 0.1], color: "#c0a838", meshPos: [0, -0.16, 0] }),
+  ],
+};
+
+STYLIZED_MODELS.prismaton = {
+  profile: "crystal_entity",
+  height: 1,
+  effects: ["crystal", "glow"],
+  parts: [
+    P({ name: "body", type: "icosahedron", pos: [0, 0.62, 0], scale: [0.42, 0.5, 0.42], color: "#c9f0ff" }),
+    P({ name: "core", type: "icosahedron", parent: "body", pos: [0, 0.02, 0], scale: [0.2, 0.22, 0.2], color: "#ffd6f8", mat: "emissive", emissive: "#ffd6f8", emissiveIntensity: 0.55 }),
+    P({ name: "head", type: "dodecahedron", parent: "body", pos: [0, 0.22, -0.08], scale: [0.24, 0.22, 0.24], color: "#e8f8ff" }),
+    P({ name: "eye_l", type: "eye", parent: "head", pos: [-0.06, 0.02, -0.1], size: 0.05, white: "#ffffff", iris: "#306080" }),
+    P({ name: "eye_r", type: "eye", parent: "head", pos: [0.06, 0.02, -0.1], size: 0.05, white: "#ffffff", iris: "#306080" }),
+    P({ name: "plate_a", type: "dodecahedron", parent: "body", pos: [0, 0.08, 0], scale: [0.55, 0.08, 0.55], color: "#a8d8f0", mat: "bright" }),
+    P({ name: "plate_b", type: "icosahedron", parent: "body", pos: [0, -0.08, 0], scale: [0.36, 0.08, 0.36], color: "#ffd6f8", mat: "bright" }),
+    P({ name: "orb_l", type: "icosahedron", parent: "body", pos: [-0.32, 0.1, 0.08], scale: [0.1, 0.12, 0.1], color: "#c9f0ff", mat: "emissive", emissive: "#80d0ff", emissiveIntensity: 0.45 }),
+    P({ name: "orb_r", type: "icosahedron", parent: "body", pos: [0.32, 0.14, -0.06], scale: [0.1, 0.12, 0.1], color: "#ffd6f8", mat: "emissive", emissive: "#ffb0e0", emissiveIntensity: 0.45 }),
+    P({ name: "shard_a", type: "cone", parent: "body", pos: [-0.18, 0.28, 0.1], rot: [0.4, 0, 0.5], scale: [0.06, 0.2, 0.06], color: "#80d0ff", mat: "bright" }),
+    P({ name: "shard_b", type: "cone", parent: "body", pos: [0.16, 0.3, 0.08], rot: [0.3, 0, -0.4], scale: [0.05, 0.18, 0.05], color: "#ffd6f8", mat: "bright" }),
+    P({ name: "shard_c", type: "cone", parent: "body", pos: [0.04, -0.22, 0.12], rot: [2.4, 0, 0.2], scale: [0.05, 0.16, 0.05], color: "#c9f0ff", mat: "bright" }),
   ],
 };
 

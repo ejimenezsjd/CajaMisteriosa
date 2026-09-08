@@ -16,6 +16,7 @@ import {
 import { hasPainter, renderSheet, sheetToCanvas } from "./creature-pixels.js";
 import { buildStylized3d, inspectGeometryCache, inspectMaterialCache, countMeshes } from "./creature-3d.js";
 import { getStylizedModel, listStylizedSpecies } from "./creature-3d-defs.js";
+import { getCreaturePortrait, preloadPortraitPngs } from "./creature-portraits.js";
 
 const TEX_CACHE = new Map(); // speciesId -> { texture, canvas, source: "png"|"paint", art }
 let loader = null;
@@ -56,6 +57,7 @@ function ensurePainted(speciesId) {
 
 /** Precarga pintores (síncrono) y intenta PNG (async, sustituye la caché). */
 export function preloadCreatureArt() {
+  preloadPortraitPngs(listStylizedSpecies());
   for (const id of listPixelSpecies()) {
     if (hasPainter(id)) ensurePainted(id);
   }
@@ -327,8 +329,10 @@ export function disposeCreatureVisual(group) {
   });
 }
 
-/** Recorta el frame 0 de idle para iconos de HUD/Dex. */
+/** Icono HUD/Dex: portrait 3D → recorte pixel → null. */
 export function creatureArtIcon(speciesId, silhouette = false) {
+  const portrait = getCreaturePortrait(speciesId, silhouette);
+  if (portrait) return portrait;
   const packed = TEX_CACHE.get(speciesId) ?? (hasPainter(speciesId) ? ensurePainted(speciesId) : null);
   const art = getCreatureArt(speciesId);
   if (!packed?.canvas || !art) return null;
