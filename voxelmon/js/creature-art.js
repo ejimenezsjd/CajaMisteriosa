@@ -34,7 +34,7 @@ export const CREATURE_ART = {
     renderer: "stylized3d",
     src: "assets/creatures/emberin.png",
     frameSize: { width: 32, height: 32 },
-    scale: 0.88,
+    scale: 0.94,
     anchorY: 0.02,
     shadow: true,
     shadowRadius: 0.28,
