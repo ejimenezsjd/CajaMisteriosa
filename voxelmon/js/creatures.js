@@ -6,6 +6,7 @@ import { buildCreatureModel, animateModel } from "./models.js";
 import { WATER_Y } from "./world.js";
 import { getBiomeDefinition } from "./biomes.js";
 import { events } from "./events.js";
+import { getRegionAt, REGION_2 } from "./regions.js";
 
 export function makeLabel(text, color = "#ffffff") {
   const canvas = document.createElement("canvas");
@@ -121,10 +122,11 @@ export class Spawner {
    * se ponderan con él, así los cambios de hora siguen siendo graduales.
    * Devuelve null si el bioma no admite criaturas en este momento.
    */
-  pickSpecies(biomeId, dist, dayFactor) {
+  pickSpecies(biomeId, dist, dayFactor, regionId) {
     const weights = [];
     let total = 0;
     for (const rule of getBiomeDefinition(biomeId).creatures) {
+      if (rule.regions && regionId && !rule.regions.includes(regionId)) continue;
       let w = rule.weight;
       if (rule.time === "day") w *= dayFactor;
       else if (rule.time === "night") w *= 1 - dayFactor;
@@ -175,12 +177,19 @@ export class Spawner {
       if (y <= WATER_Y) return; // no spawnear en agua
       const distOrigin = Math.hypot(x, z);
       const biomeId = this.world.biomeAt(x, z);
-      const id = this.pickSpecies(biomeId, distOrigin, dayFactor);
+      const regionId = getRegionAt(x, z);
+      const id = this.pickSpecies(biomeId, distOrigin, dayFactor, regionId);
       if (!id) return; // el bioma no admite criaturas ahora mismo
-      const level = Math.max(1, Math.min(15,
-        1 + Math.floor(distOrigin / 55) + Math.floor(Math.random() * 3) + (SPECIES[id].stage - 1) * 2));
+      let level;
+      if (regionId === REGION_2) {
+        level = Math.max(10, Math.min(15,
+          10 + Math.floor(Math.random() * 4) + (SPECIES[id].stage - 1)));
+      } else {
+        level = Math.max(1, Math.min(15,
+          1 + Math.floor(distOrigin / 55) + Math.floor(Math.random() * 3) + (SPECIES[id].stage - 1) * 2));
+      }
       this.creatures.push(new WildCreature(this.scene, id, level, x, z, this.world));
-      events.emit("creatureSpawned", { speciesId: id, level, biomeId });
+      events.emit("creatureSpawned", { speciesId: id, level, biomeId, regionId });
     }
   }
 

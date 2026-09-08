@@ -250,6 +250,11 @@ export function buildNpcModel(def) {
       box(g, 0.5, 0.16, 0.5, 0, 1.9, 0.02, outfit);
       box(g, 0.14, 0.18, 0.05, 0, 1.2, -0.19, accent, { emissive: accent, emissiveIntensity: 0.7 });
       break;
+    case "gatekeeper": // capucha pizarra y broche de bronce
+      box(g, 0.52, 0.2, 0.52, 0, 1.92, 0.02, outfit);
+      box(g, 0.16, 0.16, 0.06, 0, 1.18, -0.2, accent, { emissive: accent, emissiveIntensity: 0.55 });
+      box(g, 0.08, 0.7, 0.08, 0.42, 1.2, -0.12, accent);
+      break;
   }
 
   g.userData = { height: 2.0, role: def.role };

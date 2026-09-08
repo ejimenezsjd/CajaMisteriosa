@@ -325,6 +325,52 @@ export const DIALOGUES = {
     },
   },
 
+  gatekeeper_closed: {
+    npcName: "Kael",
+    nodes: {
+      start: {
+        text: "Alto. Este paso solo se abre a quien porta la Insignia Verde. Vuelve cuando hayas superado el Gimnasio Verde.",
+        options: [
+          { text: "¿Qué hay al otro lado?", next: "beyond" },
+          { text: "Me voy.", end: true },
+        ],
+      },
+      beyond: {
+        text: "Las Tierras Brumosas. Un bosque más denso, más antiguo… y más peligroso. No puedes pasar todavía.",
+        options: [{ text: "Entendido.", end: true }],
+      },
+    },
+  },
+  gatekeeper_unlock: {
+    npcName: "Kael",
+    nodes: {
+      start: {
+        text: "Veo que llevas la Insignia Verde. El bosque te reconoce. Puedes continuar.",
+        options: [
+          {
+            text: "Abrir el paso",
+            actions: [{ type: "openRegionGate", regionId: "region_2" }],
+            next: "opened",
+          },
+          { text: "Más tarde.", end: true },
+        ],
+      },
+      opened: {
+        text: "Las Tierras Brumosas esperan al otro lado. Tened cuidado: las criaturas de la bruma no perdonan.",
+        options: [{ text: "Gracias, Kael.", end: true }],
+      },
+    },
+  },
+  gatekeeper_opened: {
+    npcName: "Kael",
+    nodes: {
+      start: {
+        text: "El paso sigue abierto. Las Tierras Brumosas no se recorren a la ligera.",
+        options: [{ text: "Seguiré con cuidado.", end: true }],
+      },
+    },
+  },
+
   healer_intro: {
     npcName: "Sena",
     nodes: {

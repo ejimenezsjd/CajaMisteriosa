@@ -78,6 +78,24 @@ export const RESOURCES = {
     surface: true,
     futureUse: "pociones curativas",
   },
+  ancient_fragment: {
+    id: "ancient_fragment",
+    name: "Fragmento antiguo",
+    icon: "🟣",
+    block: B.ANCIENT_FRAGMENT,
+    rarity: "rara",
+    depth: { minY: 2, maxY: 10, belowSurface: 5 },
+    futureUse: "crafting avanzado, llave de ruinas y evoluciones especiales",
+  },
+  mist_bloom: {
+    id: "mist_bloom",
+    name: "Flor de bruma",
+    icon: "💠",
+    block: B.MIST_BLOOM,
+    rarity: "poco común",
+    surface: true,
+    futureUse: "medicina avanzada y consumibles",
+  },
 };
 
 const BY_BLOCK = Object.fromEntries(

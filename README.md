@@ -14,6 +14,7 @@ En `voxelmon/` vive **VoxelMon**, un juego 3D estilo Minecraft ambientado en el 
 - Asentamientos con NPC: busca el asentamiento procedural y habla (E) con sus habitantes. Alba, la investigadora, da la primera cadena de misiones; Bruno cambia 3 apricornos por 1 cubo de captura; Sena cura a tu equipo. Las misiones se siguen en el HUD y en el menú de pausa.
 - Entrenadores: tras la cadena introductoria, Alba te presenta a Milo (novato), Vera (exploradora) y Ross (guardabosques). Sus combates son por equipos: sin captura ni huida, con recompensa en dinero una sola vez. Derrota a los tres para desbloquear el camino al primer gimnasio.
 - Gimnasio Verde: edificio procedural en llanuras/bosque. La entrada exige `gym_path_unlocked`. Dentro: Orla (guía), Nilo y Lira (entrenadores), un puzzle de tres pedestales (hoja → luz → agua) y la líder Iris. La primera victoria concede la Insignia Verde y abre el camino a la siguiente región.
+- Tierras Brumosas: tras la Insignia Verde, Kael abre el paso fronterizo al sur del gimnasio. Allí hay un bioma nuevo (Bosque Brumoso), criaturas de más nivel, flor de bruma, fragmentos antiguos, una atalaya y un puesto ancestral.
 - La partida se guarda sola en el navegador (equipo, mundo editado, dex, inventario, descubrimientos y misiones).
 
 Requiere un navegador moderno con WebGL; usa Three.js desde CDN, sin paso de build.

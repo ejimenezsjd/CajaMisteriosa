@@ -35,6 +35,9 @@ export function defaultStats() {
     // Fase 5
     gymsCompleted: 0,
     gymTrainersDefeated: 0,
+    // Fase 6
+    regionsDiscovered: 0,
+    regionalStructuresDiscovered: 0,
   };
 }
 
@@ -69,6 +72,11 @@ export function defaultState(seed) {
     // Fase 5: estado por gimnasio (puzzle, entrada, completado)
     gyms: {
       gym_verdant: { puzzleSolved: false, puzzleAttempt: [], completed: false, entered: false },
+    },
+    // Fase 6: descubrimiento de regiones y estado de la frontera
+    regions: {
+      discovered: {},
+      gates: { region_2: { opened: false } },
     },
   };
 }

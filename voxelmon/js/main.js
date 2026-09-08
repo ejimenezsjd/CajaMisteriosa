@@ -25,6 +25,10 @@ import { npcs } from "./npcs.js";
 import { dialogue } from "./dialogue.js";
 import { quests, QUESTS } from "./quests.js";
 import { executeTrade } from "./trading.js";
+import {
+  regions, getRegionAt, getRegionName, nearestGymAnchor,
+  REGION_1, REGION_2,
+} from "./regions.js";
 
 const DAY_LENGTH = 600; // segundos por ciclo completo
 const HOTBAR = [B.DIRT, B.STONE, B.SAND, B.WOOD, B.LEAVES, B.SNOW];
@@ -85,6 +89,7 @@ let regenTimer = 0;
 let saveTimer = 0;
 let pollTimer = 0; // sondeo periódico de bioma + estructuras cercanas
 let lastBiome = null;
+let lastRegion = null;
 const shrineCooldowns = new Map(); // structureId -> timestamp fin de cooldown
 const lastPos = new THREE.Vector2();
 const particles = [];
@@ -138,7 +143,10 @@ events.on("progressUnlocked", ({ id }) => {
     ui.toast("🏆 Has demostrado que estás listo para buscar el primer gimnasio.", "legendary");
   }
   if (id === "region_2_path_unlocked") {
-    ui.toast("🌄 Un nuevo camino se abre más allá del bosque… (próximamente)", "legendary");
+    ui.toast("🌄 La Insignia Verde abre el paso a las Tierras Brumosas.", "legendary");
+  }
+  if (id === "regional_explorer") {
+    ui.toast("🗺 Has sido reconocido como explorador regional.", "good");
   }
 });
 events.on("gymPuzzleProgress", ({ current, required, reset }) => {
@@ -152,6 +160,12 @@ events.on("gymPuzzleSolved", () => {
 });
 events.on("gymEntered", () => {
   ui.toast("🌿 Gimnasio Verde", "good");
+});
+events.on("regionDiscovered", ({ regionName }) => {
+  ui.toast(`🌄 Nueva región descubierta: ${regionName}`, "good");
+});
+events.on("regionGateOpened", () => {
+  ui.toast("🚪 El paso fronterizo se ha abierto.", "good");
 });
 
 // ---------- Diálogos: acciones controladas, condiciones y modo de juego ----------
@@ -196,6 +210,13 @@ dialogue.registerAction("heal", (a, ctx) => {
   sfx.heal();
   events.emit("partyHealed", { source: "healer", structureId: ctx?.npc?.structureId });
   ui.refreshHud();
+});
+dialogue.registerAction("openRegionGate", (a) => {
+  tryOpenRegionGate({
+    regionId: a.regionId ?? REGION_2,
+    x: player?.pos.x ?? 0,
+    z: player?.pos.z ?? 0,
+  });
 });
 dialogue.registerAction("startTrainerBattle", (a, ctx) => {
   const check = trainers.canBattle(a.trainerId);
@@ -263,9 +284,12 @@ async function startWorld(saved) {
   trainers.attach(state);
   gyms.attach(state);
   gyms.setProgression(progression);
+  regions.attach(state);
   // El bioma inicial cuenta como descubierto (sin toast en la carga)
   state.stats.biomesDiscovered[world.biomeAt(px, pz)] = true;
   lastBiome = world.biomeAt(px, pz);
+  lastRegion = getRegionAt(px, pz);
+  ui.setRegion(getRegionName(lastRegion), lastRegion !== REGION_1);
   lastPos.set(px, pz);
   if (state.pos) {
     player.yaw = state.pos.yaw ?? 0;
@@ -517,6 +541,80 @@ function registerGymInteractables(s, wanted) {
   }
 }
 
+function findRegionalGate(x, z) {
+  if (!world) return null;
+  const near = world.structures.near(x, z, 90).find((s) => s.type === "regional_gate");
+  if (near) return near;
+  const gym = nearestGymAnchor(x, z);
+  if (!gym) return null;
+  return world.structures.candidate("regional_gate", gym.cellX, gym.cellZ);
+}
+
+function applyGateOpening(gate) {
+  if (!gate || !world) return;
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = 1; dy <= 5; dy++) {
+      world.setBlock(gate.x + dx, gate.y + dy, gate.z, B.AIR);
+    }
+  }
+}
+
+function tryOpenRegionGate({ regionId = REGION_2, x, z } = {}) {
+  const px = x ?? player?.pos.x ?? 0;
+  const pz = z ?? player?.pos.z ?? 0;
+  const opened = regions.openGate(regionId, { x: px, z: pz });
+  const gate = findRegionalGate(px, pz);
+  if (gate && regions.isGateOpened(regionId)) applyGateOpening(gate);
+  if (opened) saveGame();
+  return opened || regions.isGateOpened(regionId);
+}
+
+function canOpenRegionGate() {
+  return progression.isUnlocked("region_2_path_unlocked") || progression.hasBadge("verdant_badge");
+}
+
+function registerGateInteractables(s, wanted) {
+  const id = `gate:${s.id}:door`;
+  wanted.add(id);
+  const opened = regions.isGateOpened(REGION_2);
+  if (opened) applyGateOpening(s);
+  const allowed = canOpenRegionGate();
+  let prompt;
+  if (opened) prompt = "Cruzar el paso";
+  else if (allowed) prompt = "Abrir paso";
+  else prompt = "El paso está cerrado. Necesitas la Insignia Verde.";
+  const existing = interaction.items.get(id);
+  const x = s.x + 0.5;
+  const y = s.y + 1.4;
+  const z = s.z - 1.2;
+  if (existing) {
+    existing.prompt = prompt;
+    existing.x = x;
+    existing.y = y;
+    existing.z = z;
+    return;
+  }
+  interaction.register({
+    id,
+    type: "gate",
+    x, y, z,
+    range: 3.4,
+    prompt,
+    data: s,
+    onInteract: () => {
+      if (regions.isGateOpened(REGION_2)) {
+        teleportPlayer(s.x + 0.5, world.surfaceY(s.x, s.z + 4) + 1, s.z + 4.5);
+        return;
+      }
+      if (!canOpenRegionGate()) {
+        ui.toast("El paso está cerrado. Necesitas la Insignia Verde.", "bad");
+        return;
+      }
+      tryOpenRegionGate({ x: s.x, z: s.z });
+    },
+  });
+}
+
 function refreshGymTracker(nearGym = null) {
   if (!nearGym || gyms.isCompleted()) {
     ui.updateGymTracker(null);
@@ -566,6 +664,7 @@ function spawnBreakParticles(x, y, z, block) {
     [B.WOOD]: 0x7d5a30, [B.LEAVES]: 0x48a03c, [B.SNOW]: 0xeef2f5,
     [B.COAL_ORE]: 0x44464e, [B.COPPER_ORE]: 0xc07a4a, [B.IRON_ORE]: 0xc9b69e,
     [B.CRYSTAL]: 0x8ee4fa, [B.APRICORN]: 0xd98438, [B.HERB]: 0x8cd455,
+    [B.ANCIENT_FRAGMENT]: 0xb48ad8, [B.MIST_BLOOM]: 0x8fd4e4, [B.MIST_GRASS]: 0x3a6152,
   };
   for (let i = 0; i < 8; i++) {
     const m = new THREE.Mesh(
@@ -868,6 +967,16 @@ function loop(now) {
   }
   lastPos.set(player.pos.x, player.pos.z);
 
+  // Barrera lógica: sin portón abierto no se permanece en Región 2.
+  if (playing && state && getRegionAt(player.pos.x, player.pos.z) === REGION_2 &&
+      !regions.isGateOpened(REGION_2)) {
+    const gate = findRegionalGate(player.pos.x, player.pos.z);
+    if (gate) {
+      const zx = gate.z - 4;
+      teleportPlayer(gate.x + 0.5, world.surfaceY(gate.x, zx) + 1, zx + 0.5);
+    }
+  }
+
   // Sondeo periódico: descubrimiento de biomas/estructuras y santuario cercano.
   // Las consultas son O(celdas vecinas) gracias al índice por celdas cacheado.
   pollTimer += dt;
@@ -884,11 +993,19 @@ function loop(now) {
       }
     }
 
+    const rid = getRegionAt(px, pz);
+    if (rid !== lastRegion) {
+      lastRegion = rid;
+      ui.setRegion(getRegionName(rid), rid !== REGION_1);
+      if (rid !== REGION_1) regions.discover(rid, px, pz);
+    }
+
     // Descubrimiento + registro de interactuables de estructura cercanos
     const wantedShrines = new Set();
     const wantedGym = new Set();
+    const wantedGate = new Set();
     let nearGym = null;
-    for (const s of world.structures.near(px, pz, 20)) {
+    for (const s of world.structures.near(px, pz, 24)) {
       if (!state.stats.structuresDiscovered[s.id]) {
         events.emit("structureDiscovered", {
           structureId: s.id, structureType: s.type, biomeId: s.biome, x: s.x, y: s.y, z: s.z,
@@ -913,12 +1030,18 @@ function loop(now) {
         nearGym = s;
         registerGymInteractables(s, wantedGym);
       }
+      if (s.type === "regional_gate") {
+        registerGateInteractables(s, wantedGate);
+      }
     }
     for (const id of interaction.ids("shrine")) {
       if (!wantedShrines.has(id)) interaction.unregister(id);
     }
     for (const id of interaction.ids("gym")) {
       if (!wantedGym.has(id)) interaction.unregister(id);
+    }
+    for (const id of interaction.ids("gate")) {
+      if (!wantedGate.has(id)) interaction.unregister(id);
     }
     refreshGymTracker(nearGym);
 
@@ -999,6 +1122,10 @@ function loop(now) {
     scene.fog.near = 1;
     scene.fog.far = 22;
     scene.fog.color.set(0x2a5fae);
+  } else if (getRegionAt(camera.position.x, camera.position.z) === REGION_2) {
+    scene.fog.near = 14;
+    scene.fog.far = 82;
+    scene.fog.color.lerp(new THREE.Color(0x6a8074), 0.45);
   } else {
     scene.fog.near = 40;
     scene.fog.far = 150;
@@ -1041,6 +1168,7 @@ window.__vm = {
   interactionSystem: interaction,
   trainerSystem: trainers,
   gymSystem: gyms,
+  regionSystem: regions,
   /** Herramientas de inspección del mundo vivo (Fase 2) */
   debug: {
     pos() {
@@ -1161,6 +1289,51 @@ window.__vm = {
     resetGymPuzzle() { gyms.resetPuzzle(); },
     badges() {
       return state ? { ...state.progression.badges } : {};
+    },
+    region() {
+      if (!world || !player) return null;
+      const x = player.pos.x;
+      const z = player.pos.z;
+      const id = getRegionAt(x, z);
+      return {
+        id,
+        name: getRegionName(id),
+        biome: world.biomeAt(x, z),
+        baseBiome: world.baseBiomeAt(x, z),
+        discovered: { ...(state?.regions.discovered ?? {}) },
+        gates: JSON.parse(JSON.stringify(state?.regions.gates ?? {})),
+      };
+    },
+    regionGate() {
+      if (!world || !player) return null;
+      const gate = findRegionalGate(player.pos.x, player.pos.z);
+      return {
+        opened: regions.isGateOpened(REGION_2),
+        unlocked: canOpenRegionGate(),
+        gate,
+      };
+    },
+    regionalStructures(r = 400) {
+      if (!world || !player) return [];
+      return world.structures.near(player.pos.x, player.pos.z, r)
+        .filter((s) => s.type === "regional_gate" || s.type === "watchtower" || s.type === "ancient_outpost");
+    },
+    unlockRegion2() {
+      progression.addBadge("verdant_badge");
+      progression.unlock("region_2_path_unlocked");
+      progression.unlock("first_gym_completed");
+    },
+    openGate() {
+      return tryOpenRegionGate({
+        x: player?.pos.x ?? 0,
+        z: player?.pos.z ?? 0,
+      });
+    },
+    measureChunkGen(cx, cz) {
+      if (!world) return null;
+      const t0 = performance.now();
+      world.generateChunkData(cx, cz);
+      return { ms: performance.now() - t0, lastGenMs: world.lastGenMs, cx, cz };
     },
   },
 };

@@ -206,7 +206,8 @@ export class UI {
       <span>💬 Charlas: <b>${st.npcsTalked ?? 0}</b></span>
       <span>🎖 Entrenadores: <b>${st.trainersDefeated ?? 0}</b></span>
       <span>🏅 Insignias: <b>${this.badgeCount()}</b>${this.badgeList()}</span>
-      <span>🏟 Gimnasios: <b>${st.gymsCompleted ?? 0}</b></span>` +
+      <span>🏟 Gimnasios: <b>${st.gymsCompleted ?? 0}</b></span>
+      <span>🗺 Regiones: <b>${st.regionsDiscovered ?? 0}</b></span>` +
       (resources ? `<span class="stats-wide">🎒 Recursos: ${resources}</span>` : "");
     box.classList.remove("hidden");
   }
@@ -246,6 +247,13 @@ export class UI {
   setClock(dayFactor) {
     const day = dayFactor > 0.28;
     this.el.infoClock.textContent = day ? "☀ Día" : "☾ Noche";
+  }
+
+  setRegion(name, visible) {
+    const el = $("info-region");
+    if (!el) return;
+    el.textContent = `🗺 ${name}`;
+    el.classList.toggle("hidden", !visible);
   }
 
   setTargetPrompt(text) {

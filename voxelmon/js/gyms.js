@@ -12,8 +12,8 @@
  * si el gimnasio no estaba completed. QuestSystem reacciona a esos eventos;
  * no vuelve a entregar la insignia.
  *
- * Consumidor futuro de region_2_path_unlocked: una frontera/barrera de
- * región (Fase 6). Aquí solo se emite el unlock y un aviso.
+ * Consumidor de region_2_path_unlocked: RegionSystem / portón fronterizo
+ * (Fase 6). Aquí solo se emite el unlock.
  */
 
 import { events } from "./events.js";

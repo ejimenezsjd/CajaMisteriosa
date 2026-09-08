@@ -157,6 +157,33 @@ export const BIOMES = {
     ambience: {},
   },
 
+  mist_forest: {
+    id: "mist_forest",
+    name: "Bosque Brumoso",
+    climate: { temperature: 0.45, humidity: 0.9 },
+    terrain: { surfaceBlock: B.GRASS, subsurfaceBlock: B.DIRT },
+    vegetation: { treeDensity: 0.14 },
+    difficulty: 2,
+    creatures: [
+      { family: "umbra", weight: 5, time: "any", regions: ["region_2"] },
+      { family: "semilla", weight: 4, time: "any", regions: ["region_2"] },
+      { family: "lucier", weight: 2, time: "day", regions: ["region_2"] },
+      { family: "gotita", weight: 2, time: "any", regions: ["region_2"] },
+      { family: "plumin", weight: 1, time: "day", regions: ["region_2"] },
+    ],
+    resources: [
+      { id: "mist_bloom", chance: 0.018 },
+      { id: "ancient_fragment", chance: 0.01 },
+      { id: "medicinal_herb", chance: 0.008 },
+      { id: "apricorn", chance: 0.004 },
+      { id: "coal", chance: 0.05 },
+      { id: "iron", chance: 0.03 },
+      { id: "crystal_shard", chance: 0.006 },
+    ],
+    structures: ["watchtower", "ancient_outpost", "healing_shrine", "ruin"],
+    ambience: { fog: true },
+  },
+
   ocean: {
     id: "ocean",
     name: "Océano",

@@ -22,8 +22,14 @@ import { B } from "./blocks.js";
 import { columnHash, mulberry32 } from "./noise.js";
 import { getBiomeDefinition } from "./biomes.js";
 import { WATER_Y } from "./world.js";
+import { REGION_GEOMETRY } from "./regions.js";
 
-const SALT = { camp: 11001, ruin: 22002, healing_shrine: 33003, settlement: 44004, gym: 55005 };
+const SALT = {
+  camp: 11001, ruin: 22002, healing_shrine: 33003, settlement: 44004, gym: 55005,
+  regional_gate: 66006, watchtower: 77007, ancient_outpost: 88008,
+};
+
+const REGIONAL_TYPES = new Set(["regional_gate", "watchtower", "ancient_outpost"]);
 
 export const STRUCTURE_TYPES = {
   camp: {
@@ -84,6 +90,39 @@ export const STRUCTURE_TYPES = {
     radius: 14,
     maxSlope: 3,
     build: buildGym,
+  },
+  regional_gate: {
+    id: "regional_gate",
+    name: "Paso fronterizo",
+    icon: "🚪",
+    cell: 260,
+    chance: 1,
+    radius: 10,
+    maxSlope: 8,
+    build: buildRegionalGate,
+    npcAnchors: [
+      { role: "gatekeeper", local: [4, -4] },
+    ],
+  },
+  watchtower: {
+    id: "watchtower",
+    name: "Atalaya brumosa",
+    icon: "🗼",
+    cell: 260,
+    chance: 1,
+    radius: 4,
+    maxSlope: 8,
+    build: buildWatchtower,
+  },
+  ancient_outpost: {
+    id: "ancient_outpost",
+    name: "Puesto ancestral",
+    icon: "🏛",
+    cell: 260,
+    chance: 1,
+    radius: 5,
+    maxSlope: 8,
+    build: buildAncientOutpost,
   },
 };
 
@@ -359,6 +398,101 @@ function buildGym(stamp, x, y, z, rng, ground) {
   }
 }
 
+/**
+ * Portón fronterizo (Fase 6): dos torres, arco de piedra y verja de cristal.
+ * El hueco se abre persistiendo ediciones de AIR cuando el jugador abre el paso.
+ */
+function buildRegionalGate(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 10, 10);
+
+  for (let dx = -8; dx <= 8; dx++) {
+    for (let dz = -2; dz <= 2; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.STONE);
+    }
+  }
+
+  const tower = (tx) => {
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        fillFloor(stamp, ground, x, y, z, tx + dx, dz, B.STONE);
+        for (let dy = 1; dy <= 7; dy++) {
+          const edge = Math.abs(dx) === 1 || Math.abs(dz) === 1;
+          if (edge) stamp(x + tx + dx, y + dy, z + dz, B.STONE);
+        }
+        stamp(x + tx + dx, y + 8, z + dz, B.STONE);
+      }
+    }
+    stamp(x + tx, y + 9, z, B.CRYSTAL);
+  };
+  tower(-6);
+  tower(6);
+
+  // Muro almenado a ambos lados del vano central
+  for (const dx of [-4, -3, -2, 2, 3, 4]) {
+    for (let dy = 1; dy <= 5; dy++) stamp(x + dx, y + dy, z, B.STONE);
+    stamp(x + dx, y + 6, z, B.STONE);
+  }
+  for (let dx = -4; dx <= 4; dx++) stamp(x + dx, y + 6, z, B.STONE);
+
+  // Verja de cristal (cerrada de serie; se abre con world edits)
+  for (const dx of [-1, 0, 1]) {
+    for (let dy = 1; dy <= 5; dy++) stamp(x + dx, y + dy, z, B.CRYSTAL);
+  }
+
+  stamp(x - 8, y + 1, z - 2, B.CRYSTAL);
+  stamp(x + 8, y + 1, z - 2, B.CRYSTAL);
+}
+
+/** Atalaya alta con faro de cristal: landmark visible a distancia. */
+function buildWatchtower(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 4, 16);
+  for (let dx = -2; dx <= 2; dx++) {
+    for (let dz = -2; dz <= 2; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.STONE);
+    }
+  }
+  for (let dy = 1; dy <= 12; dy++) {
+    for (const [dx, dz] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
+      stamp(x + dx, y + dy, z + dz, dy > 8 ? B.WOOD : B.STONE);
+    }
+  }
+  for (let dx = -2; dx <= 2; dx++) {
+    for (let dz = -2; dz <= 2; dz++) {
+      stamp(x + dx, y + 10, z + dz, B.WOOD);
+      if (Math.abs(dx) === 2 || Math.abs(dz) === 2) stamp(x + dx, y + 11, z + dz, B.WOOD);
+    }
+  }
+  stamp(x, y + 13, z, B.WOOD);
+  stamp(x, y + 14, z, B.CRYSTAL);
+  if (rng() < 0.9) stamp(x + 2, y + 1, z, B.MIST_BLOOM);
+}
+
+/** Puesto ancestral: ruina con fragmentos y flores de bruma (lore / quest). */
+function buildAncientOutpost(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 5, 8);
+  for (let dx = -4; dx <= 4; dx++) {
+    for (let dz = -4; dz <= 4; dz++) {
+      if (rng() < 0.8) fillFloor(stamp, ground, x, y, z, dx, dz, B.STONE);
+    }
+  }
+  for (const [cx, cz] of [[4, 4], [4, -4], [-4, 4], [-4, -4]]) {
+    fillFloor(stamp, ground, x, y, z, cx, cz, B.STONE);
+    const h = 2 + Math.floor(rng() * 3);
+    for (let dy = 1; dy <= h; dy++) stamp(x + cx, y + dy, z + cz, B.STONE);
+  }
+  for (let d = -3; d <= 3; d++) {
+    if (rng() < 0.6) stamp(x + d, y + 1, z - 4, B.STONE);
+    if (rng() < 0.6) stamp(x - 4, y + 1, z + d, B.STONE);
+  }
+  stamp(x, y + 1, z, B.STONE);
+  stamp(x, y + 2, z, B.ANCIENT_FRAGMENT);
+  stamp(x, y + 3, z, B.CRYSTAL);
+  stamp(x + 2, y + 1, z + 1, B.ANCIENT_FRAGMENT);
+  stamp(x - 2, y + 1, z - 1, B.MIST_BLOOM);
+  stamp(x + 1, y + 1, z - 2, B.MIST_BLOOM);
+  stamp(x - 1, y + 1, z + 2, B.MIST_BLOOM);
+}
+
 // ---------- Índice determinista por celdas ----------
 
 export class StructureIndex {
@@ -377,6 +511,12 @@ export class StructureIndex {
     const salt = SALT[type];
     let result = null;
 
+    if (REGIONAL_TYPES.has(type)) {
+      result = this.regionalCandidate(type, cellX, cellZ);
+      this.cache.set(key, result);
+      return result;
+    }
+
     if (columnHash(cellX, cellZ, seed + salt) < def.chance) {
       // Posición dentro de la celda con margen para no invadir celdas vecinas
       const m = def.radius + 2;
@@ -385,7 +525,9 @@ export class StructureIndex {
       const z = cellZ * def.cell + m + Math.floor(columnHash(cellX, cellZ, seed + salt + 2) * span);
 
       const t = this.world.terrainAt(x, z);
-      const biome = this.world.biomeAt(x, z);
+      // Tipos clásicos usan el bioma BASE para no desaparecer si el overlay
+      // de Región 2 reclasifica plains/forest como mist_forest.
+      const biome = this.world.baseBiomeAt(x, z);
       let ok = getBiomeDefinition(biome).structures.includes(type) && t.h > WATER_Y + 1;
       if (ok) {
         // Terreno razonablemente plano y sin agua en el contorno
@@ -415,16 +557,54 @@ export class StructureIndex {
     return result;
   }
 
+  /**
+   * Gate / atalaya / puesto: anclados al gimnasio de la misma celda.
+   * Existen si y solo si existe el gimnasio (sin chance extra).
+   */
+  regionalCandidate(type, cellX, cellZ) {
+    const gym = this.candidate("gym", cellX, cellZ);
+    if (!gym) return null;
+    const def = STRUCTURE_TYPES[type];
+    const g = REGION_GEOMETRY;
+    let x = gym.x;
+    let z = gym.z;
+    if (type === "regional_gate") {
+      z = gym.z + g.gateZ;
+    } else if (type === "watchtower") {
+      x = gym.x + g.watchtower.dx;
+      z = gym.z + g.watchtower.dz;
+    } else if (type === "ancient_outpost") {
+      x = gym.x + g.outpost.dx;
+      z = gym.z + g.outpost.dz;
+    }
+    const t = this.world.terrainAt(x, z);
+    return {
+      id: `${type}:${cellX},${cellZ}`,
+      type,
+      name: def.name,
+      icon: def.icon,
+      cellX,
+      cellZ,
+      x,
+      y: Math.max(t.h, WATER_Y + 1),
+      z,
+      biome: this.world.biomeAt(x, z),
+    };
+  }
+
   /** Estructuras cuyo footprint intersecta el rectángulo dado */
   inRect(xMin, zMin, xMax, zMax) {
     const out = [];
     for (const type in STRUCTURE_TYPES) {
       const def = STRUCTURE_TYPES[type];
       const r = def.radius;
-      const c0x = Math.floor((xMin - r) / def.cell);
-      const c1x = Math.floor((xMax + r) / def.cell);
-      const c0z = Math.floor((zMin - r) / def.cell);
-      const c1z = Math.floor((zMax + r) / def.cell);
+      // Gate/atalaya/puesto se indexan en la celda del gimnasio, pero su
+      // (x,z) real puede caer en la celda vecina (+52 / +100 / +155).
+      const pad = REGIONAL_TYPES.has(type) ? 1 : 0;
+      const c0x = Math.floor((xMin - r) / def.cell) - pad;
+      const c1x = Math.floor((xMax + r) / def.cell) + pad;
+      const c0z = Math.floor((zMin - r) / def.cell) - pad;
+      const c1z = Math.floor((zMax + r) / def.cell) + pad;
       for (let cz = c0z; cz <= c1z; cz++) {
         for (let cx = c0x; cx <= c1x; cx++) {
           const s = this.candidate(type, cx, cz);
