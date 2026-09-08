@@ -2,7 +2,7 @@
  * Intercambios simples con NPC (Fase 3). Trueque de recursos (Bruno).
  * La tienda monetaria vive en economy.js y coexiste con este módulo.
  * Toda mutación de inventario por trueque pasa por executeTrade / items.js.
- *
+ */
 
 import { events } from "./events.js";
 import { executeTransaction } from "./items.js";
