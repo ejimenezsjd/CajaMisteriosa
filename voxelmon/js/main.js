@@ -8,15 +8,16 @@ import { World, B, BLOCK_DROPS, BIOME_NAMES } from "./world.js";
 import { getBiomeName, getBiomeDefinition } from "./biomes.js";
 import { RESOURCES, resourceForBlock } from "./resources.js";
 import { STRUCTURE_TYPES, MIST_SETTLEMENT_LAYOUT, CRIMSON_RUIN_LAYOUT } from "./structures.js";
-import { buildCreatureModel } from "./models.js";
+import { buildCreatureVisual, disposeCreatureVisual, preloadCreatureArt, creatureArtDebugSnapshot, textureCacheSize, inspectTextureCache, animateCreatureVisual, simulatePngLoadFailure } from "./creature-renderer.js";
+import { setPreferredRenderer, getPreferredRenderer, listPixelSpecies, getCreatureArt } from "./creature-art.js";
 import { bosses, BOSSES } from "./bosses.js";
 import { Player } from "./player.js";
-import { Spawner } from "./creatures.js";
+import { Spawner, WildCreature } from "./creatures.js";
 import { Battle, TrainerOpponent } from "./battle.js";
 import { TRAINERS, trainers } from "./trainers.js";
 import { GYMS, GYM_LAYOUT, MIST_GYM_LAYOUT, FORGE_GYM_LAYOUT, SWITCH_LABELS, BEACON_LABELS, CONDUIT_LABELS, gyms, gymIdForStructure } from "./gyms.js";
 import { UI } from "./ui.js";
-import { FAMILY_STARTERS, PERKS, activePerks, familyOf, createMonster } from "./data.js";
+import { FAMILY_STARTERS, PERKS, SPECIES, activePerks, familyOf, createMonster, gainXp } from "./data.js";
 import { sfx, toggleMute } from "./audio.js";
 import { events } from "./events.js";
 import { SAVE_KEY, defaultState, loadSave, persistSave } from "./state.js";
@@ -72,6 +73,7 @@ window.addEventListener("resize", () => {
 // ---------- Estado ----------
 
 const ui = new UI();
+preloadCreatureArt();
 let world = null;
 let player = null;
 let spawner = null;
@@ -1046,16 +1048,40 @@ function findForgeGym(x, z) {
 }
 
 let bossVisual = null;
+
+function rebuildCreatureVisuals() {
+  if (!spawner) return 0;
+  let n = 0;
+  for (const c of spawner.creatures) {
+    if (c.dead || c.inBattle) continue;
+    const label = c.label;
+    if (label && c.group) c.group.remove(label);
+    scene.remove(c.group);
+    disposeCreatureVisual(c.group);
+    c.group = buildCreatureVisual(c.monster.speciesId);
+    c.group.userData.entity = c;
+    if (label) {
+      label.position.y = (c.group.userData.height ?? 1.5) + 0.5;
+      c.group.add(label);
+    }
+    scene.add(c.group);
+    c.syncTransform();
+    n++;
+  }
+  if (bossVisual) {
+    const pos = bossVisual.position.clone();
+    scene.remove(bossVisual);
+    disposeCreatureVisual(bossVisual);
+    bossVisual = buildCreatureVisual("titanor");
+    bossVisual.position.copy(pos);
+    scene.add(bossVisual);
+  }
+  return n;
+}
 function disposeBossVisual() {
   if (!bossVisual) return;
   scene.remove(bossVisual);
-  bossVisual.traverse((o) => {
-    if (o.geometry) o.geometry.dispose();
-    if (o.material) {
-      if (o.material.map) o.material.map.dispose();
-      o.material.dispose();
-    }
-  });
+  disposeCreatureVisual(bossVisual);
   bossVisual = null;
 }
 
@@ -1070,7 +1096,7 @@ function syncBossVisual(s) {
   const y = (s.y ?? world.surfaceY(s.x + dx, s.z + dz)) + 1;
   const z = s.z + dz + 0.5;
   if (!bossVisual) {
-    bossVisual = buildCreatureModel("titanor");
+    bossVisual = buildCreatureVisual("titanor");
     scene.add(bossVisual);
   }
   bossVisual.position.set(x, y, z);
@@ -1824,6 +1850,7 @@ function loop(now) {
   world.update(player.pos.x, player.pos.z, 2);
   spawner.update(dt, player, dayFactor, elapsed);
   npcs.update(dt, player.pos, elapsed);
+  if (bossVisual) animateCreatureVisual(bossVisual, elapsed, "idle", 0);
 
   // Partículas de minado
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -1945,6 +1972,8 @@ window.__vm = {
   get mode() { return mode; },
   creatureInSight,
   startBattle,
+  createMonster,
+  gainXp,
   setDayTime(v) { dayTime = ((v % 1) + 1) % 1; },
   events,
   progression,
@@ -2013,6 +2042,105 @@ window.__vm = {
     // ---- Fase 3 ----
     /** NPC actualmente activos (cercanos) */
     npcs() { return npcs.list(); },
+    creatureArt() {
+      const list = (spawner?.creatures ?? []).slice(0, 12).map((c) => ({
+        ...creatureArtDebugSnapshot(c.group),
+        dist: player ? Math.hypot(c.pos.x - player.pos.x, c.pos.z - player.pos.z) : null,
+      }));
+      return {
+        preferred: getPreferredRenderer(),
+        pixelSpecies: listPixelSpecies(),
+        cacheSize: textureCacheSize(),
+        cache: inspectTextureCache(),
+        nearby: list,
+        sample: list[0] ?? creatureArtDebugSnapshot(bossVisual),
+        boss: bossVisual ? creatureArtDebugSnapshot(bossVisual) : null,
+      };
+    },
+    setCreatureRenderer(mode) {
+      const r = setPreferredRenderer(mode);
+      const rebuilt = rebuildCreatureVisuals();
+      return { preferred: r, rebuilt };
+    },
+    spawnSpecies(id, level = 8, at = null) {
+      if (!spawner || !player || !world) return null;
+      if (!SPECIES[id]) return { error: "unknown species", speciesId: id };
+      const look = player.lookDir();
+      const px = at?.x ?? (player.pos.x + look.x * 6);
+      const pz = at?.z ?? (player.pos.z + look.z * 6);
+      const c = new WildCreature(scene, id, level, px, pz, world);
+      spawner.creatures.push(c);
+      return {
+        speciesId: id,
+        renderer: c.group.userData.renderer,
+        x: px, z: pz,
+        height: c.group.userData.height,
+        ...creatureArtDebugSnapshot(c.group),
+      };
+    },
+    despawnAllWild() {
+      if (!spawner) return 0;
+      let n = 0;
+      for (const c of [...spawner.creatures]) {
+        c.remove();
+        n++;
+      }
+      spawner.creatures.length = 0;
+      return n;
+    },
+    previewVisual(id) {
+      const g = buildCreatureVisual(id);
+      const snap = creatureArtDebugSnapshot(g);
+      disposeCreatureVisual(g);
+      return snap;
+    },
+    artCatalog() {
+      return listPixelSpecies().map((id) => {
+        const art = getCreatureArt(id);
+        const sp = SPECIES[id];
+        return {
+          speciesId: id,
+          name: sp?.name ?? id,
+          stage: sp?.stage ?? null,
+          type: sp?.type ?? null,
+          renderer: art.renderer,
+          scale: art.scale,
+          frameSize: art.frameSize,
+          concept: art.concept,
+        };
+      });
+    },
+    simulatePngFail(id) {
+      const fallback = simulatePngLoadFailure(id);
+      return { speciesId: id, fallback, cache: inspectTextureCache() };
+    },
+    rendererInfo() {
+      const info = renderer.info;
+      return {
+        calls: info.render.calls,
+        triangles: info.render.triangles,
+        geometries: info.memory.geometries,
+        textures: info.memory.textures,
+      };
+    },
+    measureCreatureSpawn(n, speciesId = "emberin") {
+      if (!spawner || !player) return null;
+      const t0 = performance.now();
+      const spawned = [];
+      for (let i = 0; i < n; i++) {
+        spawned.push(this.spawnSpecies(speciesId, 6));
+      }
+      const ms = performance.now() - t0;
+      return {
+        n,
+        speciesId,
+        ms,
+        per: ms / n,
+        cacheSize: textureCacheSize(),
+        renderer: spawned[0]?.renderer ?? null,
+        cache: inspectTextureCache(),
+      };
+    },
     /** Asentamientos cercanos (centro a menos de r bloques) */
     settlements(r = 400) {
       return world && player
