@@ -1995,6 +1995,7 @@ window.__vm = {
     },
     unlockRegion3() {
       this.unlockGym2Clue();
+      this.openGate();
       progression.addBadge("mist_badge");
       progression.unlock("second_gym_completed");
       progression.unlock("region_3_path_unlocked");
