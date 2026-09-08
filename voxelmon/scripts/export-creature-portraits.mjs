@@ -7,14 +7,15 @@
 import fs from "fs";
 import path from "path";
 import { createRequire } from "module";
+import { fileURLToPath } from "url";
 
 const require = createRequire(import.meta.url);
 let puppeteer;
 try { puppeteer = require("puppeteer"); }
 catch { puppeteer = require("/tmp/vmtest/node_modules/puppeteer"); }
 
-const URL = process.env.VM_URL || "http://localhost:8080/voxelmon/";
-const OUT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../assets/creature-portraits");
+const GAME_URL = process.env.VM_URL || "http://localhost:8080/voxelmon/";
+const OUT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../assets/creature-portraits");
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
@@ -24,7 +25,7 @@ const OUT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../as
   });
   const page = await browser.newPage();
   page.on("dialog", (d) => d.accept());
-  await page.goto(URL, { waitUntil: "networkidle2" });
+  await page.goto(GAME_URL, { waitUntil: "networkidle2" });
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "networkidle2" });
   await page.click("#btn-new");

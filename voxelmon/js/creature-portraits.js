@@ -45,7 +45,8 @@ function poseCamera(cam, art, height) {
   const oy = art.portraitOffsetY ?? 0;
   const dist = Math.max(1.4, (height || 1) * 2.15) / ps;
   const lookY = height * 0.48 + oy;
-  cam.position.set(Math.sin(yaw) * dist + ox, lookY - Math.sin(pitch) * dist * 0.35, Math.cos(yaw) * dist);
+  // Los modelos miran a -Z; la cámara se coloca delante (Z negativo).
+  cam.position.set(Math.sin(yaw) * dist + ox, lookY - Math.sin(pitch) * dist * 0.35, -Math.cos(yaw) * dist);
   cam.lookAt(ox, lookY, 0);
   cam.updateProjectionMatrix();
 }
