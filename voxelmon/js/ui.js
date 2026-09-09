@@ -354,6 +354,7 @@ export class UI {
   }
 
   toast(msg, cls = "") {
+    if (!this.el.toasts) return;
     const div = document.createElement("div");
     div.className = `toast ${cls}`;
     div.textContent = msg;
