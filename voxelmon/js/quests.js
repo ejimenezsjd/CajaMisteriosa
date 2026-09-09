@@ -600,6 +600,66 @@ export const QUESTS = {
       { type: "setFlag", flagId: "lighthouse_activated", amount: 1, label: "Activa el faro" },
     ],
     rewards: { money: 140, unlock: "gym_5_clue_unlocked" },
+    next: "quest_lighthouse_echo",
+  },
+
+  // ---------- Fase 14: señal, guardián costero y Gimnasio de las Mareas ----------
+
+  quest_lighthouse_echo: {
+    id: "quest_lighthouse_echo",
+    title: "El eco del faro",
+    description: "La pista está en la lente. Enfoca el haz hacia el este.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "setFlag", flagId: "lighthouse_signal", amount: 1, label: "Enfoca la lente del faro" },
+    ],
+    rewards: { money: 80 },
+    next: "quest_reef_guardian",
+  },
+  quest_reef_guardian: {
+    id: "quest_reef_guardian",
+    title: "Guardián del Arrecife",
+    description: "El haz señala un atolón. Derrota al guardián que lo custodia.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "defeatBoss", bossId: "reef_guardian", amount: 1, label: "Derrota al Guardián del Arrecife" },
+    ],
+    rewards: { money: 120, unlock: "gym_5_path_unlocked" },
+    next: "quest_tide_gym",
+  },
+  quest_tide_gym: {
+    id: "quest_tide_gym",
+    title: "Gimnasio entre mareas",
+    description: "La corriente y el puente abren el camino al Gimnasio de las Mareas.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "discoverStructure", structureType: "gym_tide", amount: 1, label: "Descubre el Gimnasio de las Mareas" },
+    ],
+    rewards: { money: 70 },
+    next: "quest_master_tides",
+  },
+  quest_master_tides: {
+    id: "quest_master_tides",
+    title: "Dominar las corrientes",
+    description: "Derrota a Luma y a Daro, y alinea los tres niveles de marea.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "defeatTrainer", trainerId: "gym_trainer_tide_1", amount: 1, label: "Derrota a Luma" },
+      { type: "defeatTrainer", trainerId: "gym_trainer_tide_2", amount: 1, label: "Derrota a Daro" },
+      { type: "solveGymPuzzle", gymId: "gym_tide", amount: 1, label: "Alinea los niveles de marea" },
+    ],
+    rewards: { money: 140 },
+    next: "quest_tide_badge",
+  },
+  quest_tide_badge: {
+    id: "quest_tide_badge",
+    title: "Insignia Marea",
+    description: "Talassa espera en la terraza. Gana la Insignia Marea.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "earnBadge", badgeId: "tide_badge", amount: 1, label: "Consigue la Insignia Marea" },
+    ],
+    rewards: { money: 120, unlock: "fifth_gym_completed" },
   },
 };
 
@@ -616,6 +676,7 @@ export const QUEST_ORDER = [
   "quest_crimson_pass", "quest_wind_highlands", "quest_against_wind", "quest_cliff_outpost", "quest_storm_eyes",
   "quest_storm_seal", "quest_storm_eye", "quest_gale_gym", "quest_master_wind", "quest_gale_badge",
   "quest_beyond_heights", "quest_azure_port", "quest_tide_paths", "quest_ruin_echoes", "quest_horizon_light",
+  "quest_lighthouse_echo", "quest_reef_guardian", "quest_tide_gym", "quest_master_tides", "quest_tide_badge",
 ];
 
 /** eventName → [tipo de objetivo, función de filtro, cantidad del payload] */
@@ -762,6 +823,17 @@ class QuestSystem {
         if (this.isCompleted("quest_beyond_heights") || this.isActive("quest_beyond_heights")) return;
         this.makeAvailable("quest_beyond_heights");
         this.start("quest_beyond_heights");
+      }
+      if (id === "gym_5_clue_unlocked") {
+        if (this.isCompleted("quest_lighthouse_echo") || this.isActive("quest_lighthouse_echo")) return;
+        this.makeAvailable("quest_lighthouse_echo");
+        this.start("quest_lighthouse_echo");
+      }
+      if (id === "gym_5_path_unlocked") {
+        if (this.isCompleted("quest_tide_gym") || this.isActive("quest_tide_gym")) return;
+        if (this.isActive("quest_reef_guardian") || this.isCompleted("quest_reef_guardian")) return;
+        this.makeAvailable("quest_tide_gym");
+        this.start("quest_tide_gym");
       }
     });
   }

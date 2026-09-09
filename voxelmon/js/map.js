@@ -53,6 +53,10 @@ export const MAP_MARKERS = {
   azure_port: { icon: "🏘", color: "#7ee8d8", label: "Puerto Azur", z: 3 },
   tidal_ruins: { icon: "🏛", color: "#5aa0a8", label: "Ruinas de Marea", z: 2 },
   azure_lighthouse: { icon: "🗼", color: "#ffe58a", label: "Faro Azur", z: 3 },
+  gym_tide: { icon: "🌊", color: "#3ec8b4", label: "Gimnasio de las Mareas", z: 3 },
+  reef_atoll: { icon: "🐚", color: "#e8c878", label: "Atolón del Arrecife", z: 2 },
+  tidal_bridge: { icon: "🌉", color: "#7ee8d8", label: "Puente de Marea", z: 2 },
+  open_sea_gate: { icon: "↕", color: "#90d8f8", label: "Arco del mar abierto", z: 2 },
 };
 
 const REVEAL_RADIUS = {
@@ -347,6 +351,7 @@ class MapSystem {
           : gid === "gym_mist" ? "mist_badge"
           : gid === "gym_crimson" ? "crimson_badge"
           : gid === "gym_gale" ? "gale_badge"
+          : gid === "gym_tide" ? "tide_badge"
           : null;
         const done = gyms.isCompleted?.(gid) || (badge && progression.hasBadge(badge));
         ctx.strokeStyle = done ? "#6ee86e" : "#f0d878";

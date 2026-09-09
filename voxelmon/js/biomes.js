@@ -261,7 +261,7 @@ export const BIOMES = {
       { id: "iron", chance: 0.02 },
       { id: "coal", chance: 0.03 },
     ],
-    structures: ["azure_port", "tidal_ruins", "azure_lighthouse", "healing_shrine"],
+    structures: ["azure_port", "tidal_ruins", "azure_lighthouse", "gym_tide", "reef_atoll", "healing_shrine"],
     ambience: { coast: true },
   },
 

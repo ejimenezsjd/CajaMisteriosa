@@ -11,6 +11,7 @@
  * Gym 2 (gym_mist): faros de bruma en cualquier orden, sin reset.
  * Gym 3 (gym_crimson): distribución de energía (reservorio 3).
  * Gym 4 (gym_gale): canales de viento que activan lifts internos.
+ * Gym 5 (gym_tide): niveles de marea / corrientes (bajamar–media–pleamar).
  *
  * Anti-farm de insignia: resolveLeaderVictory() llama a trainers.resolveVictory
  * (dinero + trainerDefeated una sola vez) y solo entonces concede badge/unlocks
@@ -95,6 +96,36 @@ export const GALE_GYM_LAYOUT = {
   leaderRoom: [0, 13, 16],
 };
 
+/** Gimnasio de las Mareas: entrada al norte (desde el puente / el atolón). */
+export const TIDE_GYM_LAYOUT = {
+  door: [0, -13, 0],
+  exit: [0, -14, 0],
+  reception: [0, -9, 0],
+  guide: [4, -9, 0],
+  controls: {
+    a: [-6, -4, 0],
+    b: [0, -2, 0],
+    c: [6, -4, 0],
+  },
+  basins: {
+    a: [-6, 1, 0],
+    b: [0, 2, 0],
+    c: [6, 1, 0],
+  },
+  recovery: [0, 8, 0],
+  leaderDoor: [0, 10, 2],
+  leaderRoom: [0, 13, 2],
+};
+
+export const TIDE_LEVEL_NAMES = ["bajamar", "media", "pleamar"];
+export const TIDE_BASIN_LABELS = {
+  a: "Cuenca oeste",
+  b: "Cuenca central",
+  c: "Cuenca este",
+};
+/** Solución espacial: oeste en pleamar, centro en bajamar, este en media. */
+export const TIDE_SOLUTION = { a: 2, b: 0, c: 1 };
+
 export const CHANNEL_LABELS = {
   north: "Canal norte",
   east: "Canal este",
@@ -121,6 +152,7 @@ export const GYM_BY_STRUCTURE = {
   gym_mist: "gym_mist",
   gym_crimson: "gym_crimson",
   gym_gale: "gym_gale",
+  gym_tide: "gym_tide",
 };
 
 export function gymIdForStructure(s) {
@@ -207,6 +239,24 @@ export const GYMS = {
       unlocks: ["fourth_gym_completed", "region_5_path_unlocked"],
     },
   },
+
+  gym_tide: {
+    id: "gym_tide",
+    name: "Gimnasio de las Mareas",
+    badgeId: "tide_badge",
+    badgeName: "Insignia Marea",
+    region: "region_5",
+    structureType: "gym_tide",
+    requirements: { progression: ["gym_5_path_unlocked"] },
+    trainers: ["gym_trainer_tide_1", "gym_trainer_tide_2"],
+    leader: "leader_talassa",
+    puzzle: { type: "tidal_levels", basins: ["a", "b", "c"] },
+    layout: TIDE_GYM_LAYOUT,
+    guideRole: "tide_gym_guide",
+    rewards: {
+      unlocks: ["fifth_gym_completed", "region_6_path_unlocked"],
+    },
+  },
 };
 
 export function defaultGymState(id = "gym_verdant") {
@@ -214,6 +264,7 @@ export function defaultGymState(id = "gym_verdant") {
   if (id === "gym_mist") st.beacons = { north: false, east: false, west: false };
   if (id === "gym_crimson") st.energy = { west: 0, east: 0, core: 0, pool: ENERGY_POOL };
   if (id === "gym_gale") st.channels = { north: false, east: false, west: false };
+  if (id === "gym_tide") st.tides = { a: 0, b: 0, c: 0 };
   return st;
 }
 
@@ -260,6 +311,7 @@ class GymSystem {
     if (this.g && !this.g.gym_mist) this.g.gym_mist = defaultGymState("gym_mist");
     if (this.g && !this.g.gym_crimson) this.g.gym_crimson = defaultGymState("gym_crimson");
     if (this.g && !this.g.gym_gale) this.g.gym_gale = defaultGymState("gym_gale");
+    if (this.g && !this.g.gym_tide) this.g.gym_tide = defaultGymState("gym_tide");
   }
 
   setProgression(p) {
@@ -278,6 +330,9 @@ class GymSystem {
     if (id === "gym_gale" && !this.g[id].channels) {
       this.g[id].channels = { north: false, east: false, west: false };
     }
+    if (id === "gym_tide" && !this.g[id].tides) {
+      this.g[id].tides = { a: 0, b: 0, c: 0 };
+    }
     return this.g[id];
   }
 
@@ -289,6 +344,10 @@ class GymSystem {
     const energy = st.energy ? { ...st.energy } : null;
     const channels = st.channels ? { ...st.channels } : null;
     const channelCount = channels ? Object.values(channels).filter(Boolean).length : 0;
+    const tides = st.tides ? { ...st.tides } : null;
+    const tideMatch = tides
+      ? Object.keys(TIDE_SOLUTION).filter((k) => (tides[k] ?? 0) === TIDE_SOLUTION[k]).length
+      : 0;
     return {
       id,
       name: gym.name,
@@ -299,6 +358,8 @@ class GymSystem {
       energy,
       channels,
       channelCount,
+      tides,
+      tideMatch,
       completed: !!st.completed,
       entered: !!st.entered,
       trainersRequired: gym.trainers,
@@ -400,6 +461,7 @@ class GymSystem {
     if (st.beacons) st.beacons = { north: false, east: false, west: false };
     if (st.energy) st.energy = { west: 0, east: 0, core: 0, pool: ENERGY_POOL };
     if (st.channels) st.channels = { north: false, east: false, west: false };
+    if (st.tides) st.tides = { a: 0, b: 0, c: 0 };
   }
 
   /**
@@ -486,6 +548,42 @@ class GymSystem {
   channelOpen(id, channelId) {
     const st = this.ensure(id);
     return !!st.channels?.[channelId];
+  }
+
+  basinLevel(id, basinId) {
+    const st = this.ensure(id);
+    return st.tides?.[basinId] ?? 0;
+  }
+
+  /**
+   * Niveles de marea: cada controlador cicla bajamar → media → pleamar.
+   * Puzzle espacial (sin timing). Se resuelve con A=pleamar, B=bajamar, C=media.
+   * Idempotente una vez resuelto.
+   */
+  cycleBasin(id, basinId) {
+    const gym = GYMS[id];
+    const st = this.ensure(id);
+    const keys = gym.puzzle.basins ?? ["a", "b", "c"];
+    if (!st.tides) st.tides = { a: 0, b: 0, c: 0 };
+    if (!(basinId in st.tides)) return { ok: false, error: "Cuenca desconocida." };
+    const required = keys.length;
+    if (st.puzzleSolved) {
+      return {
+        ok: true, already: true, current: required, required,
+        level: st.tides[basinId], tides: { ...st.tides },
+      };
+    }
+    st.tides[basinId] = ((st.tides[basinId] ?? 0) + 1) % 3;
+    const current = keys.filter((k) => st.tides[k] === TIDE_SOLUTION[k]).length;
+    events.emit("gymPuzzleProgress", {
+      gymId: id, current, required, reset: false, basinId, level: st.tides[basinId], tides: { ...st.tides },
+    });
+    if (current === required) {
+      st.puzzleSolved = true;
+      events.emit("gymPuzzleSolved", { gymId: id });
+      return { ok: true, solved: true, current, required, tides: { ...st.tides }, level: st.tides[basinId] };
+    }
+    return { ok: true, current, required, tides: { ...st.tides }, level: st.tides[basinId] };
   }
 
   /**

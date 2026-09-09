@@ -68,6 +68,24 @@ export const ROUTES = {
       { dx: 146, dz: 926 },
     ],
   },
+  azure_route_4: {
+    id: "azure_route_4",
+    name: "Ruta del Arrecife",
+    regionId: "region_5",
+    from: "azure_lighthouse",
+    to: "gym_tide",
+    difficulty: 5,
+    width: 3,
+    block: "coral_rock",
+    landmarks: ["reef_atoll", "tidal_bridge", "gym_tide"],
+    controls: [
+      { dx: 150, dz: 928 },
+      { dx: 172, dz: 932 },
+      { dx: 196, dz: 936 },
+      { dx: 214, dz: 948 },
+      { dx: 234, dz: 962 },
+    ],
+  },
 };
 
 export const ROUTE_SIGNS = [
@@ -113,6 +131,13 @@ export const ROUTE_SIGNS = [
     offset: [-8, 4],
     text: "Ruinas de Marea ←\nFaro Azur",
   },
+  {
+    id: "sign_lighthouse_east",
+    routeId: "azure_route_4",
+    localFrom: "azure_lighthouse",
+    offset: [6, 2],
+    text: "Atolón del Arrecife →\nGimnasio de las Mareas",
+  },
 ];
 
 const PATH_BLOCKS = {
@@ -120,6 +145,7 @@ const PATH_BLOCKS = {
   wood: B.WOOD,
   stone: B.STONE,
   sand: B.SAND,
+  coral_rock: B.CORAL_ROCK,
 };
 
 export function pathBlockId(name) {
@@ -267,7 +293,7 @@ export function stampAzureCurrents(world, x0, z0, size, stamp) {
   const gym = regions.homeGym();
   if (!gym) return;
   const g = REGION_GEOMETRY;
-  const pts = [g.currentA, g.currentB, g.currentC];
+  const pts = [g.currentA, g.currentB, g.currentC, g.currentSignal, g.currentApproach];
   const x1 = x0 + size - 1;
   const z1 = z0 + size - 1;
   for (const p of pts) {

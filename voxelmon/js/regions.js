@@ -81,10 +81,10 @@ export const REGION_GEOMETRY = {
   galePathA: { dx: 66, dz: 653 },
   galePathB: { dx: 85, dz: 658 },
   // Región 5: al sur de highland_exit (dz 684). R4 acaba en 693.
-  // Centro X = arco (dx 97). Pad de estructuras 4 cubre dz 980.
-  r5HalfW: 140,
+  // Centro X = arco (dx 97). Pad de estructuras 4 cubre dz 1040.
+  r5HalfW: 180,
   r5z0: 694,
-  r5z1: 980,
+  r5z1: 1040,
   coastalGate: { dx: 97, dz: 718 },
   azurePort: { dx: 90, dz: 778 },
   azureBridge: { dx: 48, dz: 828 },
@@ -94,10 +94,17 @@ export const REGION_GEOMETRY = {
   fishermanCamp: { dx: 48, dz: 748 },
   weatheredShrine: { dx: 158, dz: 848 },
   brokenSpan: { dx: 78, dz: 888 },
+  // Fase 14: este del faro (dx 148, dz 928). Cabe en r5HalfW 180 / r5z1 1040.
+  reefAtoll: { dx: 196, dz: 936 },
+  tidalBridge: { dx: 214, dz: 948 },
+  gymTide: { dx: 236, dz: 966 },
+  openSeaGate: { dx: 258, dz: 996 },
   // Corrientes horizontales (offsets desde gym1).
   currentA: { dx: 70, dz: 812 },
   currentB: { dx: 28, dz: 852 },
   currentC: { dx: 110, dz: 900 },
+  currentSignal: { dx: 172, dz: 932 },
+  currentApproach: { dx: 216, dz: 952 },
 };
 
 export const REGIONS = {

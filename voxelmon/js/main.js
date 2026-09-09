@@ -7,17 +7,17 @@ import * as THREE from "three";
 import { World, B, BLOCK_DROPS, BIOME_NAMES, WATER_Y } from "./world.js";
 import { getBiomeName, getBiomeDefinition } from "./biomes.js";
 import { RESOURCES, resourceForBlock } from "./resources.js";
-import { STRUCTURE_TYPES, MIST_SETTLEMENT_LAYOUT, CRIMSON_RUIN_LAYOUT, STORM_OBSERVATORY_LAYOUT, TEMPEST_SPIRE_LAYOUT, HIGHLAND_EXIT_LAYOUT, SETTLEMENT_LAYOUT, CLIFF_OUTPOST_LAYOUT, AZURE_PORT_LAYOUT, AZURE_LIGHTHOUSE_LAYOUT } from "./structures.js";
+import { STRUCTURE_TYPES, MIST_SETTLEMENT_LAYOUT, CRIMSON_RUIN_LAYOUT, STORM_OBSERVATORY_LAYOUT, TEMPEST_SPIRE_LAYOUT, HIGHLAND_EXIT_LAYOUT, SETTLEMENT_LAYOUT, CLIFF_OUTPOST_LAYOUT, AZURE_PORT_LAYOUT, AZURE_LIGHTHOUSE_LAYOUT, REEF_ATOLL_LAYOUT, OPEN_SEA_GATE_LAYOUT } from "./structures.js";
 import { buildCreatureVisual, disposeCreatureVisual, preloadCreatureArt, creatureArtDebugSnapshot, textureCacheSize, inspectTextureCache, animateCreatureVisual, simulatePngLoadFailure, inspectGeometryCache, inspectMaterialCache, resolveCreatureRenderer, creatureArtIcon } from "./creature-renderer.js";
 import { setPreferredRenderer, getPreferredRenderer, listPixelSpecies, getCreatureArt, listArtSpecies } from "./creature-art.js";
-import { bosses, BOSSES, STORM_SEAL_ID } from "./bosses.js";
+import { bosses, BOSSES, STORM_SEAL_ID, REEF_SEAL_ID } from "./bosses.js";
 import { Player } from "./player.js";
 import { Spawner, WildCreature } from "./creatures.js";
 import { Battle, TrainerOpponent } from "./battle.js";
 import { TRAINERS, trainers } from "./trainers.js";
-import { GYMS, GYM_LAYOUT, MIST_GYM_LAYOUT, FORGE_GYM_LAYOUT, GALE_GYM_LAYOUT, SWITCH_LABELS, BEACON_LABELS, CONDUIT_LABELS, CHANNEL_LABELS, gyms, gymIdForStructure } from "./gyms.js";
+import { GYMS, GYM_LAYOUT, MIST_GYM_LAYOUT, FORGE_GYM_LAYOUT, GALE_GYM_LAYOUT, TIDE_GYM_LAYOUT, SWITCH_LABELS, BEACON_LABELS, CONDUIT_LABELS, CHANNEL_LABELS, TIDE_BASIN_LABELS, TIDE_LEVEL_NAMES, gyms, gymIdForStructure } from "./gyms.js";
 import { UI } from "./ui.js";
-import { FAMILY_STARTERS, PERKS, SPECIES, TYPES, activePerks, familyOf, createMonster, gainXp } from "./data.js?v=14";
+import { FAMILY_STARTERS, PERKS, SPECIES, TYPES, activePerks, familyOf, createMonster, gainXp } from "./data.js?v=15";
 import { sfx, toggleMute } from "./audio.js";
 import { events } from "./events.js";
 import {
@@ -171,6 +171,11 @@ events.on("badgeEarned", ({ id }) => {
     ui.toast("🏅 Has conseguido la Insignia Bruma", "legendary");
     const s = findMistGym(player?.pos.x ?? 0, player?.pos.z ?? 0);
     if (s) applyMistExitOpening(s);
+  } else if (id === "gale_badge") ui.toast("🏅 Has conseguido la Insignia Vendaval", "legendary");
+  else if (id === "tide_badge") {
+    ui.toast("🏅 Has conseguido la Insignia Marea", "legendary");
+    const gate = findAzure("open_sea_gate", player?.pos.x ?? 0, player?.pos.z ?? 0);
+    if (gate) applyOpenSeaGateOpening(gate);
   } else ui.toast(`🏅 ¡Insignia conseguida: ${id}!`, "legendary");
 });
 events.on("structureDiscovered", ({ structureType }) => {
@@ -194,6 +199,13 @@ events.on("tradeCompleted", () => {
 events.on("trainerDefeated", ({ trainerId, rewardMoney }) => {
   const def = TRAINERS[trainerId];
   ui.toast(`🎖 ¡Has derrotado a ${def?.name ?? trainerId}! +${rewardMoney} ⌾`, "good");
+});
+events.on("flagSet", ({ id }) => {
+  if (id === "lighthouse_signal") {
+    ui.toast("🗼 El haz señala un atolón al este. Una corriente despierta.", "legendary");
+    const lh = findAzure("azure_lighthouse", player?.pos.x ?? 0, player?.pos.z ?? 0);
+    if (lh) applyLighthouseBeam(lh);
+  }
 });
 events.on("progressUnlocked", ({ id }) => {
   if (id === "gym_path_unlocked") {
@@ -256,6 +268,18 @@ events.on("progressUnlocked", ({ id }) => {
     const lh = findAzure("azure_lighthouse", player?.pos.x ?? 0, player?.pos.z ?? 0);
     if (lh) applyLighthouseBeam(lh);
   }
+  if (id === "gym_5_path_unlocked") {
+    ui.toast("🌊 El guardián cede. Un puente de marea abre el gimnasio.", "legendary");
+    const br = findAzure("tidal_bridge", player?.pos.x ?? 0, player?.pos.z ?? 0);
+    if (br) applyTidalBridgeOpening(br);
+    const g5 = findAzure("gym_tide", player?.pos.x ?? 0, player?.pos.z ?? 0);
+    if (g5) applyTideGymOpening(g5);
+  }
+  if (id === "region_6_path_unlocked") {
+    ui.toast("↕ El Arco del mar abierto responde. El horizonte continúa.", "legendary");
+    const gate = findAzure("open_sea_gate", player?.pos.x ?? 0, player?.pos.z ?? 0);
+    if (gate) applyOpenSeaGateOpening(gate);
+  }
   if (id === AERIAL_UNLOCK) {
     ui.toast("🪶 Asistencia aérea de construcción desbloqueada. Pulsa B y luego Espacio.", "good");
   }
@@ -265,6 +289,7 @@ events.on("gymPuzzleProgress", ({ gymId, current, required, reset, recovered }) 
   else if (gymId === "gym_crimson") {
     ui.toast(recovered ? "🔥 Energía recuperada al reservorio." : `🔥 Energía del núcleo: ${current}/${required}`);
   } else if (gymId === "gym_gale") ui.toast(`🌬 Canales de viento: ${current}/${required}`);
+  else if (gymId === "gym_tide") ui.toast(`🌊 Niveles de marea: ${current}/${required}`);
   else if (reset) ui.toast("↺ Secuencia incorrecta. Los pedestales se reinician.", "bad");
   else ui.toast(`🌿 Pedestales activados: ${current}/${required}`);
   refreshGymTracker();
@@ -273,6 +298,7 @@ events.on("gymPuzzleSolved", ({ gymId }) => {
   if (gymId === "gym_mist") ui.toast("🌫 Los tres faros están encendidos.", "good");
   else if (gymId === "gym_crimson") ui.toast("🔥 El núcleo de forja está cargado.", "good");
   else if (gymId === "gym_gale") ui.toast("🌬 Los tres canales fluyen hacia la terraza.", "good");
+  else if (gymId === "gym_tide") ui.toast("🌊 Las tres cuencas forman una ruta hasta Talassa.", "good");
   else ui.toast("🌿 ¡Puzzle resuelto! La puerta del líder puede abrirse.", "good");
   maybeLeaderRoomToast(gymId ?? "gym_verdant");
   refreshGymTracker();
@@ -281,11 +307,13 @@ events.on("gymEntered", ({ gymId }) => {
   if (gymId === "gym_mist") ui.toast("🌫 Gimnasio de las Brumas", "good");
   else if (gymId === "gym_crimson") ui.toast("🔥 Gimnasio de la Forja", "good");
   else if (gymId === "gym_gale") ui.toast("🌬 Gimnasio del Vendaval", "good");
+  else if (gymId === "gym_tide") ui.toast("🌊 Gimnasio de las Mareas", "good");
   else ui.toast("🌿 Gimnasio Verde", "good");
 });
 events.on("bossDefeated", ({ bossId }) => {
   if (bossId === "crimson_guardian") ui.toast("⚠ El Guardián Carmesí se desmorona. El camino al sur se abre.", "legendary");
   if (bossId === "tempest_guardian") ui.toast("⚠ El Guardián del Vendaval se disipa. Las corrientes abren el gimnasio.", "legendary");
+  if (bossId === "reef_guardian") ui.toast("⚠ El Guardián del Arrecife se retira. El puente de marea responde.", "legendary");
 });
 events.on("trainerDefeated", ({ gymId }) => {
   if (gymId) maybeLeaderRoomToast(gymId);
@@ -902,6 +930,8 @@ function registerGymInteractables(s, wanted) {
       ? "La puerta está sellada. El guardián de la ruina debe caer primero."
       : gymId === "gym_gale"
         ? "La puerta está sellada. El guardián del pináculo debe caer primero."
+        : gymId === "gym_tide"
+          ? "La puerta está sellada. El guardián del arrecife debe caer primero."
         : "La puerta está cerrada. Necesitas demostrar tu experiencia como entrenador.";
   put(`gym:${s.id}:door`, layout.door, 3.2,
     open ? "Entrar al gimnasio" : closedPrompt,
@@ -1071,6 +1101,27 @@ function registerGymInteractables(s, wanted) {
         else if (r.first === false) ui.toast(`${label} ya fluía.`);
         applyGaleChannelVisuals(s);
         applyGaleLeaderOpening(s);
+        saveGame();
+      });
+    }
+  }
+
+  if (gym.puzzle?.type === "tidal_levels" && layout.controls) {
+    applyTideGymOpening(s);
+    applyTideLeaderOpening(s);
+    applyTideBasinVisuals(s);
+    const st = gyms.gymState(gymId);
+    for (const [bid, local] of Object.entries(layout.controls)) {
+      const lv = st.tides?.[bid] ?? 0;
+      const label = TIDE_BASIN_LABELS[bid] ?? bid;
+      const prompt = st.puzzleSolved
+        ? `${label} (${TIDE_LEVEL_NAMES[lv]}) — alineada`
+        : `${label} (${TIDE_LEVEL_NAMES[lv]}) — Cambiar nivel`;
+      put(`gym:${s.id}:tide:${bid}`, local, 2.6, prompt, () => {
+        const r = gyms.cycleBasin(gymId, bid);
+        if (r.already) ui.toast("Las mareas ya abren el camino a Talassa.");
+        applyTideBasinVisuals(s);
+        applyTideLeaderOpening(s);
         saveGame();
       });
     }
@@ -1399,6 +1450,87 @@ function applyHighlandExitOpening(s) {
   }
 }
 
+function applyTideGymOpening(s) {
+  if (!s || !world || !gyms.canEnter("gym_tide")) return;
+  for (let ox = -1; ox <= 1; ox++) {
+    for (let dy = 1; dy <= 4; dy++) {
+      world.setBlock(s.x + ox, s.y + dy, s.z - 13, B.AIR);
+    }
+  }
+}
+
+function applyTideLeaderOpening(s) {
+  if (!s || !world || !gyms.canEnterLeader("gym_tide")) return;
+  world.setBlock(s.x, s.y + 3, s.z + 10, B.AIR);
+  world.setBlock(s.x, s.y + 4, s.z + 10, B.AIR);
+}
+
+function applyTideBasinVisuals(s) {
+  if (!s || !world) return;
+  const layout = TIDE_GYM_LAYOUT;
+  const st = gyms.gymState("gym_tide");
+  const caps = [B.STONE, B.CRYSTAL, B.WIND_CRYSTAL];
+  for (const [bid, local] of Object.entries(layout.basins)) {
+    const lv = st.tides?.[bid] ?? 0;
+    const bx = s.x + local[0];
+    const bz = s.z + local[1];
+    for (let ox = -1; ox <= 1; ox++) {
+      for (let oz = -1; oz <= 1; oz++) {
+        world.setBlock(bx + ox, s.y, bz + oz, B.SAND);
+        world.setBlock(bx + ox, s.y + 1, bz + oz, B.WATER);
+        world.setBlock(bx + ox, s.y + 2, bz + oz, lv >= 1 ? B.WATER : B.AIR);
+        world.setBlock(bx + ox, s.y + 3, bz + oz, lv >= 2 ? B.WATER : B.AIR);
+      }
+    }
+    world.setBlock(bx, s.y + 4, bz, lv >= 2 ? B.TIDAL_PEARL : B.AIR);
+  }
+  for (const [bid, local] of Object.entries(layout.controls)) {
+    const lv = st.tides?.[bid] ?? 0;
+    world.setBlock(s.x + local[0], s.y + 1, s.z + local[1], caps[lv] ?? B.STONE);
+    world.setBlock(s.x + local[0], s.y + 2, s.z + local[1], st.puzzleSolved ? B.TIDAL_PEARL : B.STONE);
+  }
+}
+
+function applyTidalBridgeOpening(s) {
+  if (!s || !world || !progression.isUnlocked("gym_5_path_unlocked")) return;
+  for (let ox = -1; ox <= 1; ox++) {
+    for (let dy = 1; dy <= 5; dy++) {
+      world.setBlock(s.x + ox, s.y + dy, s.z, B.AIR);
+    }
+  }
+  world.setBlock(s.x, s.y + 1, s.z, B.WOOD);
+  world.setBlock(s.x, s.y + 5, s.z, B.WIND_CRYSTAL);
+}
+
+function applyOpenSeaGateOpening(s) {
+  if (!s || !world || !progression.isUnlocked("region_6_path_unlocked")) return;
+  for (let ox = -1; ox <= 1; ox++) {
+    for (let dy = 1; dy <= 6; dy++) {
+      world.setBlock(s.x + ox, s.y + dy, s.z, B.AIR);
+    }
+  }
+  world.setBlock(s.x - 3, s.y + 8, s.z, B.WIND_CRYSTAL);
+  world.setBlock(s.x + 3, s.y + 8, s.z, B.WIND_CRYSTAL);
+  world.setBlock(s.x, s.y + 2, s.z + 4, B.WIND_CRYSTAL);
+  world.setBlock(s.x, s.y + 1, s.z + 5, B.CORAL_ROCK);
+}
+
+function applyReefSeal(s) {
+  if (!s || !world) return;
+  const [dx, dz] = REEF_ATOLL_LAYOUT.seal;
+  const phase = bosses.sealPhase(REEF_SEAL_ID);
+  if (phase === "activated") {
+    world.setBlock(s.x + dx, s.y + 2, s.z + dz, B.WIND_CRYSTAL);
+    world.setBlock(s.x + dx, s.y + 7, s.z + dz, B.WIND_CRYSTAL);
+    world.setBlock(s.x + dx, s.y + 8, s.z + dz, B.TIDAL_PEARL);
+  } else if (phase === "resonating") {
+    world.setBlock(s.x + dx, s.y + 2, s.z + dz, B.CRYSTAL);
+    world.setBlock(s.x + dx, s.y + 7, s.z + dz, B.CRYSTAL);
+  } else {
+    world.setBlock(s.x + dx, s.y + 2, s.z + dz, B.CORAL_ROCK);
+  }
+}
+
 function refreshGaleLifts(px, pz) {
   const gym = regions.homeGym() || nearestGymAnchor(px, pz);
   if (!gym || !world) {
@@ -1466,6 +1598,71 @@ function refreshGaleLifts(px, pz) {
   addCurrent("azure:current_a", g.currentA.dx, g.currentA.dz, -2.8, 1.6);
   addCurrent("azure:current_b", g.currentB.dx, g.currentB.dz, -1.4, 3.2);
   addCurrent("azure:current_c", g.currentC.dx, g.currentC.dz, 3.0, 1.2);
+  if (progression.hasFlag("lighthouse_signal")) {
+    addCurrent("gym5:signal", g.currentSignal.dx, g.currentSignal.dz, 3.4, 0.6);
+  }
+  if (progression.isUnlocked("gym_5_path_unlocked")) {
+    addCurrent("gym5:approach", g.currentApproach.dx, g.currentApproach.dz, 2.8, 1.8);
+  }
+  const tideGym = findAzure("gym_tide", px, pz);
+  if (tideGym && Math.hypot(tideGym.x - px, tideGym.z - pz) < 40) {
+    const tides = gyms.gymState("gym_tide").tides ?? { a: 0, b: 0, c: 0 };
+    const L = TIDE_GYM_LAYOUT;
+    extras.push({
+      id: "gym5:recovery",
+      type: "water_current",
+      x: tideGym.x + L.recovery[0] + 0.5,
+      y: WATER_Y - 1,
+      z: tideGym.z + L.recovery[1] + 0.5,
+      radius: 3.2,
+      height: 6,
+      fx: 0,
+      fz: -3.2,
+      regionId: REGION_5,
+    });
+    if (tides.a === 2) {
+      extras.push({
+        id: "gym5:high",
+        type: "water_current",
+        x: tideGym.x + L.basins.a[0] + 0.5,
+        y: WATER_Y - 1,
+        z: tideGym.z + L.basins.a[1] + 0.5,
+        radius: 2.6,
+        height: 6,
+        fx: 0,
+        fz: 2.8,
+        regionId: REGION_5,
+      });
+    }
+    if (tides.c === 1) {
+      extras.push({
+        id: "gym5:mid",
+        type: "water_current",
+        x: tideGym.x + L.basins.c[0] + 0.5,
+        y: WATER_Y - 1,
+        z: tideGym.z + L.basins.c[1] + 0.5,
+        radius: 2.6,
+        height: 6,
+        fx: 0,
+        fz: 2.8,
+        regionId: REGION_5,
+      });
+    }
+    if (tides.b === 0) {
+      extras.push({
+        id: "gym5:low",
+        type: "water_current",
+        x: tideGym.x + L.basins.b[0] + 0.5,
+        y: WATER_Y - 1,
+        z: tideGym.z + L.basins.b[1] + 0.5,
+        radius: 2.4,
+        height: 5,
+        fx: 0,
+        fz: 1.6,
+        regionId: REGION_5,
+      });
+    }
+  }
   traversal.setExtras(extras);
 }
 
@@ -1495,7 +1692,20 @@ function hoverBlockedZone(x, z) {
   for (const s of world.structures.near(x, z, 22)) {
     const dist = Math.hypot(s.x - x, s.z - z);
     if (s.type === "gym_gale" && dist < 16) return true;
+    if (s.type === "gym_tide" && dist < 16) return true;
     if (s.type === "tempest_spire" && dist < 10 && !bosses.isSealActivated(STORM_SEAL_ID)) return true;
+    if (s.type === "reef_atoll" && dist < 11) {
+      const already = Math.hypot(player.pos.x - s.x, player.pos.z - s.z) < 11;
+      if (!already && !bosses.isSealActivated(REEF_SEAL_ID)) return true;
+    }
+    if (s.type === "tidal_bridge" && dist < 8) {
+      const already = Math.hypot(player.pos.x - s.x, player.pos.z - s.z) < 8;
+      if (!already && !progression.isUnlocked("gym_5_path_unlocked")) return true;
+    }
+    if (s.type === "open_sea_gate" && dist < 8) {
+      const already = Math.hypot(player.pos.x - s.x, player.pos.z - s.z) < 8;
+      if (!already && !progression.isUnlocked("region_6_path_unlocked")) return true;
+    }
     if (s.type === "highland_exit" && dist < 8 && !progression.isUnlocked("region_5_path_unlocked")) return true;
     if (s.type === "gym" || s.type === "gym_mist" || s.type === "gym_crimson") {
       if (dist > 16) continue;
@@ -1603,6 +1813,7 @@ function toggleMap() {
 
 let bossVisual = null;
 let tempestVisual = null;
+let reefVisual = null;
 
 function rebuildCreatureVisuals() {
   if (!spawner) return 0;
@@ -1642,6 +1853,15 @@ function rebuildCreatureVisuals() {
     tempestVisual.position.copy(pos);
     scene.add(tempestVisual);
   }
+  if (reefVisual) {
+    const pos = reefVisual.position.clone();
+    scene.remove(reefVisual);
+    disposeCreatureVisual(reefVisual);
+    reefVisual = buildCreatureVisual("mariscol");
+    reefVisual.userData.bossSpeciesId = "mariscol";
+    reefVisual.position.copy(pos);
+    scene.add(reefVisual);
+  }
   return n;
 }
 function disposeBossVisual() {
@@ -1655,6 +1875,12 @@ function disposeTempestVisual() {
   scene.remove(tempestVisual);
   disposeCreatureVisual(tempestVisual);
   tempestVisual = null;
+}
+function disposeReefVisual() {
+  if (!reefVisual) return;
+  scene.remove(reefVisual);
+  disposeCreatureVisual(reefVisual);
+  reefVisual = null;
 }
 
 function syncBossVisual(s) {
@@ -1691,6 +1917,24 @@ function syncTempestVisual(s) {
     scene.add(tempestVisual);
   }
   tempestVisual.position.set(x, y, z);
+}
+
+function syncReefVisual(s) {
+  const want = !!s && bosses.isSealActivated(REEF_SEAL_ID) && !bosses.isDefeated("reef_guardian");
+  if (!want) {
+    disposeReefVisual();
+    return;
+  }
+  const [dx, dz] = REEF_ATOLL_LAYOUT.boss;
+  const x = s.x + dx + 0.5;
+  const y = (s.y ?? world.surfaceY(s.x + dx, s.z + dz)) + 1;
+  const z = s.z + dz + 0.5;
+  if (!reefVisual) {
+    reefVisual = buildCreatureVisual("mariscol");
+    reefVisual.userData.bossSpeciesId = "mariscol";
+    scene.add(reefVisual);
+  }
+  reefVisual.position.set(x, y, z);
 }
 
 function registerRuinInteractables(s, wanted) {
@@ -1868,6 +2112,137 @@ function registerSpireInteractables(s, wanted) {
   }
 }
 
+function registerReefInteractables(s, wanted) {
+  applyReefSeal(s);
+  syncReefVisual(s);
+  const [dx, dz] = REEF_ATOLL_LAYOUT.seal;
+  const id = `reef_seal:${s.id}`;
+  wanted.add(id);
+  const x = s.x + dx + 0.5;
+  const y = s.y + 2.2;
+  const z = s.z + dz + 0.5;
+  const phase = bosses.sealPhase(REEF_SEAL_ID);
+  let prompt = "El corazón de coral duerme.";
+  if (phase === "resonating") prompt = "Despertar el corazón de coral";
+  if (phase === "activated") prompt = "El corazón de coral late.";
+  const onInteract = () => {
+    if (phase === "activated") {
+      applyReefSeal(s);
+      ui.toast("El corazón de coral ya late.", "good");
+      return;
+    }
+    const r = bosses.activateReefSeal();
+    applyReefSeal(s);
+    syncReefVisual(s);
+    if (r.already) {
+      ui.toast("El corazón de coral ya late.", "good");
+      return;
+    }
+    if (!r.ok) {
+      ui.toast(r.reason ?? "El atolón duerme.", "bad");
+      return;
+    }
+    ui.toast("El coral se abre. El guardián emerge de la marea.", "legendary");
+    ui.refreshHud();
+    saveGame();
+  };
+  const existing = interaction.items.get(id);
+  if (existing) {
+    existing.prompt = prompt;
+    existing.x = x; existing.y = y; existing.z = z;
+    existing.onInteract = onInteract;
+  } else {
+    interaction.register({
+      id, type: "reef_seal", x, y, z, range: 3.4, prompt, data: s, onInteract, critical: true,
+    });
+  }
+  if (!bosses.isSealActivated(REEF_SEAL_ID)) return;
+  const bid = `reef_boss:${s.id}`;
+  wanted.add(bid);
+  const [bdx, bdz] = REEF_ATOLL_LAYOUT.boss;
+  const bx = s.x + bdx + 0.5;
+  const by = s.y + 1.8;
+  const bz = s.z + bdz + 0.5;
+  const defeated = bosses.isDefeated("reef_guardian");
+  const bPrompt = defeated ? "El guardián del arrecife descansa." : "Desafiar al Guardián del Arrecife";
+  const onBoss = () => {
+    if (defeated) {
+      ui.toast("El guardián del arrecife descansa.", "good");
+      return;
+    }
+    startBossBattle("reef_guardian");
+  };
+  const bex = interaction.items.get(bid);
+  if (bex) {
+    bex.prompt = bPrompt;
+    bex.x = bx; bex.y = by; bex.z = bz;
+    bex.onInteract = onBoss;
+  } else {
+    interaction.register({
+      id: bid, type: "boss", x: bx, y: by, z: bz, range: 3.6, prompt: bPrompt, data: s, onInteract: onBoss, critical: true,
+    });
+  }
+}
+
+function registerBridgeInteractables(s, wanted) {
+  applyTidalBridgeOpening(s);
+  const open = progression.isUnlocked("gym_5_path_unlocked");
+  const id = `tidal_bridge:${s.id}`;
+  wanted.add(id);
+  const prompt = open ? "Cruzar el Puente de Marea" : "El puente está ciego. El guardián aún custodia el paso.";
+  const onInteract = () => {
+    if (!open) {
+      ui.toast("El puente está ciego. El guardián aún custodia el paso.", "bad");
+      return;
+    }
+    applyTidalBridgeOpening(s);
+    const destX = s.x + 0.5;
+    const destZ = s.z + 6.5;
+    teleportPlayer(destX, world.surfaceY(destX, destZ) + 1, destZ);
+  };
+  const existing = interaction.items.get(id);
+  if (existing) {
+    existing.prompt = prompt;
+    existing.x = s.x + 0.5; existing.y = s.y + 1.6; existing.z = s.z + 0.5;
+    existing.onInteract = onInteract;
+  } else {
+    interaction.register({
+      id, type: "tidal_bridge", x: s.x + 0.5, y: s.y + 1.6, z: s.z + 0.5, range: 3.2, prompt, data: s, onInteract,
+    });
+  }
+}
+
+function registerSeaGateInteractables(s, wanted) {
+  applyOpenSeaGateOpening(s);
+  const open = progression.isUnlocked("region_6_path_unlocked");
+  const id = `open_sea_gate:${s.id}`;
+  wanted.add(id);
+  const [dx, dz] = OPEN_SEA_GATE_LAYOUT.arch;
+  const prompt = open
+    ? "El arco mira al horizonte. Aún no hay tierra más allá."
+    : "El Arco del mar abierto está cerrado.";
+  const onInteract = () => {
+    if (!open) {
+      ui.toast("El arco permanece ciego. Falta la Insignia Marea.", "bad");
+      return;
+    }
+    applyOpenSeaGateOpening(s);
+    ui.toast("El horizonte continúa. Todavía no hay región más allá.", "good");
+    showLocationBanner("MAR ABIERTO");
+  };
+  const existing = interaction.items.get(id);
+  if (existing) {
+    existing.prompt = prompt;
+    existing.x = s.x + dx + 0.5; existing.y = s.y + 1.6; existing.z = s.z + dz + 0.5;
+    existing.onInteract = onInteract;
+  } else {
+    interaction.register({
+      id, type: "open_sea_gate", x: s.x + dx + 0.5, y: s.y + 1.6, z: s.z + dz + 0.5,
+      range: 3.4, prompt, data: s, onInteract, critical: true,
+    });
+  }
+}
+
 function showLocationBanner(name) {
   const el = document.getElementById("location-banner");
   if (!el || !name) {
@@ -1897,16 +2272,17 @@ function applyLighthouseBeam(s) {
   if (!s || !world) return;
   const on = progression.hasFlag("lighthouse_activated") || progression.isUnlocked("gym_5_clue_unlocked");
   const clue = progression.isUnlocked("gym_5_clue_unlocked");
+  const signal = progression.hasFlag("lighthouse_signal");
   const [dx, dz] = AZURE_LIGHTHOUSE_LAYOUT.lens;
   if (on) {
-    stampLighthouseCrystal(s, dx, dz, true, clue);
+    stampLighthouseCrystal(s, dx, dz, true, clue, signal);
     worldMap.revealRadius(s.x, s.z, 6, "azure_lighthouse");
   } else {
-    stampLighthouseCrystal(s, dx, dz, false, false);
+    stampLighthouseCrystal(s, dx, dz, false, false, false);
   }
 }
 
-function stampLighthouseCrystal(s, dx, dz, on, clue = false) {
+function stampLighthouseCrystal(s, dx, dz, on, clue = false, signal = false) {
   world.setBlock(s.x + dx, s.y + 15, s.z + dz, B.CRYSTAL);
   world.setBlock(s.x + dx, s.y + 16, s.z + dz, on ? B.WIND_CRYSTAL : B.CRYSTAL);
   world.setBlock(s.x + dx, s.y + 17, s.z + dz, on ? B.WIND_CRYSTAL : B.AIR);
@@ -1919,6 +2295,15 @@ function stampLighthouseCrystal(s, dx, dz, on, clue = false) {
   if (clue) {
     for (let i = 7; i <= 14; i++) {
       world.setBlock(s.x + dx + i, s.y + 16, s.z + dz, B.WIND_CRYSTAL);
+    }
+  }
+  // Señal hacia el atolón (quest 47): haz más largo + peldaños de coral.
+  if (signal) {
+    for (let i = 15; i <= 22; i++) {
+      world.setBlock(s.x + dx + i, s.y + 16, s.z + dz + Math.floor((i - 14) / 4), B.WIND_CRYSTAL);
+    }
+    for (let i = 3; i <= 10; i++) {
+      world.setBlock(s.x + dx + i * 2, s.y + 1, s.z + dz + 1, B.CORAL_ROCK);
     }
   }
 }
@@ -1936,13 +2321,26 @@ function registerLighthouseInteractables(s, wanted) {
   const y = s.y + 15.6;
   const z = s.z + dz + 0.5;
   const on = progression.hasFlag("lighthouse_activated");
-  const prompt = on ? "La lente ya mira al horizonte." : "Activar lente del faro";
+  const clue = progression.isUnlocked("gym_5_clue_unlocked");
+  const signal = progression.hasFlag("lighthouse_signal");
+  let prompt = "Activar lente del faro";
+  if (signal) prompt = "El haz señala el atolón del este.";
+  else if (clue && on) prompt = "Enfocar el haz hacia el este";
+  else if (on) prompt = "La lente ya mira al horizonte.";
   const onInteract = () => {
     if (!on) {
       progression.setFlag("lighthouse_activated");
       applyLighthouseBeam(s);
       ui.toast("La lente despierta. El horizonte señala más allá del mar.", "legendary");
       showLocationBanner("FARO AZUR");
+    } else if (clue && !signal) {
+      progression.setFlag("lighthouse_signal");
+      applyLighthouseBeam(s);
+      ui.toast("El haz se afila. Una corriente de coral apunta al atolón del este.", "legendary");
+      showLocationBanner("SEÑAL DEL FARO");
+    } else if (signal) {
+      applyLighthouseBeam(s);
+      ui.toast("Sigue la corriente al este. El atolón espera.", "good");
     } else {
       applyLighthouseBeam(s);
       ui.toast("El haz sigue el agua hacia el este. Todavía no hay gimnasio allí.", "good");
@@ -2201,6 +2599,13 @@ function refreshGymTracker(nearGym = null) {
       : st.puzzleSolved
         ? "Canales alineados"
         : `Canales de viento: ${n}/3`;
+  } else if (gymId === "gym_tide") {
+    const n = st.tideMatch ?? 0;
+    label = st.leaderReady
+      ? "Sala del líder abierta"
+      : st.puzzleSolved
+        ? "Mareas alineadas"
+        : `Niveles de marea: ${n}/3`;
   } else {
     const cur = st.puzzleSolved ? 3 : st.puzzleAttempt.length;
     label = st.puzzleSolved
@@ -2580,7 +2985,9 @@ async function startBossBattle(bossId) {
   const [bdx, bdz] = def.anchorOffset ?? [0, 0];
   const arena = def.structureType === "tempest_spire"
     ? findTempestSpire(player.pos.x, player.pos.z)
-    : findCrimsonRuin(player.pos.x, player.pos.z);
+    : def.structureType === "reef_atoll"
+      ? findAzure("reef_atoll", player.pos.x, player.pos.z)
+      : findCrimsonRuin(player.pos.x, player.pos.z);
   let ox, oz;
   if (arena) {
     ox = arena.x + bdx + 0.5;
@@ -2592,6 +2999,7 @@ async function startBossBattle(bossId) {
   }
   const opponent = new TrainerOpponent(scene, world, teamMonsters[0], ox, oz);
   if (bossId === "tempest_guardian") disposeTempestVisual();
+  else if (bossId === "reef_guardian") disposeReefVisual();
   else disposeBossVisual();
 
   events.emit("battleStarted", {
@@ -2619,11 +3027,25 @@ async function startBossBattle(bossId) {
       const gym4 = findGaleGym(player.pos.x, player.pos.z);
       if (gym4) applyGaleGymOpening(gym4);
     }
+    if (bossId === "reef_guardian") {
+      const br = findAzure("tidal_bridge", player.pos.x, player.pos.z);
+      if (br) applyTidalBridgeOpening(br);
+      const g5 = findAzure("gym_tide", player.pos.x, player.pos.z);
+      if (g5) applyTideGymOpening(g5);
+    }
     if (!reward) ui.toast(`El ${def.name} permanece derrotado.`, "good");
   } else if (result === "lost") {
     events.emit("battleLost", { type: "boss", bossId });
     for (const m of state.team) m.hp = m.maxHp;
     ui.toast(`Caíste ante el ${def.name}… Tu equipo se recupera. El sello sigue abierto.`, "bad");
+    if (bossId === "reef_guardian") {
+      const atoll = findAzure("reef_atoll", player.pos.x, player.pos.z);
+      if (atoll) syncReefVisual(atoll);
+    }
+    if (bossId === "tempest_guardian") {
+      const spire = findTempestSpire(player.pos.x, player.pos.z);
+      if (spire) syncTempestVisual(spire);
+    }
   }
 
   ui.refreshHud();
@@ -2823,7 +3245,7 @@ function loop(now) {
           });
         }
       }
-      if (s.type === "gym" || s.type === "gym_mist" || s.type === "gym_crimson" || s.type === "gym_gale") {
+      if (s.type === "gym" || s.type === "gym_mist" || s.type === "gym_crimson" || s.type === "gym_gale" || s.type === "gym_tide") {
         nearGym = s;
         registerGymInteractables(s, wantedGym);
         if (s.type === "gym_mist") fogMistGym = s;
@@ -2864,6 +3286,20 @@ function loop(now) {
       }
       if (s.type === "azure_lighthouse") {
         registerLighthouseInteractables(s, wantedWind);
+      }
+      if (s.type === "reef_atoll") {
+        registerReefInteractables(s, wantedWind);
+      }
+      if (s.type === "tidal_bridge") {
+        registerBridgeInteractables(s, wantedWind);
+      }
+      if (s.type === "gym_tide") {
+        applyTideGymOpening(s);
+        applyTideLeaderOpening(s);
+        applyTideBasinVisuals(s);
+      }
+      if (s.type === "open_sea_gate") {
+        registerSeaGateInteractables(s, wantedWind);
       }
     }
     for (const id of interaction.ids("shrine")) {
@@ -2910,8 +3346,18 @@ function loop(now) {
     for (const id of interaction.ids("lighthouse_lens")) {
       if (!wantedWind.has(id)) interaction.unregister(id);
     }
+    for (const id of interaction.ids("reef_seal")) {
+      if (!wantedWind.has(id)) interaction.unregister(id);
+    }
+    for (const id of interaction.ids("tidal_bridge")) {
+      if (!wantedWind.has(id)) interaction.unregister(id);
+    }
+    for (const id of interaction.ids("open_sea_gate")) {
+      if (!wantedWind.has(id)) interaction.unregister(id);
+    }
     if (![...wantedRuin].some((id) => id.startsWith("crimson_boss:"))) disposeBossVisual();
     if (![...wantedWind].some((id) => id.startsWith("tempest_boss:"))) disposeTempestVisual();
+    if (![...wantedWind].some((id) => id.startsWith("reef_boss:"))) disposeReefVisual();
     refreshGymTracker(nearGym);
 
     // NPC de asentamientos: reconciliación por distancia, sin duplicados
@@ -2923,6 +3369,7 @@ function loop(now) {
   npcs.update(dt, player.pos, elapsed);
   if (bossVisual) animateCreatureVisual(bossVisual, elapsed, "idle", 0);
   if (tempestVisual) animateCreatureVisual(tempestVisual, elapsed, "idle", 0);
+  if (reefVisual) animateCreatureVisual(reefVisual, elapsed, "idle", 0);
 
   // Partículas de minado
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -3950,10 +4397,16 @@ window.__vm = {
         gate: regions.isGateOpened(REGION_5),
         clue: progression.isUnlocked("gym_5_clue_unlocked"),
         lighthouse: progression.hasFlag("lighthouse_activated"),
+        signal: progression.hasFlag("lighthouse_signal"),
+        gym5path: progression.isUnlocked("gym_5_path_unlocked"),
+        region6path: progression.isUnlocked("region_6_path_unlocked"),
         routes: routeSnapshot(),
         port: findAzure("azure_port", player.pos.x, player.pos.z),
         ruins: findAzure("tidal_ruins", player.pos.x, player.pos.z),
         lighthouseS: findAzure("azure_lighthouse", player.pos.x, player.pos.z),
+        atoll: findAzure("reef_atoll", player.pos.x, player.pos.z),
+        gym5: findAzure("gym_tide", player.pos.x, player.pos.z),
+        seaGate: findAzure("open_sea_gate", player.pos.x, player.pos.z),
         pickups: pickups.snapshot(),
       };
     },
@@ -3987,6 +4440,118 @@ window.__vm = {
       progression.setFlag("lighthouse_activated");
       if (s) applyLighthouseBeam(s);
       return { flag: progression.hasFlag("lighthouse_activated"), clue: progression.isUnlocked("gym_5_clue_unlocked") };
+    },
+    signalLighthouse() {
+      progression.setFlag("lighthouse_activated");
+      progression.unlock("gym_5_clue_unlocked");
+      progression.setFlag("lighthouse_signal");
+      const s = findAzure("azure_lighthouse", player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (s) applyLighthouseBeam(s);
+      return {
+        flag: progression.hasFlag("lighthouse_activated"),
+        clue: progression.isUnlocked("gym_5_clue_unlocked"),
+        signal: progression.hasFlag("lighthouse_signal"),
+      };
+    },
+    reef() {
+      const s = findAzure("reef_atoll", player?.pos.x ?? 0, player?.pos.z ?? 0);
+      const def = BOSSES.reef_guardian;
+      return {
+        structure: s ? { id: s.id, x: s.x, y: s.y, z: s.z } : null,
+        defeated: bosses.isDefeated("reef_guardian"),
+        can: bosses.canBattle("reef_guardian"),
+        seal: bosses.isSealActivated(REEF_SEAL_ID),
+        phase: bosses.sealPhase(REEF_SEAL_ID),
+        path: progression.isUnlocked("gym_5_path_unlocked"),
+        signal: progression.hasFlag("lighthouse_signal"),
+        boss: def ? { id: def.id, name: def.name, speciesId: def.speciesId, level: def.team[0].level, reward: def.rewardMoney } : null,
+      };
+    },
+    gotoReef() {
+      const s = findAzure("reef_atoll", player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s) return null;
+      teleportPlayer(s.x + 0.5, s.y + 1.4, s.z - 8);
+      applyReefSeal(s);
+      syncReefVisual(s);
+      return s;
+    },
+    activateReefSeal() {
+      const r = bosses.activateReefSeal();
+      const s = findAzure("reef_atoll", player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (s) {
+        applyReefSeal(s);
+        syncReefVisual(s);
+      }
+      ui.refreshHud();
+      return r;
+    },
+    gym5() {
+      const s = findAzure("gym_tide", player?.pos.x ?? 0, player?.pos.z ?? 0);
+      const st = gyms.gymState("gym_tide");
+      return {
+        structure: s ? { id: s.id, x: s.x, y: s.y, z: s.z, biome: s.biome } : null,
+        ...st,
+        badge: progression.hasBadge("tide_badge"),
+        path: progression.isUnlocked("gym_5_path_unlocked"),
+        nextArc: progression.isUnlocked("region_6_path_unlocked"),
+        fifth: progression.isUnlocked("fifth_gym_completed"),
+        trainers: {
+          luma: trainers.isDefeated("gym_trainer_tide_1"),
+          daro: trainers.isDefeated("gym_trainer_tide_2"),
+          talassa: trainers.isDefeated("leader_talassa"),
+        },
+        leader: {
+          id: "leader_talassa",
+          name: "Talassa",
+          team: TRAINERS.leader_talassa.team,
+          reward: TRAINERS.leader_talassa.rewardMoney,
+        },
+        hoverBlocked: s ? hoverBlockedZone(s.x, s.z) : null,
+      };
+    },
+    gotoGym5() {
+      const s = findAzure("gym_tide", player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s || !player) return null;
+      teleportPlayer(s.x + 0.5, s.y + 2, s.z - 14.5);
+      return s;
+    },
+    unlockGym5Path() {
+      progression.setFlag("lighthouse_activated");
+      progression.unlock("gym_5_clue_unlocked");
+      progression.setFlag("lighthouse_signal");
+      bosses.ensureSeal(REEF_SEAL_ID).activated = true;
+      bosses.ensure("reef_guardian").defeated = true;
+      progression.unlock("gym_5_path_unlocked");
+      const br = findAzure("tidal_bridge", player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (br) applyTidalBridgeOpening(br);
+      const g5 = findAzure("gym_tide", player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (g5) applyTideGymOpening(g5);
+      return this.gym5();
+    },
+    cycleBasin(id) {
+      const r = gyms.cycleBasin("gym_tide", id);
+      const s = findAzure("gym_tide", player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (s) {
+        applyTideBasinVisuals(s);
+        applyTideLeaderOpening(s);
+      }
+      return r;
+    },
+    seaGate() {
+      const s = findAzure("open_sea_gate", player?.pos.x ?? 0, player?.pos.z ?? 0);
+      const open = progression.isUnlocked("region_6_path_unlocked");
+      if (s && open) applyOpenSeaGateOpening(s);
+      return {
+        structure: s ? { id: s.id, x: s.x, y: s.y, z: s.z } : null,
+        unlocked: open,
+        block: s ? world.getBlock(s.x, s.y + 2, s.z) : null,
+      };
+    },
+    gotoSeaGate() {
+      const s = findAzure("open_sea_gate", player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s) return null;
+      teleportPlayer(s.x + 0.5, s.y + 1.4, s.z - 4);
+      return s;
     },
     unlockRegion5() {
       progression.addBadge("gale_badge");
