@@ -3793,6 +3793,30 @@ window.__vm = {
       for (let i = 0; i < n; i++) out.push(this.giveCreature(id, 10 + (i % 20)));
       return { added: out.length, ...creatureStorage.snapshot() };
     },
+    showInspect(info) {
+      ui.setInspectCard(info);
+      return !document.getElementById("inspect-card")?.classList.contains("hidden");
+    },
+    inspectNearest() {
+      const c = spawner?.creatures?.[0];
+      if (!c || c.dead) return { target: null };
+      const m = c.monster;
+      dex.markSeen(m.speciesId, { source: "world", level: m.level });
+      ui.setInspectCard({
+        name: m.name,
+        level: m.level,
+        typeName: TYPES[m.type]?.name ?? m.type,
+        caught: dex.isCaught(m.speciesId),
+      });
+      return {
+        speciesId: m.speciesId,
+        name: m.name,
+        level: m.level,
+        type: m.type,
+        typeName: TYPES[m.type]?.name ?? m.type,
+        caught: dex.isCaught(m.speciesId),
+      };
+    },
     inspectAim() {
       const c = creatureInSight();
       if (!c) return { target: null, cardHidden: document.getElementById("inspect-card")?.classList.contains("hidden") };
