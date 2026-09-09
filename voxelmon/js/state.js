@@ -9,6 +9,8 @@
 export const SAVE_VERSION = 2;
 // Se conserva la clave original para que los saves previos sigan encontrándose.
 export const SAVE_KEY = "voxelmon.save.v1";
+/** Copia de la campaña anterior (nueva partida / borrar). No se pisa en el autoguardado. */
+export const SAVE_BACKUP_KEY = "voxelmon.save.v1.bak";
 
 export function defaultStats() {
   return {
@@ -157,13 +159,67 @@ export function migrateSave(raw) {
   return s;
 }
 
-export function loadSave() {
+export function rawSave(key = SAVE_KEY) {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    return raw ? migrateSave(JSON.parse(raw)) : null;
+    return localStorage.getItem(key);
   } catch {
     return null;
   }
+}
+
+/** Hay bytes de partida (activa o copia). No parsea: sirve para mostrar Continuar. */
+export function hasPersistedSave() {
+  return !!(rawSave(SAVE_KEY) || rawSave(SAVE_BACKUP_KEY));
+}
+
+/** Hay una copia distinta de la partida activa (se puede recuperar). */
+export function hasRecoverableBackup() {
+  const cur = rawSave(SAVE_KEY);
+  const bak = rawSave(SAVE_BACKUP_KEY);
+  return !!(bak && bak !== cur);
+}
+
+function parseSave(raw) {
+  if (!raw) return null;
+  try {
+    return migrateSave(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+export function loadSave() {
+  const primary = parseSave(rawSave(SAVE_KEY));
+  if (primary) return primary;
+  const backup = parseSave(rawSave(SAVE_BACKUP_KEY));
+  if (backup) {
+    // La activa se perdió o está corrupta: restaura la copia para que Continuar funcione.
+    try { localStorage.setItem(SAVE_KEY, rawSave(SAVE_BACKUP_KEY)); } catch { /* ignore */ }
+    return backup;
+  }
+  return null;
+}
+
+/** Guarda la partida activa en la copia de seguridad (antes de nueva partida / borrar). */
+export function snapshotSaveToBackup() {
+  const cur = rawSave(SAVE_KEY);
+  if (!cur) return false;
+  try {
+    localStorage.setItem(SAVE_BACKUP_KEY, cur);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Restaura la copia de seguridad como partida activa. */
+export function restoreBackupSave() {
+  const bak = rawSave(SAVE_BACKUP_KEY);
+  if (!bak) return null;
+  try {
+    localStorage.setItem(SAVE_KEY, bak);
+  } catch { /* ignore */ }
+  return parseSave(bak);
 }
 
 export function persistSave(state) {

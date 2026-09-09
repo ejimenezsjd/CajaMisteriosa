@@ -12,11 +12,14 @@ const $ = (id) => document.getElementById(id);
 /** Icono pixel-art determinista por especie (estilo identicon, colores de la especie) */
 const iconCache = {};
 export function pixelIcon(speciesId, cell = 6, silhouette = false) {
-  const fromArt = creatureArtIcon(speciesId, silhouette);
-  if (fromArt) return fromArt;
+  try {
+    const fromArt = creatureArtIcon(speciesId, silhouette);
+    if (fromArt) return fromArt;
+  } catch { /* portrait 3D opcional: cae al identicon */ }
   const key = `${speciesId}-${cell}-${silhouette}`;
   if (iconCache[key]) return iconCache[key];
   const sp = SPECIES[speciesId];
+  if (!sp) return "";
   let h = 0;
   for (const ch of speciesId) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   const rnd = mulberry32(h);
@@ -91,9 +94,33 @@ export class UI {
   show(el) { el.classList.remove("hidden"); }
   hide(el) { el.classList.add("hidden"); }
 
-  showTitle(hasSave) {
+  showTitle(hasSave, hasBackup = false) {
     this.show(this.el.title);
+    this.hideNewGameConfirm();
     $("btn-continue").classList.toggle("hidden", !hasSave);
+    const recover = $("btn-recover");
+    if (recover) recover.classList.toggle("hidden", !hasBackup);
+  }
+
+  setTitleError(msg) {
+    const el = $("title-error");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.classList.toggle("hidden", !msg);
+  }
+
+  showNewGameConfirm() {
+    const box = $("title-confirm");
+    const actions = $("title-actions");
+    if (box) box.classList.remove("hidden");
+    if (actions) actions.classList.add("hidden");
+  }
+
+  hideNewGameConfirm() {
+    const box = $("title-confirm");
+    const actions = $("title-actions");
+    if (box) box.classList.add("hidden");
+    if (actions) actions.classList.remove("hidden");
   }
 
   showLoading(text) {
@@ -105,15 +132,19 @@ export class UI {
 
   showStarters(ids, cb) {
     const grid = $("starter-cards");
+    if (!grid) throw new Error("No se encontró la pantalla de iniciales.");
     grid.innerHTML = "";
     for (const id of ids) {
       const sp = SPECIES[id];
+      if (!sp) continue;
       const card = document.createElement("button");
       card.className = "starter-card";
       card.style.setProperty("--c1", sp.color);
       card.style.setProperty("--c2", sp.color2);
+      let icon = "";
+      try { icon = pixelIcon(id, 8); } catch { icon = ""; }
       card.innerHTML = `
-        <img alt="${sp.name}" src="${pixelIcon(id, 8)}" />
+        <img alt="${sp.name}" src="${icon}" />
         <span class="starter-name">${sp.name}</span>
         <span class="type-chip" style="--tc:${TYPES[sp.type].color}">${TYPES[sp.type].name}</span>`;
       card.addEventListener("click", () => {
@@ -123,6 +154,7 @@ export class UI {
       });
       grid.appendChild(card);
     }
+    if (!grid.childElementCount) throw new Error("No hay iniciales disponibles.");
     this.show(this.el.starter);
   }
 
@@ -180,7 +212,7 @@ export class UI {
 
   familyCaught(fam) {
     let id = fam;
-    while (id) {
+    while (id && SPECIES[id]) {
       if (this.state.dex.caught[id]) return true;
       id = SPECIES[id].evolvesTo;
     }
@@ -307,7 +339,7 @@ export class UI {
     const order = [...FAMILY_STARTERS.flatMap((f) => {
       const line = [];
       let id = f;
-      while (id) { line.push(id); id = SPECIES[id].evolvesTo; }
+      while (id && SPECIES[id]) { line.push(id); id = SPECIES[id].evolvesTo; }
       return line;
     }), "cirrith", "prismaton"];
     for (const id of order) {

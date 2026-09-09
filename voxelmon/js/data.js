@@ -92,7 +92,7 @@ export const PERKS = {
 export function activePerks(dexCaught) {
   const has = (fam) => {
     let id = fam;
-    while (id) {
+    while (id && SPECIES[id]) {
       if (dexCaught[id]) return true;
       id = SPECIES[id].evolvesTo;
     }
@@ -114,7 +114,7 @@ export function activePerks(dexCaught) {
 export function familyOf(speciesId) {
   for (const fam of FAMILY_STARTERS) {
     let id = fam;
-    while (id) {
+    while (id && SPECIES[id]) {
       if (id === speciesId) return fam;
       id = SPECIES[id].evolvesTo;
     }

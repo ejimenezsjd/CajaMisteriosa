@@ -113,6 +113,27 @@ html, body {
 .title-foot { margin-top: 26px; font-size: 0.85rem; color: #6b7590; }
 .title-foot a { color: var(--accent); }
 
+.title-error {
+  color: #ff8a8a;
+  background: rgba(80, 16, 24, 0.55);
+  border: 1px solid rgba(255, 90, 90, 0.35);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 0 auto 16px;
+  max-width: 480px;
+  font-size: 0.92rem;
+}
+.title-confirm {
+  background: rgba(14, 17, 28, 0.72);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 18px 20px 16px;
+  margin: 0 auto 8px;
+  max-width: 460px;
+}
+.title-confirm p { margin: 0 0 8px; }
+.title-confirm-note { color: #aab3c8; font-size: 0.88rem; }
+
 /* ---------- Botones ---------- */
 
 .btn {
