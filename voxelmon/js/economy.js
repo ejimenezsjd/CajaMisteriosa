@@ -29,6 +29,8 @@ export const PRICE_CATALOG = {
   ancient_fragment: { sell: 30 },
   ember_ore: { sell: 28 },
   red_crystal: { sell: 55 },
+  wind_crystal: { sell: 40 },
+  sky_herb: { sell: 14 },
 };
 
 /** El mercader regional vende estas 4 cosas. Nunca recursos raros de Región 3. */
@@ -37,6 +39,7 @@ export const SHOP_STOCK = ["balls", "mist_tonic", "medicinal_herb", "explorer_ki
 /** Subconjunto vendible. ancient_core queda fuera a propósito. */
 export const SHOP_BUYS = [
   "coal", "copper", "iron", "mist_bloom", "ancient_fragment", "ember_ore", "red_crystal",
+  "wind_crystal", "sky_herb",
 ];
 
 const NO_SELL = new Set(["ancient_core", "crimson_resonator"]);
@@ -208,12 +211,22 @@ class EconomySystem {
     return r;
   }
 
-  show() {
+  show(title = "Puesto") {
     if (this.open) return;
     this.bindUi();
     this.open = true;
     this.tab = "buy";
     this.selected = SHOP_STOCK[0];
+    const el = $("shop-title");
+    if (el) {
+      const money = el.querySelector("#shop-money");
+      el.childNodes[0].textContent = `${title} `;
+      if (!money) {
+        const span = document.createElement("span");
+        span.id = "shop-money";
+        el.appendChild(span);
+      }
+    }
     this.onOpen?.();
     this.render();
   }

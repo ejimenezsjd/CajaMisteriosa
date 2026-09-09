@@ -36,6 +36,8 @@
  *  - gymCompleted      { gymId, badgeId, trainerId }
  *  - regionDiscovered  { regionId, regionName, x, z }
  *  - regionGateOpened  { regionId, regionName, x, z }
+ *  - traversalUsed     { traversalId, traversalType, regionId, x, y, z }
+ *  - mapAreaRevealed   { source, centerX, centerZ, radius, newCells }
  *  - craftCompleted    { recipeId, inputs, outputs, stationId }
  *  - itemCrafted       { recipeId, stationId }
  *  - itemUsed          { itemId, ... }

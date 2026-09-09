@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { World, B, BLOCK_DROPS, BIOME_NAMES } from "./world.js";
 import { getBiomeName, getBiomeDefinition } from "./biomes.js";
 import { RESOURCES, resourceForBlock } from "./resources.js";
-import { STRUCTURE_TYPES, MIST_SETTLEMENT_LAYOUT, CRIMSON_RUIN_LAYOUT } from "./structures.js";
+import { STRUCTURE_TYPES, MIST_SETTLEMENT_LAYOUT, CRIMSON_RUIN_LAYOUT, STORM_OBSERVATORY_LAYOUT } from "./structures.js";
 import { buildCreatureVisual, disposeCreatureVisual, preloadCreatureArt, creatureArtDebugSnapshot, textureCacheSize, inspectTextureCache, animateCreatureVisual, simulatePngLoadFailure, inspectGeometryCache, inspectMaterialCache, resolveCreatureRenderer, creatureArtIcon } from "./creature-renderer.js";
 import { setPreferredRenderer, getPreferredRenderer, listPixelSpecies, getCreatureArt, listArtSpecies } from "./creature-art.js";
 import { bosses, BOSSES } from "./bosses.js";
@@ -32,9 +32,12 @@ import { crafting, RECIPES } from "./crafting.js";
 import { getItemCount, grantItems } from "./items.js";
 import { economy, bindShopTabs, HEAL_COST, PRICE_CATALOG } from "./economy.js";
 import {
-  regions, getRegionAt, getRegionName, nearestGymAnchor, region3BoundsFor,
-  REGION_1, REGION_2, REGION_3,
+  regions, getRegionAt, getRegionName, nearestGymAnchor, region3BoundsFor, region4BoundsFor,
+  REGION_1, REGION_2, REGION_3, REGION_4, REGION_GEOMETRY,
 } from "./regions.js";
+import { worldMap } from "./map.js";
+import { traversal } from "./traversal.js";
+import { buildAssist, AERIAL_UNLOCK } from "./build-assist.js";
 
 const DAY_LENGTH = 600; // segundos por ciclo completo
 const HOTBAR = [B.DIRT, B.STONE, B.SAND, B.WOOD, B.LEAVES, B.SNOW];
@@ -192,9 +195,15 @@ events.on("progressUnlocked", ({ id }) => {
     if (ruin) applyGym3PathOpening(ruin);
   }
   if (id === "region_4_path_unlocked") {
-    ui.toast("🌄 La Insignia Forja activa el mecanismo del paso sur.", "legendary");
-    const g3 = findForgeGym(player?.pos.x ?? 0, player?.pos.z ?? 0);
-    if (g3) applyCrimsonPassOpening(g3);
+    ui.toast("🌄 La Insignia Forja activa el mecanismo del Paso Carmesí. Pulsa E para abrirlo.", "legendary");
+  }
+  if (id === "gym_4_clue_unlocked") {
+    ui.toast("🔭 Los cristales del observatorio responden al vendaval.", "legendary");
+    const obs = findStormObservatory(player?.pos.x ?? 0, player?.pos.z ?? 0);
+    if (obs) applyStormSeal(obs);
+  }
+  if (id === AERIAL_UNLOCK) {
+    ui.toast("🪶 Asistencia aérea de construcción desbloqueada. Pulsa B y luego Espacio.", "good");
   }
 });
 events.on("gymPuzzleProgress", ({ gymId, current, required, reset, recovered }) => {
@@ -227,7 +236,8 @@ events.on("regionDiscovered", ({ regionName }) => {
   ui.toast(`🌄 Nueva región descubierta: ${regionName}`, "good");
 });
 events.on("regionGateOpened", ({ regionId }) => {
-  if (regionId === REGION_3) ui.toast("🚪 El camino hacia las Cumbres Carmesí se ha abierto.", "good");
+  if (regionId === REGION_4) ui.toast("🚪 El Paso Carmesí se ha abierto. Los Altos del Vendaval esperan.", "good");
+  else if (regionId === REGION_3) ui.toast("🚪 El camino hacia las Cumbres Carmesí se ha abierto.", "good");
   else ui.toast("🚪 El paso fronterizo se ha abierto.", "good");
 });
 events.on("itemPurchased", ({ itemId, total }) => {
@@ -307,8 +317,8 @@ dialogue.registerAction("openRegionGate", (a) => {
     z: player?.pos.z ?? 0,
   });
 });
-dialogue.registerAction("openShop", () => {
-  setTimeout(() => economy.show(), 80);
+dialogue.registerAction("openShop", (a) => {
+  setTimeout(() => economy.show(a.title ?? "Puesto"), 80);
 });
 dialogue.registerAction("paidHeal", () => {
   const r = economy.healParty();
@@ -404,6 +414,9 @@ async function startWorld(saved) {
   world = new World(scene, state.seed, state.edits);
   const px = state.pos?.x ?? 8.5;
   const pz = state.pos?.z ?? 8.5;
+  regions.attach(state);
+  // El corredor R2–R4 se ancla al gym de origen ANTES de generar chunks.
+  regions.ensureHome(8.5, 8.5);
 
   // Pregenera el área inicial
   let guard = 0;
@@ -417,7 +430,6 @@ async function startWorld(saved) {
   refreshPerks();
   progression.attach(state);
   stats.attach(state);
-  regions.attach(state);
   economy.attach(state);
   crafting.attach(state);
   interaction.clear();
@@ -428,6 +440,12 @@ async function startWorld(saved) {
   bosses.attach(state);
   bosses.setRewardHandler((money) => addMoney(money));
   quests.attach(state);
+  worldMap.attach(state, world);
+  traversal.attach(world);
+  buildAssist.attach(state);
+  buildAssist.onToast = (msg, cls) => ui.toast(msg, cls);
+  const mapCanvas = document.getElementById("map-canvas");
+  if (mapCanvas) worldMap.bindCanvas(mapCanvas);
   // El bioma inicial cuenta como descubierto (sin toast en la carga)
   state.stats.biomesDiscovered[world.biomeAt(px, pz)] = true;
   lastBiome = world.biomeAt(px, pz);
@@ -443,6 +461,8 @@ async function startWorld(saved) {
   if (state.legendarySpawned && !state.dex.caught.prismaton) {
     spawner.spawnLegendary(player, world);
   }
+  worldMap.pollPlayer(player);
+  traversal.sync(player.pos.x, player.pos.z);
 
   ui.buildHotbar(HOTBAR);
   ui.refreshHotbar(HOTBAR, state.inventory, selectedSlot);
@@ -486,15 +506,43 @@ document.addEventListener("keydown", (e) => {
     else if (e.code === "KeyC") useCraftedItem("mist_tonic");
     return;
   }
+  if (mode === "map") {
+    if (e.code === "Escape" || e.code === "KeyM") {
+      e.preventDefault();
+      toggleMap();
+    }
+    return;
+  }
   if (mode === "shop") {
     if (e.code === "Escape" || e.code === "KeyE") economy.close();
     return;
   }
   if (mode !== "play") return;
+  if (e.code === "KeyM") {
+    e.preventDefault();
+    toggleMap();
+    return;
+  }
+  if (e.code === "KeyB") {
+    const on = buildAssist.toggleMode();
+    ui.setBuildHud({
+      mode: on,
+      hovering: buildAssist.hovering,
+      unlocked: buildAssist.isUnlocked(),
+    });
+    ui.toast(on ? "MODO CONSTRUCCIÓN" : "Modo construcción desactivado");
+    if (!on) keys.delete("Space");
+    return;
+  }
   keys.add(e.code);
   if (e.code === "KeyE") {
-    // Prioridad: interactuable cercano (NPC, santuario…) > criatura en la mira
+    const it = interaction.current(player.pos);
+    if (it && buildAssist.blocksInteraction(it)) {
+      ui.toast("Sal del modo aéreo para interactuar.", "bad");
+      return;
+    }
     if (interaction.interact(player.pos)) return;
+    if (buildAssist.blocksCombat()) return;
     const c = creatureInSight();
     if (c) startBattle(c.entity);
     return;
@@ -575,6 +623,11 @@ function creatureInSight(maxDist = 12) {
 }
 
 function onPrimary() {
+  if (buildAssist.blocksCombat()) {
+    const blockHit = world.raycast(player.eyePos(), player.lookDir(), 6);
+    if (blockHit) mineBlockAt(blockHit.x, blockHit.y, blockHit.z);
+    return;
+  }
   const c = creatureInSight();
   if (c) {
     startBattle(c.entity);
@@ -609,12 +662,14 @@ function mineBlockAt(x, y, z) {
   // Evento específico de recurso: los sistemas futuros (misiones, crafting)
   // escuchan la identidad del recurso sin conocer ids de bloque.
   const res = resourceForBlock(block);
+  const biomeId = world.biomeAt(x, z);
   if (res && amount > 0) {
+    const resourceId = (block === B.HERB && biomeId === "wind_highlands") ? "sky_herb" : res.id;
     events.emit("resourceCollected", {
-      resourceId: res.id,
+      resourceId,
       amount,
       source: "mining",
-      biomeId: world.biomeAt(x, z),
+      biomeId,
       x, y, z,
     });
   }
@@ -823,21 +878,23 @@ function registerGymInteractables(s, wanted) {
     if (passOpen) applyCrimsonPassOpening(s);
     let passPrompt;
     if (passOpen) passPrompt = "Cruzar el Paso Carmesí";
-    else if (progression.isUnlocked("region_4_path_unlocked") || progression.hasBadge("crimson_badge")) {
-      passPrompt = "La Insignia Forja activa el mecanismo.";
-    } else {
-      passPrompt = "El paso está bloqueado.";
-    }
+    else if (canOpenRegion4Gate()) passPrompt = "Abrir el Paso Carmesí";
+    else passPrompt = "El paso está bloqueado.";
     put(`gym:${s.id}:pass-hook`, layout.passHook, 3.2, passPrompt,
       () => {
-        if (!progression.isUnlocked("region_4_path_unlocked") && !progression.hasBadge("crimson_badge")) {
+        if (isCrimsonPassOpen()) {
+          const destZ = s.z + REGION_GEOMETRY.r4EntranceDz;
+          const destX = s.x + 0.5;
+          teleportPlayer(destX, world.surfaceY(destX, destZ) + 1, destZ);
+          return;
+        }
+        if (!canOpenRegion4Gate()) {
           ui.toast("El paso está bloqueado.", "bad");
           return;
         }
-        applyCrimsonPassOpening(s);
-        const [hx, hz] = layout.passHook;
-        const destX = s.x + hx + 0.5;
-        const destZ = s.z + hz + 10;
+        tryOpenRegion4Gate({ x: s.x, z: s.z });
+        const destZ = s.z + REGION_GEOMETRY.r4EntranceDz;
+        const destX = s.x + 0.5;
         teleportPlayer(destX, world.surfaceY(destX, destZ) + 1, destZ);
       });
   }
@@ -863,6 +920,7 @@ function applyGateOpening(gate) {
 
 function tryOpenRegionGate({ regionId = REGION_2, x, z } = {}) {
   if (regionId === REGION_3) return tryOpenRegion3Gate({ x, z });
+  if (regionId === REGION_4) return tryOpenRegion4Gate({ x, z });
   const px = x ?? player?.pos.x ?? 0;
   const pz = z ?? player?.pos.z ?? 0;
   const opened = regions.openGate(regionId, { x: px, z: pz });
@@ -1034,8 +1092,22 @@ function applyForgeEnergyVisuals(s) {
   }
 }
 
+function tryOpenRegion4Gate({ x, z } = {}) {
+  const px = x ?? player?.pos.x ?? 0;
+  const pz = z ?? player?.pos.z ?? 0;
+  const opened = regions.openGate(REGION_4, { x: px, z: pz });
+  const g3 = findForgeGym(px, pz);
+  if (g3 && regions.isGateOpened(REGION_4)) applyCrimsonPassOpening(g3);
+  if (opened) saveGame();
+  return opened || regions.isGateOpened(REGION_4);
+}
+
+function canOpenRegion4Gate() {
+  return progression.isUnlocked("region_4_path_unlocked") || progression.hasBadge("crimson_badge");
+}
+
 function isCrimsonPassOpen() {
-  return progression.hasBadge("crimson_badge") || progression.isUnlocked("region_4_path_unlocked");
+  return regions.isGateOpened(REGION_4);
 }
 
 function findForgeGym(x, z) {
@@ -1045,6 +1117,85 @@ function findForgeGym(x, z) {
   const gym = nearestGymAnchor(x, z);
   if (!gym) return null;
   return world.structures.candidate("gym_crimson", gym.cellX, gym.cellZ);
+}
+
+function findStormObservatory(x, z) {
+  if (!world) return null;
+  const near = world.structures.near(x, z, 140).find((s) => s.type === "storm_observatory");
+  if (near) return near;
+  const gym = nearestGymAnchor(x, z);
+  if (!gym) return null;
+  return world.structures.candidate("storm_observatory", gym.cellX, gym.cellZ);
+}
+
+function findCliffOutpost(x, z) {
+  if (!world) return null;
+  const near = world.structures.near(x, z, 140).find((s) => s.type === "cliff_outpost");
+  if (near) return near;
+  const gym = nearestGymAnchor(x, z);
+  if (!gym) return null;
+  return world.structures.candidate("cliff_outpost", gym.cellX, gym.cellZ);
+}
+
+function findWindShrine(x, z) {
+  if (!world) return null;
+  const near = world.structures.near(x, z, 140).find((s) => s.type === "wind_shrine");
+  if (near) return near;
+  const gym = nearestGymAnchor(x, z);
+  if (!gym) return null;
+  return world.structures.candidate("wind_shrine", gym.cellX, gym.cellZ);
+}
+
+function applyStormSeal(s) {
+  if (!s || !world) return;
+  const [dx, dz] = STORM_OBSERVATORY_LAYOUT.seal;
+  if (progression.isUnlocked("gym_4_clue_unlocked")) {
+    world.setBlock(s.x + dx, s.y + 2, s.z + dz, B.WIND_CRYSTAL);
+    world.setBlock(s.x + dx, s.y + 12, s.z + dz, B.WIND_CRYSTAL);
+    world.setBlock(s.x + dx, s.y + 13, s.z + dz, B.CRYSTAL);
+  } else {
+    world.setBlock(s.x + dx, s.y + 2, s.z + dz, B.STONE);
+  }
+}
+
+function hoverBlockedZone(x, z) {
+  if (!world) return false;
+  for (const s of world.structures.near(x, z, 18)) {
+    const dist = Math.hypot(s.x - x, s.z - z);
+    if (s.type === "gym" || s.type === "gym_mist" || s.type === "gym_crimson") {
+      if (dist > 16) continue;
+      const gid = gymIdForStructure(s);
+      if (!gid) continue;
+      const already = Math.hypot(player.pos.x - s.x, player.pos.z - s.z) < 16;
+      if (already) continue;
+      if (!gyms.canEnter(gid) && !gyms.isCompleted(gid)) return true;
+    }
+    if (s.type === "crimson_ruin" && dist < 9) {
+      const already = Math.hypot(player.pos.x - s.x, player.pos.z - s.z) < 9;
+      if (already) continue;
+      if (!progression.isUnlocked("gym_3_path_unlocked")) return true;
+    }
+  }
+  return false;
+}
+
+function toggleMap() {
+  const el = document.getElementById("map-ui");
+  if (mode === "map") {
+    worldMap.hide();
+    el?.classList.add("hidden");
+    mode = "play";
+    canvas.requestPointerLock();
+    return;
+  }
+  if (mode !== "play") return;
+  mode = "map";
+  document.exitPointerLock();
+  keys.clear();
+  ui.setTargetPrompt(null);
+  highlight.visible = false;
+  worldMap.show();
+  el?.classList.remove("hidden");
 }
 
 let bossVisual = null;
@@ -1183,6 +1334,45 @@ function registerRuinInteractables(s, wanted) {
         }
         startBossBattle("crimson_guardian");
       });
+  }
+}
+
+function registerObservatoryInteractables(s, wanted) {
+  applyStormSeal(s);
+  const id = `storm_seal:${s.id}`;
+  wanted.add(id);
+  const [dx, dz] = STORM_OBSERVATORY_LAYOUT.seal;
+  const x = s.x + dx + 0.5;
+  const y = s.y + 2.2;
+  const z = s.z + dz + 0.5;
+  const clue = progression.isUnlocked("gym_4_clue_unlocked");
+  const prompt = clue
+    ? "Los cristales del observatorio responden al vendaval."
+    : "El mecanismo está dormido.";
+  const onInteract = () => {
+    progression.setFlag("storm_anomaly_inspected");
+    if (progression.isUnlocked("gym_4_clue_unlocked")) {
+      applyStormSeal(s);
+      ui.toast("Los cristales del observatorio responden al vendaval.", "legendary");
+    } else {
+      ui.toast("El mecanismo está dormido.", "bad");
+    }
+  };
+  const existing = interaction.items.get(id);
+  if (existing) {
+    existing.prompt = prompt;
+    existing.x = x; existing.y = y; existing.z = z;
+    existing.onInteract = onInteract;
+  } else {
+    interaction.register({
+      id,
+      type: "storm_seal",
+      x, y, z,
+      range: 3.4,
+      prompt,
+      data: s,
+      onInteract,
+    });
   }
 }
 
@@ -1421,6 +1611,26 @@ function toggleDex() {
   }
 }
 document.getElementById("btn-dex-close").addEventListener("click", toggleDex);
+
+document.getElementById("btn-map-close")?.addEventListener("click", () => {
+  if (mode === "map") toggleMap();
+});
+document.getElementById("btn-map-center")?.addEventListener("click", () => {
+  worldMap.centerOnPlayer();
+  worldMap.draw();
+});
+const mapCanvasEl = document.getElementById("map-canvas");
+if (mapCanvasEl) {
+  mapCanvasEl.addEventListener("wheel", (e) => {
+    if (mode !== "map") return;
+    e.preventDefault();
+    worldMap.onWheel(e);
+  }, { passive: false });
+  mapCanvasEl.addEventListener("pointerdown", (e) => worldMap.onPointerDown(e));
+  window.addEventListener("pointermove", (e) => worldMap.onPointerMove(e));
+  window.addEventListener("pointerup", () => worldMap.onPointerUp());
+  mapCanvasEl.addEventListener("contextmenu", (e) => e.preventDefault());
+}
 
 document.getElementById("btn-new").addEventListener("click", () => {
   const existing = loadSave();
@@ -1724,10 +1934,37 @@ function loop(now) {
 
   const playing = mode === "play";
   if (playing && locked) {
-    player.update(dt, world, keys);
+    const lift = traversal.sample(player);
+    if (lift) player.envForce.set(lift.x, lift.y, lift.z);
+    else player.envForce.set(0, 0, 0);
+
+    if (buildAssist.canHover() && !buildAssist.hovering && keys.has("Space") && !lift) {
+      buildAssist.beginHover();
+    }
+    const hovering = buildAssist.hovering;
+    const groundY = world.surfaceY(player.pos.x, player.pos.z);
+    player.update(dt, world, keys, {
+      hover: hovering,
+      hoverVel: hovering ? buildAssist.hoverVelocity(keys, player.yaw) : null,
+      maxHoverY: groundY + 28,
+      safeExit: buildAssist.safeExit,
+      onSafeLand: () => {
+        buildAssist.stopHover();
+        ui.setBuildHud({ mode: buildAssist.mode, hovering: false, unlocked: buildAssist.isUnlocked() });
+      },
+      gateCheck: hovering
+        ? (fx, fz, tx, tz) => buildAssist.canMoveTo(fx, fz, tx, tz, { blockedZone: hoverBlockedZone })
+        : null,
+      onGateBlocked: (r) => buildAssist.rejectMove(r.reason),
+    });
+    if (buildAssist.mode) {
+      ui.setBuildHud({ mode: true, hovering: buildAssist.hovering, unlocked: buildAssist.isUnlocked() });
+    }
     stats.addDistance(Math.hypot(player.pos.x - lastPos.x, player.pos.z - lastPos.y));
   }
   lastPos.set(player.pos.x, player.pos.z);
+
+  if (playing && player) worldMap.pollPlayer(player);
 
   // Barrera lógica: sin portón abierto no se permanece en Región 2.
   if (playing && state && getRegionAt(player.pos.x, player.pos.z) === REGION_2 &&
@@ -1746,6 +1983,14 @@ function loop(now) {
       const [hx, hz] = MIST_GYM_LAYOUT.exitHook;
       const zx = gym2.z + hz - 3;
       teleportPlayer(gym2.x + hx + 0.5, world.surfaceY(gym2.x + hx, zx) + 1, zx + 0.5);
+    }
+  }
+  if (playing && state && getRegionAt(player.pos.x, player.pos.z) === REGION_4 &&
+      !regions.isGateOpened(REGION_4) && !buildAssist.hovering) {
+    const g3 = findForgeGym(player.pos.x, player.pos.z);
+    if (g3) {
+      const zx = g3.z + 12;
+      teleportPlayer(g3.x + 0.5, world.surfaceY(g3.x, zx) + 1, zx + 0.5);
     }
   }
 
@@ -1772,12 +2017,17 @@ function loop(now) {
       if (rid !== REGION_1) regions.discover(rid, px, pz);
     }
 
+    worldMap.pollPlayer(player);
+    traversal.sync(px, pz);
+    traversal.highlight = crafting.explorerActive();
+
     // Descubrimiento + registro de interactuables de estructura cercanos
     const wantedShrines = new Set();
     const wantedGym = new Set();
     const wantedGate = new Set();
     const wantedMist = new Set();
     const wantedRuin = new Set();
+    const wantedWind = new Set();
     let nearGym = null;
     fogMistGym = null;
     for (const s of world.structures.near(px, pz, 24)) {
@@ -1815,6 +2065,9 @@ function loop(now) {
       if (s.type === "crimson_ruin") {
         registerRuinInteractables(s, wantedRuin);
       }
+      if (s.type === "storm_observatory") {
+        registerObservatoryInteractables(s, wantedWind);
+      }
     }
     for (const id of interaction.ids("shrine")) {
       if (!wantedShrines.has(id)) interaction.unregister(id);
@@ -1839,6 +2092,9 @@ function loop(now) {
     }
     for (const id of interaction.ids("boss")) {
       if (!wantedRuin.has(id)) interaction.unregister(id);
+    }
+    for (const id of interaction.ids("storm_seal")) {
+      if (!wantedWind.has(id)) interaction.unregister(id);
     }
     if (![...wantedRuin].some((id) => id.startsWith("crimson_boss:"))) disposeBossVisual();
     refreshGymTracker(nearGym);
@@ -1927,6 +2183,11 @@ function loop(now) {
     scene.fog.near = kit ? 16 : 8;
     scene.fog.far = 22 + 22 * beacons + (kit ? 28 : 0);
     scene.fog.color.lerp(new THREE.Color(0x6a7a88), 0.55);
+  } else if (getRegionAt(camera.position.x, camera.position.z) === REGION_4) {
+    const kit = crafting.explorerActive();
+    scene.fog.near = kit ? 36 : 24;
+    scene.fog.far = kit ? 170 : 130;
+    scene.fog.color.lerp(new THREE.Color(0x8eb4d4), 0.35);
   } else if (getRegionAt(camera.position.x, camera.position.z) === REGION_3) {
     scene.fog.near = 28;
     scene.fog.far = 95;
@@ -1945,6 +2206,8 @@ function loop(now) {
     scene.fog.near = 40;
     scene.fog.far = 150;
   }
+
+  if (mode === "map") worldMap.draw();
 
   // Autoguardado
   saveTimer += dt;
@@ -1990,6 +2253,9 @@ window.__vm = {
   regionSystem: regions,
   craftingSystem: crafting,
   economySystem: economy,
+  mapSystem: worldMap,
+  traversalSystem: traversal,
+  buildAssist,
   /** Herramientas de inspección del mundo vivo (Fase 2) */
   debug: {
     pos() {
@@ -2629,11 +2895,111 @@ window.__vm = {
         { itemId: "ancient_fragment", amount: 1 },
         { itemId: "ember_ore", amount: 3 },
         { itemId: "red_crystal", amount: 1 },
+        { itemId: "wind_crystal", amount: 2 },
+        { itemId: "sky_herb", amount: 3 },
       ]);
       economy.grantMoney(200, { source: "debug" });
       ui.refreshHud();
       if (economy.open) economy.render();
       return this.shop();
+    },
+    region4() {
+      if (!world || !player) return null;
+      const gym = regions.homeGym() || nearestGymAnchor(player.pos.x, player.pos.z);
+      const b = gym ? region4BoundsFor(gym) : null;
+      const pass = this.gym3()?.pass;
+      return {
+        name: getRegionName(REGION_4),
+        at: getRegionAt(player.pos.x, player.pos.z),
+        biome: world.biomeAt(player.pos.x, player.pos.z),
+        bounds: b,
+        gate: regions.isGateOpened(REGION_4),
+        canOpen: canOpenRegion4Gate(),
+        pathUnlock: progression.isUnlocked("region_4_path_unlocked"),
+        gym4Clue: progression.isUnlocked("gym_4_clue_unlocked"),
+        aerial: progression.isUnlocked(AERIAL_UNLOCK),
+        pass,
+        shrine: findWindShrine(player.pos.x, player.pos.z),
+        outpost: findCliffOutpost(player.pos.x, player.pos.z),
+        observatory: findStormObservatory(player.pos.x, player.pos.z),
+        heightBonus: world.region4BonusAt(player.pos.x, player.pos.z),
+      };
+    },
+    gotoRegion4() {
+      this.unlockGym3Path();
+      progression.addBadge("crimson_badge");
+      progression.unlock("third_gym_completed");
+      progression.unlock("region_4_path_unlocked");
+      const home = regions.homeGym() || nearestGymAnchor(player.pos.x, player.pos.z);
+      const g3 = home
+        ? world.structures.candidate("gym_crimson", home.cellX, home.cellZ)
+        : findForgeGym(player.pos.x, player.pos.z);
+      if (g3) tryOpenRegion4Gate({ x: g3.x, z: g3.z });
+      else tryOpenRegion4Gate({ x: player.pos.x, z: player.pos.z });
+      if (!g3) return null;
+      const destZ = g3.z + REGION_GEOMETRY.r4EntranceDz;
+      teleportPlayer(g3.x + 0.5, world.surfaceY(g3.x, destZ) + 1, destZ);
+      world.update(g3.x, destZ, 3);
+      return this.region4();
+    },
+    gotoCliffOutpost() {
+      const s = findCliffOutpost(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s) return null;
+      teleportPlayer(s.x + 0.5, s.y + 1.2, s.z + 1.5);
+      return s;
+    },
+    gotoWindShrine() {
+      const s = findWindShrine(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s) return null;
+      teleportPlayer(s.x + 1.5, s.y + 1.2, s.z + 1.5);
+      return s;
+    },
+    gotoObservatory() {
+      const s = findStormObservatory(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s) return null;
+      applyStormSeal(s);
+      teleportPlayer(s.x + 1.5, s.y + 1.2, s.z + 1.5);
+      return s;
+    },
+    windLifts() {
+      traversal.sync(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      return traversal.snapshot();
+    },
+    map() {
+      worldMap.pollPlayer(player);
+      return worldMap.snapshot();
+    },
+    revealMapRadius(n) {
+      return worldMap.debugRevealRadius(n);
+    },
+    fillMapCells(n) {
+      return worldMap.debugFillCells(n);
+    },
+    buildMode() {
+      return buildAssist.snapshot();
+    },
+    aerialBuildAssist() {
+      return {
+        ...buildAssist.snapshot(),
+        unlockId: AERIAL_UNLOCK,
+      };
+    },
+    toggleBuildMode() {
+      const on = buildAssist.toggleMode();
+      ui.setBuildHud({ mode: on, hovering: buildAssist.hovering, unlocked: buildAssist.isUnlocked() });
+      return buildAssist.snapshot();
+    },
+    grantAerial() {
+      progression.unlock(AERIAL_UNLOCK);
+      return this.aerialBuildAssist();
+    },
+    captureGrantor(id = "alazan") {
+      if (!state) return null;
+      state.dex.caught[id] = true;
+      state.dex.seen[id] = true;
+      events.emit("creatureCaptured", { speciesId: id, level: 20 });
+      ui.refreshHud();
+      return this.aerialBuildAssist();
     },
   },
 };

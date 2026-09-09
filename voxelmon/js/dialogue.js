@@ -886,6 +886,82 @@ export const DIALOGUES = {
       },
     },
   },
+
+  wind_scout_intro: {
+    npcName: "Nera",
+    nodes: {
+      start: {
+        text: "El vendaval te ha dejado en pie. Soy Nera, exploradora de estos altos. El mapa se abre al caminar; las atalayas y el observatorio lo despejan de golpe. Las corrientes blancas te suben — no vuelas, te empujan.",
+        options: [
+          { text: "¿Dónde estoy?", next: "where" },
+          { text: "¿El mapa?", next: "map" },
+          { text: "¿Esas corrientes?", next: "lifts" },
+          { text: "Hasta luego.", end: true },
+        ],
+      },
+      where: {
+        text: "Altos del Vendaval. Piedra clara, precipicios y un cielo que corta. El Paso Carmesí queda al norte. Al sur, más alto, el Observatorio de la Tormenta. El puesto es el único techo fiable.",
+        options: [{ text: "Entendido.", next: "start" }],
+      },
+      map: {
+        text: "Pulsa M. Lo que no has pisado es niebla. Una atalaya revela un anillo; el observatorio, casi un valle. No esperes ver el siguiente gimnasio hasta encontrarlo.",
+        options: [{ text: "Abriré el mapa.", next: "start" }],
+      },
+      lifts: {
+        text: "Entra en la columna de viento y deja que te eleve. Conservas un poco de rumbo. No es un montura ni un vuelo libre: te deja en una cornisa, no al otro lado del mundo.",
+        options: [{ text: "Lo probaré.", end: true }],
+      },
+    },
+  },
+
+  highland_merchant_intro: {
+    npcName: "Siro",
+    nodes: {
+      start: {
+        text: "Cubos, tónicos, hierbas y un kit de exploración. Te compro cristal de viento y hierba de altura. Precios fijos: el vendaval ya es bastante variable.",
+        options: [
+          { text: "A comerciar.", actions: [{ type: "openShop", title: "Puesto de Siro" }], end: true },
+          { text: "¿Qué vale la pena?", next: "tips" },
+          { text: "Otro día.", end: true },
+        ],
+      },
+      tips: {
+        text: "El cristal de viento se esconde en cornisas y junto a las corrientes. La hierba de altura brota en los parches secos. No inflaré precios aunque el observatorio se ponga dramático.",
+        options: [{ text: "A comerciar.", actions: [{ type: "openShop", title: "Puesto de Siro" }], end: true }],
+      },
+    },
+  },
+
+  storm_researcher_intro: {
+    npcName: "Vela",
+    nodes: {
+      start: {
+        text: "Mido el viento, no lo adoro. Hay una familia de planeadores de membrana —no aves— y un cristal eléctrico raro cerca del observatorio. El sello de allí todavía duerme.",
+        options: [
+          { text: "¿Planeadores?", next: "gliders" },
+          { text: "¿El observatorio?", next: "obs" },
+          {
+            text: "Los cristales ya responden.",
+            next: "clue",
+            when: { unlocked: "gym_4_clue_unlocked" },
+          },
+          { text: "Gracias, Vela.", end: true },
+        ],
+      },
+      gliders: {
+        text: "Brisín es un ovillo con orejas-vela. Vendal ya planea de verdad; Céfiron es el vendaval con garras. Si uno de los grandes te acepta, te ayuda a construir en altura. No te llevará al otro lado de un paso cerrado.",
+        options: [{ text: "Capturar para construir.", next: "start" }],
+      },
+      obs: {
+        text: "El Observatorio de la Tormenta mira un hueco en las nubes. Hay un mecanismo dormido. Cuando reúnas cristal de viento y lo despiertes, apuntará al siguiente desafío. Todavía no hay gimnasio ahí.",
+        options: [{ text: "Iré a verlo.", end: true }],
+      },
+      clue: {
+        text: "Los cristales cantan con el vendaval. El sello del observatorio ya no está ciego: señala una plataforma alta al sur. El cuarto gimnasio aún no abre, pero el mundo ya sabe hacia dónde soplar.",
+        options: [{ text: "Lo he visto.", end: true }],
+      },
+    },
+  },
 };
 
 const $ = (id) => document.getElementById(id);

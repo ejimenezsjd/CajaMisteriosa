@@ -37,6 +37,10 @@ export const B = {
   RED_CRYSTAL: 24,
   // Objeto de progresión (Fase 10 — no se genera en el mundo)
   CRIMSON_RESONATOR: 25,
+  // Superficie y recursos de los Altos del Vendaval (Fase 11)
+  WINDSTONE: 26,
+  SKY_GRASS: 27,
+  WIND_CRYSTAL: 28,
 };
 
 export const BLOCK_NAMES = {
@@ -63,6 +67,9 @@ export const BLOCK_NAMES = {
   [B.EMBER_ORE]: "Mena de ascuas",
   [B.RED_CRYSTAL]: "Cristal rojo",
   [B.CRIMSON_RESONATOR]: "Resonador carmesí",
+  [B.WINDSTONE]: "Piedra del viento",
+  [B.SKY_GRASS]: "Hierba de altura",
+  [B.WIND_CRYSTAL]: "Cristal de viento",
 };
 
 /** Qué suelta cada bloque al minarlo */
@@ -91,6 +98,9 @@ export const BLOCK_DROPS = {
   [B.EMBER_ORE]: B.EMBER_ORE,
   [B.RED_CRYSTAL]: B.RED_CRYSTAL,
   [B.CRIMSON_RESONATOR]: B.CRIMSON_RESONATOR,
+  [B.WINDSTONE]: B.STONE,
+  [B.SKY_GRASS]: B.DIRT,
+  [B.WIND_CRYSTAL]: B.WIND_CRYSTAL,
 };
 
 /** Colores por cara (top/side/bottom) para el meshing con vertex colors */
@@ -120,4 +130,7 @@ export const COLORS = {
   [B.EMBER_ORE]: { top: [0.78, 0.32, 0.12], side: [0.55, 0.2, 0.1], bottom: [0.38, 0.14, 0.08] },
   [B.RED_CRYSTAL]: { top: [0.95, 0.28, 0.32], side: [0.78, 0.12, 0.22], bottom: [0.52, 0.08, 0.16] },
   [B.CRIMSON_RESONATOR]: { top: [0.92, 0.38, 0.18], side: [0.72, 0.18, 0.14], bottom: [0.42, 0.1, 0.1] },
+  [B.WINDSTONE]: { top: [0.72, 0.78, 0.86], side: [0.58, 0.66, 0.76], bottom: [0.46, 0.52, 0.62] },
+  [B.SKY_GRASS]: { top: [0.62, 0.7, 0.42], side: [0.52, 0.48, 0.32], bottom: [0.44, 0.38, 0.26] },
+  [B.WIND_CRYSTAL]: { top: [0.72, 0.92, 1], side: [0.42, 0.78, 0.94], bottom: [0.28, 0.58, 0.82] },
 };

@@ -950,6 +950,85 @@ html, body {
 
 #loading-text { color: #aab3c8; font-weight: 600; }
 
+/* ---------- Fase 11: mapa y modo construcción ---------- */
+
+#build-hud {
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  transform: translateX(-50%);
+  z-index: 6;
+  text-align: center;
+  pointer-events: none;
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: rgba(16, 22, 36, 0.72);
+  border: 1px solid rgba(160, 210, 255, 0.35);
+  min-width: 220px;
+}
+#build-hud.hidden { display: none; }
+#build-hud-title {
+  font-family: "Syne", sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-size: 0.82rem;
+  color: #c8e8ff;
+}
+#build-hud-sub {
+  font-size: 0.75rem;
+  color: #9ab0c8;
+  margin-top: 2px;
+}
+
+#map-ui {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  background: rgba(8, 10, 16, 0.72);
+  padding: 18px;
+}
+#map-ui.hidden { display: none; }
+.map-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #10131c;
+  border: 1px solid rgba(160, 200, 255, 0.25);
+  border-radius: 14px;
+  overflow: hidden;
+  min-height: 0;
+}
+.map-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+#map-title {
+  font-family: "Syne", sans-serif;
+  font-weight: 700;
+  color: #c8e8ff;
+}
+#map-hint {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: #8a96b0;
+}
+.map-actions { display: flex; gap: 8px; }
+#map-canvas {
+  flex: 1;
+  width: 100%;
+  min-height: 240px;
+  cursor: grab;
+  background: #0c0e14;
+}
+#map-canvas:active { cursor: grabbing; }
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 720px) {

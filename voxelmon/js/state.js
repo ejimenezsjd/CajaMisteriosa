@@ -109,10 +109,18 @@ export function defaultState(seed) {
       gates: {
         region_2: { opened: false },
         region_3: { opened: false },
+        region_4: { opened: false },
       },
+      home: null,
     },
     // Fase 7–8: buffs temporales (kit) y gym_mist. SAVE_VERSION sigue en 2.
     buffs: { explorerUntil: 0 },
+    // Fase 11: mapa (celdas sparse + markers). Pan/zoom no se persisten.
+    map: {
+      discoveredCells: {},
+      markers: {},
+      waypoint: null,
+    },
   };
 }
 

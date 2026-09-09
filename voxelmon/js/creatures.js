@@ -6,7 +6,7 @@ import { buildCreatureVisual, animateCreatureVisual, disposeCreatureVisual } fro
 import { WATER_Y } from "./world.js";
 import { getBiomeDefinition } from "./biomes.js";
 import { events } from "./events.js";
-import { getRegionAt, REGION_2, REGION_3 } from "./regions.js";
+import { getRegionAt, REGION_2, REGION_3, REGION_4 } from "./regions.js";
 
 export function makeLabel(text, color = "#ffffff") {
   const canvas = document.createElement("canvas");
@@ -34,7 +34,7 @@ export class WildCreature {
     this.scene = scene;
     this.monster = createMonster(speciesId, level);
     this.sp = SPECIES[speciesId];
-    this.flies = this.sp.type === "volador" || this.sp.legendary;
+    this.flies = this.sp.type === "volador" || this.sp.legendary || this.sp.aerial;
     this.group = buildCreatureVisual(speciesId);
     this.group.userData.entity = this;
     this.pos = new THREE.Vector3(x, world.surfaceY(x, z) + 1, z);
@@ -117,11 +117,12 @@ export class Spawner {
    * se ponderan con él, así los cambios de hora siguen siendo graduales.
    * Devuelve null si el bioma no admite criaturas en este momento.
    */
-  pickSpecies(biomeId, dist, dayFactor, regionId) {
+  pickSpecies(biomeId, dist, dayFactor, regionId, height = 0) {
     const weights = [];
     let total = 0;
     for (const rule of getBiomeDefinition(biomeId).creatures) {
       if (rule.regions && regionId && !rule.regions.includes(regionId)) continue;
+      if (rule.minHeight && height < rule.minHeight) continue;
       let w = rule.weight;
       if (rule.time === "day") w *= dayFactor;
       else if (rule.time === "night") w *= 1 - dayFactor;
@@ -137,10 +138,17 @@ export class Spawner {
       r -= e.w;
       if (r <= 0) { fam = e.fam; break; }
     }
-    // Etapas superiores lejos del origen del mundo
+    // Etapas superiores lejos del origen; en R4 el midgame pide más stage 2–3.
     let id = fam;
+    if (!SPECIES[id]) return fam;
     if (dist > 150 && Math.random() < 0.32) id = SPECIES[id].evolvesTo ?? id;
     if (dist > 320 && Math.random() < 0.3) id = SPECIES[id].evolvesTo ?? id;
+    if (regionId === REGION_4 && SPECIES[id]?.stage === 1 && Math.random() < 0.55) {
+      id = SPECIES[id].evolvesTo ?? id;
+    }
+    if (regionId === REGION_4 && SPECIES[id]?.stage === 2 && SPECIES[id].evolvesTo && Math.random() < 0.28) {
+      id = SPECIES[id].evolvesTo;
+    }
     return id;
   }
 
@@ -173,10 +181,13 @@ export class Spawner {
       const distOrigin = Math.hypot(x, z);
       const biomeId = this.world.biomeAt(x, z);
       const regionId = getRegionAt(x, z);
-      const id = this.pickSpecies(biomeId, distOrigin, dayFactor, regionId);
+      const id = this.pickSpecies(biomeId, distOrigin, dayFactor, regionId, y);
       if (!id) return; // el bioma no admite criaturas ahora mismo
       let level;
-      if (regionId === REGION_3) {
+      if (regionId === REGION_4) {
+        level = Math.max(28, Math.min(34,
+          28 + Math.floor(Math.random() * 5) + (SPECIES[id].stage - 1)));
+      } else if (regionId === REGION_3) {
         level = Math.max(18, Math.min(24,
           18 + Math.floor(Math.random() * 5) + (SPECIES[id].stage - 1)));
       } else if (regionId === REGION_2) {

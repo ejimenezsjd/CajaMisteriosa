@@ -16,10 +16,12 @@ export class Player {
   constructor(x, y, z) {
     this.pos = new THREE.Vector3(x, y, z); // pies
     this.vel = new THREE.Vector3();
+    this.envForce = new THREE.Vector3();
     this.yaw = 0;
     this.pitch = 0;
     this.onGround = false;
     this.inWater = false;
+    this.hovering = false;
   }
 
   eyePos() {
@@ -38,12 +40,19 @@ export class Player {
     this.pitch = Math.max(-lim, Math.min(lim, this.pitch));
   }
 
-  update(dt, world, keys) {
+  update(dt, world, keys, opts = {}) {
     dt = Math.min(dt, 0.05);
 
     const headIn = world.isWater(this.pos.x, this.pos.y + 1.2, this.pos.z);
     const feetIn = world.isWater(this.pos.x, this.pos.y + 0.3, this.pos.z);
     this.inWater = headIn || feetIn;
+
+    if (opts.hover) {
+      this.hovering = true;
+      this._updateHover(dt, world, keys, opts);
+      return;
+    }
+    this.hovering = false;
 
     // Dirección de movimiento en el plano según el yaw
     let fx = 0, fz = 0;
@@ -59,8 +68,6 @@ export class Player {
     if (len > 0) {
       fx /= len;
       fz /= len;
-      // Rota el vector local (fx, fz) al mundo: adelante (0,-1) debe coincidir
-      // con la dirección de la mirada (-sin yaw, -cos yaw).
       const sin = Math.sin(this.yaw);
       const cos = Math.cos(this.yaw);
       const wx = fx * cos + fz * sin;
@@ -74,10 +81,18 @@ export class Player {
       this.vel.z -= this.vel.z * Math.min(1, damp * dt);
     }
 
-    if (this.inWater) {
+    const lift = this.envForce.y > 0.2;
+    if (this.inWater && !lift) {
       this.vel.y += (GRAVITY * 0.18) * dt;
       this.vel.y *= 1 - Math.min(1, 3.2 * dt);
       if (keys.has("Space")) this.vel.y = Math.min(this.vel.y + 24 * dt, 3.4);
+    } else if (lift) {
+      this.vel.y += (this.envForce.y - this.vel.y) * Math.min(1, 8 * dt);
+      this.vel.x += this.envForce.x * dt;
+      this.vel.z += this.envForce.z * dt;
+      if (keys.has("KeyA") || keys.has("KeyD") || keys.has("KeyW") || keys.has("KeyS")) {
+        /* el input horizontal ya se aplicó arriba; se conserva control parcial */
+      }
     } else {
       this.vel.y += GRAVITY * dt;
       if (keys.has("Space") && this.onGround) {
@@ -87,9 +102,43 @@ export class Player {
     }
     this.vel.y = Math.max(this.vel.y, -42);
 
+    this._moveChecked(dt, world, opts);
+  }
+
+  _updateHover(dt, world, keys, opts) {
+    const hv = opts.hoverVel ?? { vx: 0, vy: 0, vz: 0 };
+    this.vel.x += (hv.vx - this.vel.x) * Math.min(1, 10 * dt);
+    this.vel.z += (hv.vz - this.vel.z) * Math.min(1, 10 * dt);
+    if (opts.safeExit) this.vel.y = hv.vy;
+    else this.vel.y += (hv.vy - this.vel.y) * Math.min(1, 10 * dt);
+    const ground = world.surfaceY(this.pos.x, this.pos.z);
+    const maxY = (opts.maxHoverY ?? (ground + 28));
+    if (this.pos.y > maxY && this.vel.y > 0) this.vel.y = 0;
+    if (opts.safeExit && this.pos.y <= ground + 1.35) {
+      this.vel.y = 0;
+      this.pos.y = ground + 1;
+      this.onGround = true;
+      opts.onSafeLand?.();
+    }
+    this._moveChecked(dt, world, opts);
+  }
+
+  _moveChecked(dt, world, opts) {
+    const ox = this.pos.x;
+    const oz = this.pos.z;
     this.moveAxis(world, this.vel.x * dt, 0, 0);
     this.moveAxis(world, 0, this.vel.y * dt, 0);
     this.moveAxis(world, 0, 0, this.vel.z * dt);
+    if (opts.gateCheck) {
+      const allowed = opts.gateCheck(ox, oz, this.pos.x, this.pos.z);
+      if (allowed && allowed.ok === false) {
+        this.pos.x = ox;
+        this.pos.z = oz;
+        this.vel.x = 0;
+        this.vel.z = 0;
+        opts.onGateBlocked?.(allowed);
+      }
+    }
   }
 
   collides(world) {
