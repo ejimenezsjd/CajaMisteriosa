@@ -5,8 +5,10 @@
  * REGIÓN → macrozona de progresión (region_1 … region_4)
  *
  * Estrategia geométrica O(1):
- *   Se localiza el gimnasio más cercano en la celda actual y sus 8 vecinas
- *   (candidate("gym") ya está cacheado).
+ *   Se localizan gimnasios en un pad de 3 celdas (7×7, lookups cacheados).
+ *   La región se decide por el corredor que contiene el punto (R4>R3>R2),
+ *   no solo por el gimnasio euclídeamente más cercano: R4 llega a z+693
+ *   (2–3 celdas al sur, cell=260) y otro gym cercano no debe “robarla”.
  *
  *   Región 2: rectángulo al sur (+Z) de ese gimnasio (z +58 … +220).
  *   Región 3: continuación al sur del Gimnasio de las Brumas, empezando
@@ -96,10 +98,8 @@ export const REGIONS = {
   },
 };
 
-const NEIGHBORS = [
-  [0, 0], [1, 0], [-1, 0], [0, 1], [0, -1],
-  [1, 1], [1, -1], [-1, 1], [-1, -1],
-];
+/** Pad de celdas: R4 z+693 / cell 260 ⇒ hasta 3 celdas al sur del gym. */
+const GYM_LOOKUP_PAD = 3;
 
 let _gymCandidate = null;
 
@@ -175,37 +175,56 @@ export function region4HeightBonus(x, z, seed = 0) {
   return Math.floor(5 + plateau * 9 + ridge * 5 + spire * 7);
 }
 
-/** Gimnasio más cercano en la vecindad de celdas 3×3. O(1) con caché. */
-export function nearestGymAnchor(x, z) {
-  if (!_gymCandidate) return null;
+function inRect(x, z, b) {
+  return x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1;
+}
+
+const REGION_RANK = { [REGION_4]: 4, [REGION_3]: 3, [REGION_2]: 2, [REGION_1]: 1 };
+
+/** Gimnasios en la vecindad 7×7 (pad 3). Lookups cacheados. */
+export function nearbyGymAnchors(x, z) {
+  if (!_gymCandidate) return [];
   const cs = REGION_GEOMETRY.gymCell;
   const cx = Math.floor(x / cs);
   const cz = Math.floor(z / cs);
-  let best = null;
-  let bestD = Infinity;
-  for (const [dx, dz] of NEIGHBORS) {
-    const c = _gymCandidate("gym", cx + dx, cz + dz);
-    if (!c) continue;
-    const d = (c.x - x) * (c.x - x) + (c.z - z) * (c.z - z);
-    if (d < bestD) {
-      bestD = d;
-      best = c;
+  const out = [];
+  for (let dz = -GYM_LOOKUP_PAD; dz <= GYM_LOOKUP_PAD; dz++) {
+    for (let dx = -GYM_LOOKUP_PAD; dx <= GYM_LOOKUP_PAD; dx++) {
+      const c = _gymCandidate("gym", cx + dx, cz + dz);
+      if (c) out.push(c);
     }
+  }
+  return out;
+}
+
+/**
+ * Ancla regional del punto: el gimnasio cuyo corredor contiene (x,z).
+ * Prioridad R4 > R3 > R2 > R1; a igualdad, el más cercano.
+ */
+export function regionAnchorAt(x, z) {
+  const list = nearbyGymAnchors(x, z);
+  let best = { gym: null, region: REGION_1, d: Infinity };
+  for (const gym of list) {
+    const d = (gym.x - x) * (gym.x - x) + (gym.z - z) * (gym.z - z);
+    let region = REGION_1;
+    if (inRect(x, z, region4BoundsFor(gym))) region = REGION_4;
+    else if (inRect(x, z, region3BoundsFor(gym))) region = REGION_3;
+    else if (inRect(x, z, region2BoundsFor(gym))) region = REGION_2;
+    const betterRank = REGION_RANK[region] > REGION_RANK[best.region];
+    const closerSame = region === best.region && d < best.d;
+    if (betterRank || closerSame) best = { gym, region, d };
   }
   return best;
 }
 
-/** Región lógica en (x, z). Coste constante: 9 lookups cacheados. */
+/** Gimnasio de la ancla regional (corredor que contiene el punto, o el más cercano). */
+export function nearestGymAnchor(x, z) {
+  return regionAnchorAt(x, z).gym;
+}
+
+/** Región lógica en (x, z). Coste constante: hasta 49 lookups cacheados. */
 export function getRegionAt(x, z) {
-  const gym = nearestGymAnchor(x, z);
-  if (!gym) return REGION_1;
-  const b4 = region4BoundsFor(gym);
-  if (x >= b4.x0 && x <= b4.x1 && z >= b4.z0 && z <= b4.z1) return REGION_4;
-  const b3 = region3BoundsFor(gym);
-  if (x >= b3.x0 && x <= b3.x1 && z >= b3.z0 && z <= b3.z1) return REGION_3;
-  const b2 = region2BoundsFor(gym);
-  if (x >= b2.x0 && x <= b2.x1 && z >= b2.z0 && z <= b2.z1) return REGION_2;
-  return REGION_1;
+  return regionAnchorAt(x, z).region;
 }
 
 export function isInRegion2(x, z) {

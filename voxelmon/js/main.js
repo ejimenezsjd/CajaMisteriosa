@@ -2929,10 +2929,13 @@ window.__vm = {
       progression.unlock("third_gym_completed");
       progression.unlock("region_4_path_unlocked");
       tryOpenRegion4Gate({ x: player.pos.x, z: player.pos.z });
-      const g3 = findForgeGym(player.pos.x, player.pos.z);
+      const gym = nearestGymAnchor(player.pos.x, player.pos.z);
+      const g3 = findForgeGym(player.pos.x, player.pos.z)
+        || (gym ? world.structures.candidate("gym_crimson", gym.cellX, gym.cellZ) : null);
       if (!g3) return null;
       const destZ = g3.z + REGION_GEOMETRY.r4EntranceDz;
       teleportPlayer(g3.x + 0.5, world.surfaceY(g3.x, destZ) + 1, destZ);
+      world.update(g3.x, destZ, 3);
       return this.region4();
     },
     gotoCliffOutpost() {
