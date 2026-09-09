@@ -2,14 +2,15 @@
  * MapSystem (Fase 11): exploración, fog of war y mapa fullscreen 2D.
  *
  * Celdas de 16×16 (alineadas con CHUNK). Almacén sparse:
- *   state.map.discoveredCells["cx,cz"] = { biomeId, regionId }
+ *   state.map.discoveredCells["cx,cz"] = biomeId
+ *   (saves antiguos pueden traer { biomeId, regionId })
  *   state.map.markers[structureId] = { type, x, z, ... }
  *
  * No recalcula terrain al pintar: usa la metadata guardada al revelar.
  */
 
 import { events } from "./events.js";
-import { getRegionAt, getRegionName, regions, REGION_1 } from "./regions.js";
+import { getRegionName, regions, REGION_1 } from "./regions.js";
 import { getBiomeName } from "./biomes.js";
 import { progression } from "./progression.js";
 import { gyms } from "./gyms.js";
@@ -164,8 +165,7 @@ class MapSystem {
     const wx = cx * MAP_CELL + MAP_CELL / 2;
     const wz = cz * MAP_CELL + MAP_CELL / 2;
     const biomeId = this.world.biomeAt(wx, wz);
-    const regionId = getRegionAt(wx, wz);
-    this.data.discoveredCells[key] = { biomeId, regionId };
+    this.data.discoveredCells[key] = biomeId;
     return 1;
   }
 
@@ -298,8 +298,9 @@ class MapSystem {
         const wz = cz * MAP_CELL;
         const { px, py } = this.worldToScreen(wx, wz, w, h);
         const s = MAP_CELL * z;
-        if (cell) {
-          ctx.fillStyle = MAP_PALETTE[cell.biomeId] ?? MAP_PALETTE.plains;
+        const biomeId = typeof cell === "string" ? cell : cell?.biomeId;
+        if (biomeId) {
+          ctx.fillStyle = MAP_PALETTE[biomeId] ?? MAP_PALETTE.plains;
           ctx.globalAlpha = 0.92;
           ctx.fillRect(px, py, s + 0.5, s + 0.5);
           ctx.globalAlpha = 1;

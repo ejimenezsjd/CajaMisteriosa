@@ -109,7 +109,8 @@ export class Player {
     const hv = opts.hoverVel ?? { vx: 0, vy: 0, vz: 0 };
     this.vel.x += (hv.vx - this.vel.x) * Math.min(1, 10 * dt);
     this.vel.z += (hv.vz - this.vel.z) * Math.min(1, 10 * dt);
-    this.vel.y += (hv.vy - this.vel.y) * Math.min(1, 10 * dt);
+    if (opts.safeExit) this.vel.y = hv.vy;
+    else this.vel.y += (hv.vy - this.vel.y) * Math.min(1, 10 * dt);
     const ground = world.surfaceY(this.pos.x, this.pos.z);
     const maxY = (opts.maxHoverY ?? (ground + 28));
     if (this.pos.y > maxY && this.vel.y > 0) this.vel.y = 0;
