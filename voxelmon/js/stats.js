@@ -26,6 +26,8 @@ class StatsSystem {
     events.on("blockPlaced", inc("blocksPlaced"));
     events.on("creatureSeen", inc("creaturesSeen"));
     events.on("creatureCaptured", inc("creaturesCaught"));
+    events.on("speciesSeen", inc("uniqueSpeciesSeen"));
+    events.on("speciesCaught", inc("uniqueSpeciesCaught"));
     events.on("creatureDefeated", inc("creaturesDefeated"));
     events.on("battleWon", inc("battlesWon"));
     events.on("battleLost", inc("battlesLost"));

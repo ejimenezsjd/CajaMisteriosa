@@ -271,6 +271,7 @@ export const STRUCTURE_TYPES = {
 export const MIST_SETTLEMENT_LAYOUT = {
   workbench: [3, 1],
   ancientPath: [0, 10],
+  pc: [4, -1],
 };
 
 /** Puesto minero (Fase 9): landmark central y sello de la ruina. */
@@ -285,9 +286,14 @@ export const CRIMSON_RUIN_LAYOUT = {
   pathGate: [0, 7],
 };
 
+export const SETTLEMENT_LAYOUT = {
+  pc: [5, -3],
+};
+
 export const CLIFF_OUTPOST_LAYOUT = {
   stall: [-4, 4],
   lift: [0, 6],
+  pc: [2, 5],
 };
 
 export const WIND_SHRINE_LAYOUT = {
@@ -457,6 +463,10 @@ function buildSettlement(stamp, x, y, z, rng, ground) {
   buildHut(stamp, ground, x, y, z, 7, 6, 2, B.STONE, B.WOOD, [-1, 0]);
   // Casa de la sanadora (madera, tejado de hojas), puerta hacia la plaza
   buildHut(stamp, ground, x, y, z, 7, -6, 2, B.WOOD, B.LEAVES, [-1, 0]);
+  // Terminal PC junto a la sanadora
+  fillFloor(stamp, ground, x, y, z, 5, -3, B.STONE);
+  stamp(x + 5, y + 1, z - 3, B.WOOD);
+  stamp(x + 5, y + 2, z - 3, B.CRYSTAL);
 
   // Puesto del comerciante: 4 postes, techo de hojas y mostrador
   for (const [px, pz] of [[-9, 2], [-9, 6], [-5, 2], [-5, 6]]) {
@@ -719,6 +729,9 @@ function buildMistSettlement(stamp, x, y, z, rng, ground) {
 
   // Casa del explorador (norte de la plaza, dz negativo = hacia el gym)
   buildHut(stamp, ground, x, y, z, 0, -5, 2, B.STONE, B.WOOD, [0, 1]);
+  fillFloor(stamp, ground, x, y, z, 4, -1, B.STONE);
+  stamp(x + 4, y + 1, z - 1, B.WOOD);
+  stamp(x + 4, y + 2, z - 1, B.CRYSTAL);
 
   // Arco sellado al sur: sendero hacia el futuro Gimnasio 2
   for (const dx of [-3, 3]) {
@@ -1056,6 +1069,9 @@ function buildCliffOutpost(stamp, x, y, z, rng, ground) {
     stamp(x, y + dy, z + 6, B.AIR);
   }
   stamp(x, y + 1, z + 6, B.CRYSTAL);
+  fillFloor(stamp, ground, x, y, z, 2, 5, B.STONE);
+  stamp(x + 2, y + 1, z + 5, B.WOOD);
+  stamp(x + 2, y + 2, z + 5, B.CRYSTAL);
   if (rng() < 0.9) stamp(x + 3, y + 1, z - 2, B.HERB);
   if (rng() < 0.7) stamp(x - 3, y + 1, z + 4, B.HERB);
 }
