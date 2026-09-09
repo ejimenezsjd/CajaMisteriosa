@@ -168,6 +168,24 @@ export const RESOURCES = {
     surface: true,
     futureUse: "venta y medicina futura",
   },
+  coral_fragment: {
+    id: "coral_fragment",
+    name: "Fragmento de coral",
+    icon: "🪸",
+    block: B.CORAL_ROCK,
+    rarity: "poco común",
+    surface: true,
+    futureUse: "economía costera, misiones y crafting futuro",
+  },
+  tidal_pearl: {
+    id: "tidal_pearl",
+    name: "Perla de marea",
+    icon: "⚪",
+    block: B.TIDAL_PEARL,
+    rarity: "rara",
+    surface: true,
+    futureUse: "economía, misiones y pista del Gimnasio 5",
+  },
 };
 
 const BY_BLOCK = {};

@@ -16,6 +16,8 @@
  *   Región 4: continuación al sur de crimson_pass / Gym 3, empezando
  *             DESPUÉS de Región 3 (z +443 … +693, anclada a gym3).
  *             No solapa R3: el paso (gym3.z+15 = gym1.z+427) sigue en R3.
+ *   Región 5: continuación al sur de highland_exit (z +694 … +980),
+ *             centrada en el arco. No solapa R4. Acceso = highland_exit.
  *   El resto del mundo es region_1.
  *
  * No se altera terrainAt ni la clasificación base de R1–R3: los overlays
@@ -34,6 +36,7 @@ export const REGION_1 = "region_1";
 export const REGION_2 = "region_2";
 export const REGION_3 = "region_3";
 export const REGION_4 = "region_4";
+export const REGION_5 = "region_5";
 
 /** Offsets y tamaño de los corredores post-gimnasio (bloques). */
 export const REGION_GEOMETRY = {
@@ -77,6 +80,24 @@ export const REGION_GEOMETRY = {
   highlandExit: { dx: 97, dz: 684 },
   galePathA: { dx: 66, dz: 653 },
   galePathB: { dx: 85, dz: 658 },
+  // Región 5: al sur de highland_exit (dz 684). R4 acaba en 693.
+  // Centro X = arco (dx 97). Pad de estructuras 4 cubre dz 980.
+  r5HalfW: 140,
+  r5z0: 694,
+  r5z1: 980,
+  coastalGate: { dx: 97, dz: 718 },
+  azurePort: { dx: 90, dz: 778 },
+  azureBridge: { dx: 48, dz: 828 },
+  tidalRuins: { dx: 18, dz: 868 },
+  azureLighthouse: { dx: 148, dz: 928 },
+  tideLookout: { dx: 128, dz: 798 },
+  fishermanCamp: { dx: 48, dz: 748 },
+  weatheredShrine: { dx: 158, dz: 848 },
+  brokenSpan: { dx: 78, dz: 888 },
+  // Corrientes horizontales (offsets desde gym1).
+  currentA: { dx: 70, dz: 812 },
+  currentB: { dx: 28, dz: 852 },
+  currentC: { dx: 110, dz: 900 },
 };
 
 export const REGIONS = {
@@ -103,10 +124,17 @@ export const REGIONS = {
     shortName: "Vendaval",
     gateId: "region_4",
   },
+  [REGION_5]: {
+    id: REGION_5,
+    name: "Archipiélago Azur",
+    shortName: "Azur",
+    gateId: "region_5",
+    difficulty: 5,
+  },
 };
 
-/** Pad de celdas: R4 z+693 / cell 260 ⇒ hasta 3 celdas al sur del gym. */
-const GYM_LOOKUP_PAD = 3;
+/** Pad de celdas: R5 z+980 / cell 260 ⇒ 4 celdas al sur del gym. */
+const GYM_LOOKUP_PAD = 4;
 
 let _gymCandidate = null;
 
@@ -165,6 +193,19 @@ export function region4BoundsFor(gym) {
   };
 }
 
+export function region5BoundsFor(gym) {
+  const g = REGION_GEOMETRY;
+  const cx = gym.x + g.highlandExit.dx;
+  return {
+    x0: cx - g.r5HalfW,
+    x1: cx + g.r5HalfW,
+    z0: gym.z + g.r5z0,
+    z1: gym.z + g.r5z1,
+    gym,
+    entranceZ: gym.z + g.highlandExit.dz,
+  };
+}
+
 function smoothstep(a, b, x) {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
@@ -180,6 +221,22 @@ export function region4HeightBonus(x, z, seed = 0) {
   const ridge = smoothstep(0.4, 0.82, fbm2(x * 0.01, z * 0.028, seed + 91003, 3));
   const spire = smoothstep(0.7, 0.92, fbm2(x * 0.045 + 40, z * 0.045 - 20, seed + 91002, 3));
   return Math.floor(5 + plateau * 9 + ridge * 5 + spire * 7);
+}
+
+/**
+ * Altura de columna en Región 5. No entra en terrainAt: R1–R4 intactos.
+ * Descenso desde el arco hacia islas/playas/canales.
+ */
+export function region5Height(x, z, seed = 0, terrainH = 12, gym = null) {
+  const gz = gym?.z ?? 0;
+  const lz = z - gz;
+  const descent = smoothstep(688, 758, lz);
+  const island = smoothstep(0.36, 0.72, fbm2(x * 0.018, z * 0.018, seed + 92001, 4));
+  const ridge = fbm2(x * 0.028, z * 0.02, seed + 92003, 3);
+  const coastal = Math.floor(12 - 2 + island * 8 + ridge * 2.4);
+  const shelf = lz < 722 ? Math.max(coastal, 15) : coastal;
+  const mixed = Math.floor(terrainH * (1 - descent) + shelf * descent);
+  return Math.max(2, Math.min(58, mixed));
 }
 
 function inRect(x, z, b) {
@@ -225,6 +282,7 @@ export function nearbyGymAnchors(x, z) {
 
 function regionOfGym(gym, x, z) {
   if (!gym) return REGION_1;
+  if (inRect(x, z, region5BoundsFor(gym))) return REGION_5;
   if (inRect(x, z, region4BoundsFor(gym))) return REGION_4;
   if (inRect(x, z, region3BoundsFor(gym))) return REGION_3;
   if (inRect(x, z, region2BoundsFor(gym))) return REGION_2;
@@ -252,6 +310,7 @@ export function nearestGymAnchor(x, z) {
  */
 export function getRegionAt(x, z) {
   const home = regions.homeGym();
+  if (home && inRect(x, z, region5BoundsFor(home))) return REGION_5;
   if (home && inRect(x, z, region4BoundsFor(home))) return REGION_4;
   const gym = nearestGymPad(x, z, 1) || home;
   return regionOfGym(gym, x, z);
@@ -267,6 +326,10 @@ export function isInRegion3(x, z) {
 
 export function isInRegion4(x, z) {
   return getRegionAt(x, z) === REGION_4;
+}
+
+export function isInRegion5(x, z) {
+  return getRegionAt(x, z) === REGION_5;
 }
 
 /** Destino de una región: el gateId que hay que abrir para entrar. */

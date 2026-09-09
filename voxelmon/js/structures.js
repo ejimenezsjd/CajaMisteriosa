@@ -23,6 +23,10 @@ import { columnHash, mulberry32 } from "./noise.js";
 import { getBiomeDefinition } from "./biomes.js";
 import { WATER_Y } from "./world.js";
 import { REGION_GEOMETRY } from "./regions.js";
+import {
+  stampBuilding, stampRoadSegment, stampProps, stampBoardwalk,
+  stampRouteArch, stampMooredBoat,
+} from "./settlement-kit.js";
 
 const SALT = {
   camp: 11001, ruin: 22002, healing_shrine: 33003, settlement: 44004, gym: 55005,
@@ -38,6 +42,15 @@ const SALT = {
   tempest_spire: 18117,
   gym_gale: 19118,
   highland_exit: 20119,
+  coastal_gate: 21120,
+  azure_port: 22121,
+  azure_bridge: 23122,
+  tidal_ruins: 24123,
+  azure_lighthouse: 25124,
+  tide_lookout: 26125,
+  fisherman_camp: 27126,
+  weathered_shrine: 28127,
+  broken_span: 29128,
 };
 
 const REGIONAL_TYPES = new Set([
@@ -45,6 +58,8 @@ const REGIONAL_TYPES = new Set([
   "mining_camp", "crimson_ruin", "gym_crimson",
   "cliff_outpost", "wind_shrine", "storm_observatory",
   "tempest_spire", "gym_gale", "highland_exit",
+  "coastal_gate", "azure_port", "azure_bridge", "tidal_ruins", "azure_lighthouse",
+  "tide_lookout", "fisherman_camp", "weathered_shrine", "broken_span",
 ]);
 
 export const STRUCTURE_TYPES = {
@@ -265,6 +280,113 @@ export const STRUCTURE_TYPES = {
     maxSlope: 14,
     build: buildHighlandExit,
   },
+  coastal_gate: {
+    id: "coastal_gate",
+    name: "Arco de la costa",
+    icon: "🚪",
+    cell: 260,
+    chance: 1,
+    radius: 5,
+    maxSlope: 16,
+    build: buildCoastalGate,
+  },
+  azure_port: {
+    id: "azure_port",
+    name: "Puerto Azur",
+    icon: "🏘",
+    cell: 260,
+    chance: 1,
+    radius: 24,
+    maxSlope: 16,
+    safeZone: true,
+    safeRadius: 12,
+    build: buildAzurePort,
+    npcAnchors: [
+      { role: "azure_guide", local: [0, -8] },
+      { role: "azure_healer", local: [-9, -4], indoor: true },
+      { role: "azure_merchant", local: [9, -3] },
+      { role: "sailor", local: [4, 16] },
+      { role: "child_observer", local: [3, 2] },
+      { role: "fisher", local: [-6, 14] },
+      { role: "traveler", local: [6, -8] },
+      { role: "creature_keeper", local: [-6, -1] },
+    ],
+  },
+  azure_bridge: {
+    id: "azure_bridge",
+    name: "Puente de las mareas",
+    icon: "🌉",
+    cell: 260,
+    chance: 1,
+    radius: 8,
+    maxSlope: 16,
+    build: buildAzureBridge,
+  },
+  tidal_ruins: {
+    id: "tidal_ruins",
+    name: "Ruinas de Marea",
+    icon: "🏛",
+    cell: 260,
+    chance: 1,
+    radius: 12,
+    maxSlope: 16,
+    dungeon: true,
+    wildAllowed: true,
+    build: buildTidalRuins,
+    npcAnchors: [
+      { role: "azure_researcher", local: [6, -8] },
+    ],
+  },
+  azure_lighthouse: {
+    id: "azure_lighthouse",
+    name: "Faro Azur",
+    icon: "🗼",
+    cell: 260,
+    chance: 1,
+    radius: 8,
+    maxSlope: 16,
+    build: buildAzureLighthouse,
+  },
+  tide_lookout: {
+    id: "tide_lookout",
+    name: "Mirador de la resaca",
+    icon: "👁",
+    cell: 260,
+    chance: 1,
+    radius: 4,
+    maxSlope: 16,
+    build: buildTideLookout,
+  },
+  fisherman_camp: {
+    id: "fisherman_camp",
+    name: "Campamento de redes",
+    icon: "⛺",
+    cell: 260,
+    chance: 1,
+    radius: 4,
+    maxSlope: 16,
+    build: buildFishermanCamp,
+  },
+  weathered_shrine: {
+    id: "weathered_shrine",
+    name: "Santuario erosionado",
+    icon: "✨",
+    cell: 260,
+    chance: 1,
+    radius: 3,
+    maxSlope: 16,
+    build: buildWeatheredShrine,
+  },
+  broken_span: {
+    id: "broken_span",
+    name: "Tramo roto",
+    icon: "🪵",
+    cell: 260,
+    chance: 1,
+    radius: 5,
+    maxSlope: 16,
+    build: buildBrokenSpan,
+  },
 };
 
 /** Locales del banco y del arco sellado (Gym 2 hook) respecto al centro */
@@ -316,8 +438,47 @@ export const HIGHLAND_EXIT_LAYOUT = {
   vista: [0, 4],
 };
 
+export const AZURE_PORT_LAYOUT = {
+  plaza: [0, 0],
+  clinic: [-9, -5],
+  pc: [-9, -4],
+  market: [9, -4],
+  dock: [0, 16],
+  home_nav: [-11, 7],
+  home_net: [11, 6],
+  warehouse: [-14, 14],
+  lookout: [12, -11],
+  sign: [0, -10],
+};
+
+export const TIDAL_RUINS_LAYOUT = {
+  entrance: [0, -10],
+  chamberA: [0, -2],
+  chamberB: [-5, 4],
+  chamberC: [5, 6],
+  pickup: [0, 4],
+};
+
+export const AZURE_LIGHTHOUSE_LAYOUT = {
+  door: [0, -5],
+  lamp: [0, 0],
+  lens: [0, 0],
+  platform: [0, 0],
+};
+
+export const COASTAL_GATE_LAYOUT = {
+  arch: [0, 0],
+  sign: [0, 2],
+};
+
+const AZURE_TYPES = new Set([
+  "coastal_gate", "azure_port", "azure_bridge", "tidal_ruins", "azure_lighthouse",
+  "tide_lookout", "fisherman_camp", "weathered_shrine", "broken_span",
+]);
+
 export const PROTECTED_STRUCTURE_TYPES = new Set([
   "gym_gale", "tempest_spire", "highland_exit", "storm_observatory",
+  "azure_lighthouse", "tidal_ruins",
 ]);
 
 /** Radio máximo entre todos los tipos: margen de solape chunk/estructura */
@@ -1266,6 +1427,233 @@ function buildHighlandExit(stamp, x, y, z, rng, ground) {
   stamp(x, y + 1, z + 4, B.CRYSTAL);
 }
 
+function plat(stamp, ground, x, y, z, dx, dz, r, block) {
+  for (let ox = -r; ox <= r; ox++) {
+    for (let oz = -r; oz <= r; oz++) {
+      fillFloor(stamp, ground, x, y, z, dx + ox, dz + oz, block);
+    }
+  }
+}
+
+function buildCoastalGate(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 5, 10);
+  plat(stamp, ground, x, y, z, 0, 0, 4, B.PACKED_SAND);
+  stampRouteArch(stamp, ground, x, y, z, 0, 0, 1);
+  stamp(x, y + 1, z + 2, B.WOOD);
+  stamp(x, y + 2, z + 2, B.WOOD);
+}
+
+function buildAzurePort(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 24, 12);
+  const L = AZURE_PORT_LAYOUT;
+
+  for (let dx = -16; dx <= 16; dx++) {
+    for (let dz = -12; dz <= 18; dz++) {
+      const d = Math.hypot(dx / 16, dz / 16);
+      if (d > 1.05) continue;
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.PACKED_SAND);
+    }
+  }
+
+  stampRoadSegment(stamp, ground, x, y, z, [0, -12], [0, 16], 3, B.PACKED_SAND);
+  stampRoadSegment(stamp, ground, x, y, z, [-12, 0], [12, 0], 3, B.PACKED_SAND);
+  stampRoadSegment(stamp, ground, x, y, z, L.clinic, L.plaza, 2, B.STONE);
+  stampRoadSegment(stamp, ground, x, y, z, L.market, L.plaza, 2, B.STONE);
+  stampRoadSegment(stamp, ground, x, y, z, L.plaza, L.dock, 3, B.PACKED_SAND);
+
+  for (let dx = -3; dx <= 3; dx++) {
+    for (let dz = -3; dz <= 3; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.STONE);
+    }
+  }
+  stamp(x, y + 1, z, B.SAND);
+  stamp(x, y + 2, z, B.CRYSTAL);
+  stamp(x, y + 3, z, B.CRYSTAL);
+
+  stampBuilding(stamp, ground, x, y, z, L.clinic[0], L.clinic[1], 3, {
+    wall: B.STONE, roof: B.WOOD, floor: B.STONE, door: [1, 0], openRoof: true, wallH: 3,
+  });
+  stamp(x + L.pc[0], y + 1, z + L.pc[1], B.WOOD);
+  stamp(x + L.pc[0], y + 2, z + L.pc[1], B.CRYSTAL);
+
+  stampBuilding(stamp, ground, x, y, z, L.market[0], L.market[1], 3, {
+    wall: B.WOOD, roof: B.LEAVES, floor: B.PACKED_SAND, door: [-1, 0], openRoof: true,
+  });
+  stamp(x + L.market[0], y + 1, z + L.market[1], B.WOOD);
+  stamp(x + L.market[0] + 1, y + 1, z + L.market[1], B.WOOD);
+
+  stampBuilding(stamp, ground, x, y, z, L.home_nav[0], L.home_nav[1], 2, {
+    wall: B.WOOD, roof: B.WOOD, floor: B.STONE, door: [0, -1], openRoof: true,
+  });
+  stampBuilding(stamp, ground, x, y, z, L.home_net[0], L.home_net[1], 2, {
+    wall: B.WOOD, roof: B.LEAVES, floor: B.STONE, door: [0, -1], openRoof: true,
+  });
+  stampBuilding(stamp, ground, x, y, z, L.warehouse[0], L.warehouse[1], 2, {
+    wall: B.STONE, roof: B.WOOD, floor: B.STONE, door: [1, 0], openRoof: true,
+  });
+
+  stampBoardwalk(stamp, ground, x, y, z, [0, 12], [0, 22], 3);
+  for (let dx = -4; dx <= 4; dx++) {
+    fillFloor(stamp, ground, x, y, z, dx, 16, B.WOOD);
+  }
+  stampMooredBoat(stamp, x, y, z, 5, 20);
+  stampMooredBoat(stamp, x, y, z, -6, 19);
+
+  plat(stamp, ground, x, y, z, L.lookout[0], L.lookout[1], 2, B.STONE);
+  for (let dy = 1; dy <= 4; dy++) stamp(x + L.lookout[0], y + dy, z + L.lookout[1], B.WOOD);
+  stamp(x + L.lookout[0], y + 5, z + L.lookout[1], B.CRYSTAL);
+
+  stamp(x + L.sign[0], y + 1, z + L.sign[1], B.WOOD);
+  stamp(x + L.sign[0], y + 2, z + L.sign[1], B.WOOD);
+
+  stampProps(stamp, x, y, z, [
+    { kind: "lantern", dx: -4, dz: -4 },
+    { kind: "lantern", dx: 4, dz: -4 },
+    { kind: "lantern", dx: -4, dz: 4 },
+    { kind: "lantern", dx: 4, dz: 4 },
+    { kind: "bench", dx: 2, dz: -2 },
+    { kind: "planter", dx: -3, dz: 2 },
+    { kind: "planter", dx: 3, dz: 2 },
+    { kind: "crate", dx: -13, dz: 13 },
+    { kind: "crate", dx: -12, dz: 15 },
+    { kind: "barrel", dx: 3, dz: 15 },
+    { kind: "barrel", dx: 4, dz: 17 },
+    { kind: "net", dx: -5, dz: 17 },
+    { kind: "buoy", dx: 8, dz: 18 },
+    { kind: "fence", dx: -8, dz: 10 },
+    { kind: "fence", dx: 8, dz: 10 },
+    { kind: "post", dx: -2, dz: 12 },
+    { kind: "post", dx: 2, dz: 12 },
+  ]);
+}
+
+function buildAzureBridge(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 8, 8);
+  for (let dz = -6; dz <= 6; dz++) {
+    const curve = Math.round(Math.sin(dz * 0.45) * 2);
+    for (let dx = -1; dx <= 1; dx++) {
+      fillFloor(stamp, ground, x, y, z, dx + curve, dz, B.WOOD);
+      stamp(x + dx + curve, y + 1, z + dz, B.WOOD);
+    }
+    if ((dz & 1) === 0) {
+      stamp(x - 2 + curve, y + 1, z + dz, B.WOOD);
+      stamp(x + 2 + curve, y + 1, z + dz, B.WOOD);
+    }
+  }
+}
+
+function buildTidalRuins(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 12, 10);
+  const L = TIDAL_RUINS_LAYOUT;
+  plat(stamp, ground, x, y, z, 0, -8, 4, B.STONE);
+  plat(stamp, ground, x, y, z, 0, -2, 4, B.STONE);
+  plat(stamp, ground, x, y, z, -5, 4, 3, B.CORAL_ROCK);
+  plat(stamp, ground, x, y, z, 5, 6, 3, B.STONE);
+
+  for (let dx = -3; dx <= 3; dx++) {
+    fillFloor(stamp, ground, x, y, z, dx, -10, B.STONE);
+    const door = dx === 0;
+    for (let dy = 1; dy <= 4; dy++) {
+      if (door && dy <= 2) continue;
+      stamp(x + dx, y + dy, z - 10, B.STONE);
+    }
+  }
+  stamp(x, y + 5, z - 10, B.CRYSTAL);
+
+  for (const [cx, cz] of [[-4, -2], [4, -2], [-4, 2], [4, 2]]) {
+    fillFloor(stamp, ground, x, y, z, cx, cz, B.STONE);
+    for (let dy = 1; dy <= 3 + Math.floor(rng() * 2); dy++) stamp(x + cx, y + dy, z + cz, B.STONE);
+  }
+
+  for (let dz = -8; dz <= 6; dz++) {
+    fillFloor(stamp, ground, x, y, z, 0, dz, B.PACKED_SAND);
+  }
+  for (let dx = -4; dx <= 0; dx++) fillFloor(stamp, ground, x, y, z, dx, 4, B.PACKED_SAND);
+  for (let dx = 0; dx <= 5; dx++) fillFloor(stamp, ground, x, y, z, dx, 5, B.PACKED_SAND);
+
+  for (let dx = -2; dx <= 2; dx++) {
+    for (let dz = 3; dz <= 5; dz++) {
+      stamp(x + dx, y, z + dz, B.WATER);
+      if (y > WATER_Y) stamp(x + dx, WATER_Y, z + dz, B.WATER);
+    }
+  }
+  // Canal somero fijo en la cámara central (no depende de rng).
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dz = -1; dz <= 2; dz++) {
+      stamp(x + dx, Math.min(y, WATER_Y), z + dz, B.WATER);
+    }
+  }
+  stamp(x + L.pickup[0], y + 1, z + L.pickup[1], B.TIDAL_PEARL);
+  stamp(x - 4, y + 1, z + 1, B.CORAL_ROCK);
+}
+
+function buildAzureLighthouse(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 8, 18);
+  plat(stamp, ground, x, y, z, 0, 0, 5, B.STONE);
+  for (let dy = 1; dy <= 14; dy++) {
+    const r = dy < 12 ? 2 : 1;
+    for (let dx = -r; dx <= r; dx++) {
+      for (let dz = -r; dz <= r; dz++) {
+        const edge = Math.abs(dx) === r || Math.abs(dz) === r;
+        if (!edge) continue;
+        const door = dy <= 2 && dx === 0 && dz === -2;
+        if (door) continue;
+        stamp(x + dx, y + dy, z + dz, B.STONE);
+      }
+    }
+    if (dy % 3 === 0) {
+      stamp(x + 1, y + dy, z, B.WOOD);
+      stamp(x, y + dy, z + 1, B.WOOD);
+    }
+  }
+  plat(stamp, ground, x, y + 14, z, 0, 0, 2, B.STONE);
+  stamp(x, y + 15, z, B.CRYSTAL);
+  stamp(x, y + 16, z, B.CRYSTAL);
+  stamp(x, y + 1, z - 3, B.WOOD);
+}
+
+function buildTideLookout(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 4, 8);
+  plat(stamp, ground, x, y, z, 0, 0, 3, B.STONE);
+  for (let dy = 1; dy <= 5; dy++) stamp(x, y + dy, z, B.WOOD);
+  stamp(x, y + 6, z, B.CRYSTAL);
+  stamp(x + 1, y + 1, z, B.WOOD);
+  stamp(x - 1, y + 1, z, B.WOOD);
+}
+
+function buildFishermanCamp(stamp, x, y, z, rng, ground) {
+  buildCamp(stamp, x, y, z, rng, ground);
+  stamp(x + 2, y + 1, z, B.WOOD);
+  stamp(x + 2, y + 2, z, B.LEAVES);
+}
+
+function buildWeatheredShrine(stamp, x, y, z, rng, ground) {
+  buildShrine(stamp, x, y, z, rng, ground);
+  stamp(x, y + 1, z + 1, B.CORAL_ROCK);
+}
+
+function buildBrokenSpan(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 5, 6);
+  for (let dz = -4; dz <= 1; dz++) {
+    fillFloor(stamp, ground, x, y, z, 0, dz, B.WOOD);
+    stamp(x, y + 1, z + dz, B.WOOD);
+  }
+  for (let dz = 3; dz <= 4; dz++) {
+    fillFloor(stamp, ground, x, y, z, 1, dz, B.WOOD);
+  }
+}
+
+export function isWildSpawnBlocked(world, x, z) {
+  if (!world?.structures) return false;
+  for (const s of world.structures.near(x, z, 28)) {
+    const def = STRUCTURE_TYPES[s.type];
+    if (!def?.safeZone) continue;
+    const r = def.safeRadius ?? def.radius;
+    if (Math.hypot(s.x - x, s.z - z) <= r) return true;
+  }
+  return false;
+}
+
 // ---------- Índice determinista por celdas ----------
 
 export class StructureIndex {
@@ -1382,12 +1770,42 @@ export class StructureIndex {
     } else if (type === "highland_exit") {
       x = gym.x + g.highlandExit.dx;
       z = gym.z + g.highlandExit.dz;
+    } else if (type === "coastal_gate") {
+      x = gym.x + g.coastalGate.dx;
+      z = gym.z + g.coastalGate.dz;
+    } else if (type === "azure_port") {
+      x = gym.x + g.azurePort.dx;
+      z = gym.z + g.azurePort.dz;
+    } else if (type === "azure_bridge") {
+      x = gym.x + g.azureBridge.dx;
+      z = gym.z + g.azureBridge.dz;
+    } else if (type === "tidal_ruins") {
+      x = gym.x + g.tidalRuins.dx;
+      z = gym.z + g.tidalRuins.dz;
+    } else if (type === "azure_lighthouse") {
+      x = gym.x + g.azureLighthouse.dx;
+      z = gym.z + g.azureLighthouse.dz;
+    } else if (type === "tide_lookout") {
+      x = gym.x + g.tideLookout.dx;
+      z = gym.z + g.tideLookout.dz;
+    } else if (type === "fisherman_camp") {
+      x = gym.x + g.fishermanCamp.dx;
+      z = gym.z + g.fishermanCamp.dz;
+    } else if (type === "weathered_shrine") {
+      x = gym.x + g.weatheredShrine.dx;
+      z = gym.z + g.weatheredShrine.dz;
+    } else if (type === "broken_span") {
+      x = gym.x + g.brokenSpan.dx;
+      z = gym.z + g.brokenSpan.dz;
     }
     const t = this.world.terrainAt(x, z);
     let y = Math.max(t.h, WATER_Y + 1);
     if (type === "cliff_outpost" || type === "wind_shrine" || type === "storm_observatory" ||
         type === "tempest_spire" || type === "gym_gale" || type === "highland_exit") {
       y = Math.min(60, y + this.world.region4BonusAt(x, z));
+    }
+    if (AZURE_TYPES.has(type) && this.world.region5HeightAt) {
+      y = Math.max(WATER_Y + 1, this.world.region5HeightAt(x, z, t.h));
     }
     return {
       id: `${type}:${cellX},${cellZ}`,
@@ -1410,9 +1828,9 @@ export class StructureIndex {
       const def = STRUCTURE_TYPES[type];
       const r = def.radius;
       // Estructuras regionales se indexan en la celda del gimnasio, pero su
-      // (x,z) real puede caer varias celdas al sur (gate +52 … observatory +650).
-      // pad=3 cubre ~780 bloques a cell=260: R4 y el radio de NPCs.
-      const pad = REGIONAL_TYPES.has(type) ? 3 : 0;
+      // (x,z) real puede caer varias celdas al sur (gate +52 … faro +928).
+      // pad=4 cubre ~1040 bloques a cell=260: R5 incluida.
+      const pad = REGIONAL_TYPES.has(type) ? 4 : 0;
       const c0x = Math.floor((xMin - r) / def.cell) - pad;
       const c1x = Math.floor((xMax + r) / def.cell) + pad;
       const c0z = Math.floor((zMin - r) / def.cell) - pad;

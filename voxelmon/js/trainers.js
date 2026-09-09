@@ -306,19 +306,78 @@ export const TRAINERS = {
     anchorY: 16,
     colors: { skin: "#e8d4c0", outfit: "#2a4868", accent: "#90e0ff" },
   },
+
+  azure_route_trainer_1: {
+    id: "azure_route_trainer_1",
+    name: "Nerea",
+    role: "trainer",
+    trainerClass: "explorer",
+    routeTrainer: true,
+    structureType: "coastal_gate",
+    dialogueId: "azure_trainer_nerea",
+    dialogueDefeatedId: "azure_trainer_nerea_done",
+    team: [
+      { speciesId: "plumin", level: 34 },
+      { speciesId: "riflin", level: 35 },
+      { speciesId: "alazan", level: 36 },
+    ],
+    rewardMoney: 420,
+    repeatable: false,
+    anchorOffset: [8, 6],
+    colors: { skin: "#e8c4a0", outfit: "#2a7a78", accent: "#f2c2a8" },
+  },
+  azure_route_trainer_2: {
+    id: "azure_route_trainer_2",
+    name: "Ciro",
+    role: "trainer",
+    trainerClass: "ranger",
+    routeTrainer: true,
+    structureType: "azure_bridge",
+    dialogueId: "azure_trainer_ciro",
+    dialogueDefeatedId: "azure_trainer_ciro_done",
+    team: [
+      { speciesId: "riazor", level: 35 },
+      { speciesId: "piedrita", level: 36 },
+      { speciesId: "marecal", level: 37 },
+    ],
+    rewardMoney: 480,
+    repeatable: false,
+    anchorOffset: [4, 2],
+    colors: { skin: "#c89060", outfit: "#3a5a50", accent: "#e0a040" },
+  },
+  azure_route_trainer_3: {
+    id: "azure_route_trainer_3",
+    name: "Solen",
+    role: "trainer",
+    trainerClass: "ace",
+    routeTrainer: true,
+    structureType: "azure_lighthouse",
+    dialogueId: "azure_trainer_solen",
+    dialogueDefeatedId: "azure_trainer_solen_done",
+    team: [
+      { speciesId: "tsunark", level: 37 },
+      { speciesId: "umbra", level: 36 },
+      { speciesId: "arrecanto", level: 39 },
+    ],
+    rewardMoney: 560,
+    repeatable: false,
+    anchorOffset: [-10, 6],
+    colors: { skin: "#d8c8b0", outfit: "#1a4060", accent: "#90e0ff" },
+  },
 };
 
 /** Anchors deterministas de entrenadores asociados a un settlement */
 export function trainerAnchorsFor(s) {
-  if (s.type !== "settlement") return [];
-  return Object.values(TRAINERS).filter((t) => !t.gymId).map((t) => ({
-    id: `${s.id}:${t.id}`,
-    role: "trainer",
-    trainerId: t.id,
-    structureId: s.id,
-    x: s.x + t.anchorOffset[0],
-    z: s.z + t.anchorOffset[1],
-  }));
+  return Object.values(TRAINERS)
+    .filter((t) => !t.gymId && (t.structureType ? t.structureType === s.type : s.type === "settlement"))
+    .map((t) => ({
+      id: `${s.id}:${t.id}`,
+      role: "trainer",
+      trainerId: t.id,
+      structureId: s.id,
+      x: s.x + t.anchorOffset[0],
+      z: s.z + t.anchorOffset[1],
+    }));
 }
 
 class TrainerSystem {
@@ -368,6 +427,7 @@ class TrainerSystem {
       trainerClass: def.trainerClass,
       rewardMoney: def.rewardMoney,
       gymId: def.gymId ?? null,
+      routeTrainer: !!def.routeTrainer,
     });
     return def.rewardMoney;
   }

@@ -10,7 +10,8 @@ import { B, BLOCK_NAMES, BLOCK_DROPS, COLORS } from "./blocks.js";
 import { BIOME_NAMES, getBiomeDefinition } from "./biomes.js";
 import { RESOURCES } from "./resources.js";
 import { StructureIndex } from "./structures.js";
-import { bindGymLookup, getRegionAt, REGION_2, REGION_3, REGION_4, region4HeightBonus } from "./regions.js";
+import { bindGymLookup, getRegionAt, REGION_2, REGION_3, REGION_4, REGION_5, region4HeightBonus, region5Height, regions } from "./regions.js";
+import { stampRegionalPaths, stampAzureCurrents } from "./routes.js";
 
 // Reexportados para los consumidores existentes (main.js, ui.js…)
 export { B, BLOCK_NAMES, BLOCK_DROPS } from "./blocks.js";
@@ -85,15 +86,20 @@ export class World {
    *   Región 2: plains/forest → mist_forest (ocean/beach/desert/snow/mountain intactos).
    *   Región 3: overlay crimson_highlands sobre tierra firme (no ocean/beach).
    *   Región 4: overlay wind_highlands sobre tierra firme (no ocean/beach).
+   *   Región 5: overlay azure_archipelago (incluye costa y canales).
    * Fuera de esos rectángulos coincide con baseBiomeAt (saves antiguos intactos).
    * terrainAt no se modifica: el overlay es solo clasificación + bloques superficiales.
    * La verticalidad de R4 se aplica en generateChunkData vía region4HeightBonus.
+   * La costa de R5 se aplica vía region5Height (no toca terrainAt de R1–R4).
    */
   biomeAt(x, z) {
     const fx = Math.floor(x);
     const fz = Math.floor(z);
     const base = this.biomeFromTerrain(this.terrainAt(fx, fz));
     const region = getRegionAt(fx, fz);
+    if (region === REGION_5) {
+      return "azure_archipelago";
+    }
     if (region === REGION_4 && base !== "ocean" && base !== "beach") {
       return "wind_highlands";
     }
@@ -109,6 +115,22 @@ export class World {
   region4BonusAt(x, z) {
     if (getRegionAt(x, z) !== REGION_4) return 0;
     return region4HeightBonus(Math.floor(x), Math.floor(z), this.seed);
+  }
+
+  region5HeightAt(x, z, terrainH = null) {
+    const t = terrainH ?? this.terrainAt(Math.floor(x), Math.floor(z)).h;
+    return region5Height(Math.floor(x), Math.floor(z), this.seed, t, regions.homeGym());
+  }
+
+  /** Altura de columna con overlays regionales (pura: no lee chunks). */
+  columnHeight(x, z) {
+    const t = this.terrainAt(Math.floor(x), Math.floor(z));
+    const region = getRegionAt(x, z);
+    if (region === REGION_5) return this.region5HeightAt(x, z, t.h);
+    if (region === REGION_4 && t.h > WATER_Y) {
+      return Math.min(HEIGHT - 4, t.h + this.region4BonusAt(x, z));
+    }
+    return t.h;
   }
 
   hasTreeAt(x, z) {
@@ -174,6 +196,9 @@ export class World {
         if (overlayBiome === "wind_highlands" && t.h > WATER_Y) {
           h = Math.min(HEIGHT - 4, t.h + this.region4BonusAt(wx, wz));
         }
+        if (overlayBiome === "azure_archipelago") {
+          h = this.region5HeightAt(wx, wz, t.h);
+        }
         for (let y = 0; y <= h; y++) {
           let b;
           if (y === 0) b = B.BEDROCK;
@@ -182,7 +207,10 @@ export class World {
           else {
             // Bloque superficial
             if (h <= WATER_Y + 1) b = B.SAND;
-            else if (t.desert) b = B.SAND;
+            else if (overlayBiome === "azure_archipelago") {
+              b = columnHash(wx, wz, this.seed + 55121) > 0.55 ? B.GRASS : B.SAND;
+              if (columnHash(wx, wz, this.seed + 55123) > 0.92) b = B.CORAL_ROCK;
+            } else if (t.desert) b = B.SAND;
             else if (h > 34) b = B.SNOW;
             else if (t.mountain > 0.55 && h > 26) b = B.STONE;
             else b = B.GRASS;
@@ -226,7 +254,8 @@ export class World {
           if (res.surface) {
             const ground = data[idx(lx, h, lz)];
             const okGround = ground === B.GRASS || ground === B.MIST_GRASS || ground === B.CRIMSON_STONE ||
-              ground === B.SKY_GRASS || ground === B.WINDSTONE;
+              ground === B.SKY_GRASS || ground === B.WINDSTONE || ground === B.SAND || ground === B.PACKED_SAND ||
+              ground === B.CORAL_ROCK;
             if (h > WATER_Y + 1 && h + 1 < HEIGHT && okGround) {
               data[idx(lx, h + 1, lz)] = res.block;
             }
@@ -333,6 +362,8 @@ export class World {
       data[idx(lx, wy, lz)] = b;
     };
     this.structures.stampChunk(x0, z0, CHUNK, stampStruct);
+    stampRegionalPaths(this, x0, z0, CHUNK, stampStruct);
+    stampAzureCurrents(this, x0, z0, CHUNK, stampStruct);
 
     // Ediciones del jugador
     for (const key in this.edits) {

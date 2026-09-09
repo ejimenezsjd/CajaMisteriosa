@@ -9,7 +9,7 @@
  */
 
 import { events } from "./events.js";
-import { SPECIES } from "./data.js?v=13";
+import { SPECIES } from "./data.js?v=14";
 import { PARTY_MAX } from "./inventory.js";
 
 export { PARTY_MAX };

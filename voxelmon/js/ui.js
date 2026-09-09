@@ -1,6 +1,6 @@
 /** Interfaz: HUD, menús, batalla, dex y notificaciones */
 
-import { SPECIES, TYPES, FAMILY_STARTERS, PERKS, movesFor, typeMultiplier } from "./data.js?v=13";
+import { SPECIES, TYPES, FAMILY_STARTERS, PERKS, movesFor, typeMultiplier } from "./data.js?v=14";
 import { creatureArtIcon } from "./creature-renderer.js";
 import { BLOCK_NAMES } from "./world.js";
 import { RESOURCES } from "./resources.js";

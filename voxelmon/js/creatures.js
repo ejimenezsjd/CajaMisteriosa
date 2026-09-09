@@ -1,12 +1,14 @@
 /** Criaturas salvajes: spawner por bioma/hora, IA de deambulación y etiquetas */
 
 import * as THREE from "three";
-import { SPECIES, createMonster } from "./data.js?v=13";
+import { SPECIES, createMonster } from "./data.js?v=14";
 import { buildCreatureVisual, animateCreatureVisual, disposeCreatureVisual } from "./creature-renderer.js";
 import { WATER_Y } from "./world.js";
 import { getBiomeDefinition } from "./biomes.js";
 import { events } from "./events.js";
-import { getRegionAt, REGION_2, REGION_3, REGION_4 } from "./regions.js";
+import { getRegionAt, REGION_2, REGION_3, REGION_4, REGION_5 } from "./regions.js";
+import { isWildSpawnBlocked } from "./structures.js";
+import { B } from "./blocks.js";
 
 export function makeLabel(text, color = "#ffffff") {
   const canvas = document.createElement("canvas");
@@ -143,6 +145,12 @@ export class Spawner {
     if (!SPECIES[id]) return fam;
     if (dist > 150 && Math.random() < 0.32) id = SPECIES[id].evolvesTo ?? id;
     if (dist > 320 && Math.random() < 0.3) id = SPECIES[id].evolvesTo ?? id;
+    if (regionId === REGION_5 && SPECIES[id]?.stage === 1 && Math.random() < 0.5) {
+      id = SPECIES[id].evolvesTo ?? id;
+    }
+    if (regionId === REGION_5 && SPECIES[id]?.stage === 2 && SPECIES[id].evolvesTo && Math.random() < 0.22) {
+      id = SPECIES[id].evolvesTo;
+    }
     if (regionId === REGION_4 && SPECIES[id]?.stage === 1 && Math.random() < 0.55) {
       id = SPECIES[id].evolvesTo ?? id;
     }
@@ -178,13 +186,19 @@ export class Spawner {
       const z = player.pos.z + Math.sin(a) * d;
       const y = this.world.surfaceY(x, z);
       if (y <= WATER_Y) return; // no spawnear en agua
+      if (isWildSpawnBlocked(this.world, x, z)) return;
+      const top = this.world.getBlock(Math.floor(x), y, Math.floor(z));
+      if (top === B.PACKED_SAND && Math.random() < 0.7) return;
       const distOrigin = Math.hypot(x, z);
       const biomeId = this.world.biomeAt(x, z);
       const regionId = getRegionAt(x, z);
       const id = this.pickSpecies(biomeId, distOrigin, dayFactor, regionId, y);
       if (!id) return; // el bioma no admite criaturas ahora mismo
       let level;
-      if (regionId === REGION_4) {
+      if (regionId === REGION_5) {
+        level = Math.max(34, Math.min(40,
+          34 + Math.floor(Math.random() * 5) + (SPECIES[id].stage - 1)));
+      } else if (regionId === REGION_4) {
         level = Math.max(28, Math.min(34,
           28 + Math.floor(Math.random() * 5) + (SPECIES[id].stage - 1)));
       } else if (regionId === REGION_3) {

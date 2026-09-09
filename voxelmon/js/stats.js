@@ -78,6 +78,16 @@ class StatsSystem {
       if (this.s && (p?.delta ?? 0) < 0) this.s.moneySpent += Math.abs(p.delta);
     });
     events.on("bossDefeated", inc("bossesDefeated"));
+    events.on("itemPickedUp", inc("itemsFound"));
+    events.on("trainerDefeated", (p) => {
+      if (this.s && p?.routeTrainer) this.s.routeTrainersDefeated += 1;
+    });
+    events.on("structureDiscovered", ({ structureType }) => {
+      if (this.s && (structureType === "azure_port" || structureType === "tidal_ruins" ||
+          structureType === "azure_lighthouse" || structureType === "coastal_gate")) {
+        this.s.regionalStructuresDiscovered += 1;
+      }
+    });
     events.on("structureDiscovered", ({ structureType }) => {
       if (this.s && (structureType === "gym_crimson" || structureType === "gym_gale")) {
         this.s.regionalStructuresDiscovered += 1;

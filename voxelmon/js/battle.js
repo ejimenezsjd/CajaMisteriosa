@@ -4,7 +4,7 @@
  */
 
 import * as THREE from "three";
-import { SPECIES, movesFor, typeMultiplier, gainXp, activePerks } from "./data.js?v=13";
+import { SPECIES, movesFor, typeMultiplier, gainXp, activePerks } from "./data.js?v=14";
 import { buildCreatureVisual, animateCreatureVisual, disposeCreatureVisual, setCreatureAnimation, playCreatureIntro } from "./creature-renderer.js";
 import { getCreatureArt } from "./creature-art.js";
 import { buildCubeBall } from "./models.js";

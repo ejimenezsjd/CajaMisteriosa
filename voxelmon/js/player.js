@@ -82,6 +82,7 @@ export class Player {
     }
 
     const lift = this.envForce.y > 0.2;
+    const current = !lift && Math.hypot(this.envForce.x, this.envForce.z) > 0.15;
     if (this.inWater && !lift) {
       this.vel.y += (GRAVITY * 0.18) * dt;
       this.vel.y *= 1 - Math.min(1, 3.2 * dt);
@@ -99,6 +100,10 @@ export class Player {
         this.vel.y = JUMP_V * (perks.jumpMult ?? 1);
         this.onGround = false;
       }
+    }
+    if (current) {
+      this.vel.x += this.envForce.x * dt;
+      this.vel.z += this.envForce.z * dt;
     }
     this.vel.y = Math.max(this.vel.y, -42);
 
