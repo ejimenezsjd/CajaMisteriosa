@@ -164,11 +164,11 @@ function tickEffects(nodes, t, effects) {
       if (name === "embers" || name === "flame" || name === "ember_tail") {
         p.position.set(Math.sin(a) * 0.08, 0.12 + (a % 1.2) * 0.22, Math.cos(a * 0.7) * 0.06);
         p.scale.setScalar(0.03 + Math.abs(Math.sin(a * 2)) * 0.03);
-      } else if (name === "mist" || name === "leaf") {
+      } else if (name === "mist" || name === "leaf" || name === "shadow_wisp") {
         p.position.set(Math.sin(a) * 0.16, 0.05 + Math.sin(a * 0.8) * 0.1, Math.cos(a) * 0.12);
       } else if (name === "spark") {
         p.position.set(Math.sin(a * 3) * 0.14, 0.2 + Math.sin(a * 5) * 0.08, Math.cos(a * 2) * 0.1);
-      } else if (name === "glow" || name === "crystal") {
+      } else if (name === "glow" || name === "crystal" || name === "prism") {
         const s = 0.05 + Math.sin(t * 3 + k) * 0.015;
         p.position.set((k - 1.5) * 0.06, 0.08 + Math.sin(t * 2 + k) * 0.04, 0);
         p.scale.setScalar(s);
@@ -377,6 +377,118 @@ const PROFILES = {
     hurt(p, k) { if (p.body) p.body.rotation.x = 0.08 * k; },
     faint(p, k) { if (p.body) p.body.rotation.z = k * 0.35; },
   },
+  electric_runner: {
+    idle(p, t) {
+      if (p.body) p.body.scale.y = (p.body.userData.rest?.sy ?? 1) * (1 + Math.sin(t * 3.2) * 0.03);
+      if (p.ear_l) p.ear_l.rotation.z = 0.2 + Math.sin(t * 6) * 0.12;
+      if (p.ear_r) p.ear_r.rotation.z = -0.2 - Math.sin(t * 6 + 0.5) * 0.12;
+      if (p.horn_l) p.horn_l.rotation.z = 0.18 + Math.sin(t * 4.2) * 0.06;
+      if (p.horn_r) p.horn_r.rotation.z = -0.18 - Math.sin(t * 4.2 + 0.4) * 0.06;
+      if (p.tail) p.tail.rotation.y = Math.sin(t * 5) * 0.2;
+    },
+    walk(p, t, spd) {
+      const w = t * 11 * (0.8 + spd);
+      ["leg_fl", "leg_br"].forEach((n) => { if (p[n]) p[n].rotation.x = Math.sin(w) * 0.7; });
+      ["leg_fr", "leg_bl"].forEach((n) => { if (p[n]) p[n].rotation.x = -Math.sin(w) * 0.7; });
+      if (p.body) p.body.position.y = (p.body.userData.rest?.py ?? 0) + Math.abs(Math.sin(w)) * 0.06;
+    },
+    attack(p, k) {
+      if (p.body) p.body.position.z = -0.2 * Math.sin(k * Math.PI);
+      if (p.tail) p.tail.rotation.x = -0.4 * Math.sin(k * Math.PI);
+    },
+    hurt(p, k) { if (p.body) p.body.rotation.z = 0.25 * k; },
+    faint(p, k) { if (p.body) p.body.rotation.z = k * 0.9; },
+  },
+  flyer_small: {
+    idle(p, t) {
+      if (p.body) p.body.position.y = (p.body.userData.rest?.py ?? 0) + Math.sin(t * 2.4) * 0.04;
+      if (p.wing_l) p.wing_l.rotation.z = 0.35 + Math.sin(t * 8) * 0.35;
+      if (p.wing_r) p.wing_r.rotation.z = -0.35 - Math.sin(t * 8) * 0.35;
+      if (p.head) p.head.rotation.y = Math.sin(t * 1.1) * 0.1;
+    },
+    walk(p, t, spd) {
+      const w = t * 10 * (0.7 + spd);
+      if (p.wing_l) p.wing_l.rotation.z = 0.5 + Math.sin(w) * 0.5;
+      if (p.wing_r) p.wing_r.rotation.z = -0.5 - Math.sin(w) * 0.5;
+      if (p.body) p.body.rotation.z = Math.sin(w) * 0.08;
+    },
+    attack(p, k) { if (p.body) p.body.position.z = -0.16 * Math.sin(k * Math.PI); },
+    hurt(p, k) { if (p.wing_l) p.wing_l.rotation.z = 0.8 * k; },
+    faint(p, k) { if (p.body) p.body.rotation.z = k * 1.1; },
+  },
+  flyer_mythic: {
+    idle(p, t) {
+      if (p.body) p.body.position.y = (p.body.userData.rest?.py ?? 0) + Math.sin(t * 1.4) * 0.03;
+      if (p.wing_l) p.wing_l.rotation.z = 0.25 + Math.sin(t * 3.2) * 0.18;
+      if (p.wing_r) p.wing_r.rotation.z = -0.25 - Math.sin(t * 3.2) * 0.18;
+      if (p.tail) p.tail.rotation.y = Math.sin(t * 1.2) * 0.08;
+      if (p.crown) p.crown.rotation.y = Math.sin(t * 0.6) * 0.05;
+    },
+    walk(p, t, spd) {
+      const w = t * 5.5 * (0.6 + spd);
+      if (p.wing_l) p.wing_l.rotation.z = 0.35 + Math.sin(w) * 0.28;
+      if (p.wing_r) p.wing_r.rotation.z = -0.35 - Math.sin(w) * 0.28;
+    },
+    attack(p, k) { if (p.wing_l) p.wing_l.rotation.x = -0.3 * Math.sin(k * Math.PI); },
+    hurt(p, k) { if (p.body) p.body.rotation.x = 0.12 * k; },
+    faint(p, k) { if (p.body) p.body.rotation.z = k * 0.5; },
+  },
+  shadow_stalker: {
+    idle(p, t) {
+      if (p.cloak) p.cloak.rotation.y = Math.sin(t * 1.3) * 0.08;
+      if (p.head) p.head.rotation.y = Math.sin(t * 0.7) * 0.14;
+      if (p.tail) p.tail.rotation.x = Math.sin(t * 2) * 0.1;
+    },
+    walk(p, t, spd) {
+      const w = t * 6 * (0.65 + spd);
+      if (p.leg_l || p.leg_fl) {
+        if (p.leg_fl) p.leg_fl.rotation.x = Math.sin(w) * 0.45;
+        if (p.leg_fr) p.leg_fr.rotation.x = -Math.sin(w) * 0.45;
+        if (p.arm_l) p.arm_l.rotation.x = -Math.sin(w) * 0.35;
+        if (p.arm_r) p.arm_r.rotation.x = Math.sin(w) * 0.35;
+      }
+      if (p.leg_l) p.leg_l.rotation.x = Math.sin(w) * 0.4;
+      if (p.leg_r) p.leg_r.rotation.x = -Math.sin(w) * 0.4;
+    },
+    attack(p, k) {
+      if (p.arm_r) p.arm_r.rotation.x = -0.9 * Math.sin(k * Math.PI);
+      if (p.body) p.body.position.z = -0.14 * Math.sin(k * Math.PI);
+    },
+    hurt(p, k) { if (p.body) p.body.rotation.x = 0.2 * k; },
+    faint(p, k) { if (p.body) p.body.rotation.z = k * 0.85; },
+  },
+  light_floater: {
+    idle(p, t) {
+      if (p.body) p.body.position.y = (p.body.userData.rest?.py ?? 0) + Math.sin(t * 1.8) * 0.05;
+      if (p.core) p.core.scale.setScalar(1 + Math.sin(t * 3) * 0.08);
+      if (p.orb_l) p.orb_l.position.y = (p.orb_l.userData.rest?.py ?? 0) + Math.sin(t * 2.2) * 0.04;
+      if (p.orb_r) p.orb_r.position.y = (p.orb_r.userData.rest?.py ?? 0) + Math.sin(t * 2.2 + 1) * 0.04;
+    },
+    walk(p, t, spd) {
+      const w = t * 4.5 * (0.6 + spd);
+      if (p.body) p.body.rotation.z = Math.sin(w) * 0.08;
+      if (p.leg_l) p.leg_l.rotation.x = Math.sin(w) * 0.25;
+      if (p.leg_r) p.leg_r.rotation.x = -Math.sin(w) * 0.25;
+    },
+    attack(p, k) { if (p.core) p.core.scale.setScalar(1 + 0.35 * Math.sin(k * Math.PI)); },
+    hurt(p, k) { if (p.body) p.body.scale.setScalar(1 - 0.08 * k); },
+    faint(p, k) { if (p.body) p.body.rotation.z = k * 0.9; },
+  },
+  crystal_entity: {
+    idle(p, t) {
+      if (p.plate_a) p.plate_a.rotation.y = t * 0.4;
+      if (p.plate_b) p.plate_b.rotation.y = -t * 0.3;
+      if (p.orb_l) p.orb_l.position.y = (p.orb_l.userData.rest?.py ?? 0) + Math.sin(t * 1.6) * 0.05;
+      if (p.orb_r) p.orb_r.position.y = (p.orb_r.userData.rest?.py ?? 0) + Math.sin(t * 1.6 + 2) * 0.05;
+      if (p.core) p.core.scale.setScalar(1 + Math.sin(t * 2.2) * 0.06);
+    },
+    walk(p, t, spd) {
+      if (p.body) p.body.position.y = (p.body.userData.rest?.py ?? 0) + Math.sin(t * 2 * (0.6 + spd)) * 0.04;
+    },
+    attack(p, k) { if (p.plate_a) p.plate_a.rotation.z = 0.4 * Math.sin(k * Math.PI); },
+    hurt(p, k) { if (p.body) p.body.rotation.x = 0.1 * k; },
+    faint(p, k) { if (p.body) p.body.rotation.z = k * 0.4; },
+  },
 };
 
 const FX_COLOR = {
@@ -388,6 +500,8 @@ const FX_COLOR = {
   spark: "#ffe680",
   glow: "#fff0a0",
   crystal: "#ff6a40",
+  prism: "#80d8ff",
+  shadow_wisp: "#6a48a0",
 };
 
 export function composeStylizedModel(def) {
@@ -487,6 +601,8 @@ export function buildStylized3d(speciesId, art, modelDef) {
         profile.idle(this.nodes, t);
       }
       tickEffects(this.nodes, t, this.effects);
+      const hover = root.userData.hover ?? 0;
+      if (this.shadow) this.shadow.position.y = 0.03 - hover;
       const blink = Math.sin(t * 0.7);
       if (blink > 0.96) {
         ["eye_l", "eye_r"].forEach((n) => {

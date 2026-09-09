@@ -58,6 +58,7 @@ export class WildCreature {
     const hover = this.flies ? 1.4 + Math.sin(performance.now() * 0.002 + this.yaw) * 0.25 : 0;
     this.group.position.set(this.pos.x, this.pos.y + hover, this.pos.z);
     this.group.rotation.y = this.yaw;
+    this.group.userData.hover = hover;
   }
 
   update(dt, world, t) {
