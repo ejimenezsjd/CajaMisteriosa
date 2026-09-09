@@ -1,6 +1,6 @@
 /** Interfaz: HUD, menús, batalla, dex y notificaciones */
 
-import { SPECIES, TYPES, FAMILY_STARTERS, PERKS, movesFor, typeMultiplier } from "./data.js?v=11";
+import { SPECIES, TYPES, FAMILY_STARTERS, PERKS, movesFor, typeMultiplier } from "./data.js?v=12";
 import { creatureArtIcon } from "./creature-renderer.js";
 import { BLOCK_NAMES } from "./world.js";
 import { RESOURCES } from "./resources.js";
@@ -341,7 +341,7 @@ export class UI {
       let id = f;
       while (id && SPECIES[id]) { line.push(id); id = SPECIES[id].evolvesTo; }
       return line;
-    }), "cirrith", "prismaton"];
+    }), "cirrith", "nimbora", "prismaton"];
     for (const id of order) {
       const sp = SPECIES[id];
       const caught = !!this.state.dex.caught[id];
@@ -402,6 +402,7 @@ export class UI {
       verdant_badge: "Insignia Verde",
       mist_badge: "Insignia Bruma",
       crimson_badge: "Insignia Forja",
+      gale_badge: "Insignia Vendaval",
     };
     const list = Object.keys(badges).filter((k) => badges[k]).map((k) => names[k] ?? k);
     return list.length ? ` · ${list.join(", ")}` : "";

@@ -7,17 +7,17 @@ import * as THREE from "three";
 import { World, B, BLOCK_DROPS, BIOME_NAMES } from "./world.js";
 import { getBiomeName, getBiomeDefinition } from "./biomes.js";
 import { RESOURCES, resourceForBlock } from "./resources.js";
-import { STRUCTURE_TYPES, MIST_SETTLEMENT_LAYOUT, CRIMSON_RUIN_LAYOUT, STORM_OBSERVATORY_LAYOUT } from "./structures.js";
+import { STRUCTURE_TYPES, MIST_SETTLEMENT_LAYOUT, CRIMSON_RUIN_LAYOUT, STORM_OBSERVATORY_LAYOUT, TEMPEST_SPIRE_LAYOUT, HIGHLAND_EXIT_LAYOUT } from "./structures.js";
 import { buildCreatureVisual, disposeCreatureVisual, preloadCreatureArt, creatureArtDebugSnapshot, textureCacheSize, inspectTextureCache, animateCreatureVisual, simulatePngLoadFailure, inspectGeometryCache, inspectMaterialCache, resolveCreatureRenderer, creatureArtIcon } from "./creature-renderer.js";
 import { setPreferredRenderer, getPreferredRenderer, listPixelSpecies, getCreatureArt, listArtSpecies } from "./creature-art.js";
-import { bosses, BOSSES } from "./bosses.js";
+import { bosses, BOSSES, STORM_SEAL_ID } from "./bosses.js";
 import { Player } from "./player.js";
 import { Spawner, WildCreature } from "./creatures.js";
 import { Battle, TrainerOpponent } from "./battle.js";
 import { TRAINERS, trainers } from "./trainers.js";
-import { GYMS, GYM_LAYOUT, MIST_GYM_LAYOUT, FORGE_GYM_LAYOUT, SWITCH_LABELS, BEACON_LABELS, CONDUIT_LABELS, gyms, gymIdForStructure } from "./gyms.js";
+import { GYMS, GYM_LAYOUT, MIST_GYM_LAYOUT, FORGE_GYM_LAYOUT, GALE_GYM_LAYOUT, SWITCH_LABELS, BEACON_LABELS, CONDUIT_LABELS, CHANNEL_LABELS, gyms, gymIdForStructure } from "./gyms.js";
 import { UI } from "./ui.js";
-import { FAMILY_STARTERS, PERKS, SPECIES, activePerks, familyOf, createMonster, gainXp } from "./data.js?v=11";
+import { FAMILY_STARTERS, PERKS, SPECIES, activePerks, familyOf, createMonster, gainXp } from "./data.js?v=12";
 import { sfx, toggleMute } from "./audio.js";
 import { events } from "./events.js";
 import {
@@ -105,6 +105,7 @@ let mode = "title"; // title | starter | play | battle | pause | dex | dialogue 
 let locked = false;
 let perks = activePerks({});
 let fogMistGym = null;
+let stormFlashT = 0;
 
 /** Recalcula las habilidades activas según la dex y las aplica al jugador */
 function refreshPerks() {
@@ -220,6 +221,16 @@ events.on("progressUnlocked", ({ id }) => {
     const obs = findStormObservatory(player?.pos.x ?? 0, player?.pos.z ?? 0);
     if (obs) applyStormSeal(obs);
   }
+  if (id === "gym_4_path_unlocked") {
+    ui.toast("🌬 El pináculo abre una corriente hacia el Gimnasio del Vendaval.", "legendary");
+    const gym4 = findGaleGym(player?.pos.x ?? 0, player?.pos.z ?? 0);
+    if (gym4) applyGaleGymOpening(gym4);
+  }
+  if (id === "region_5_path_unlocked") {
+    ui.toast("🌄 La Insignia Vendaval abre un arco al sur. El mundo continúa.", "legendary");
+    const hook = findHighlandExit(player?.pos.x ?? 0, player?.pos.z ?? 0);
+    if (hook) applyHighlandExitOpening(hook);
+  }
   if (id === AERIAL_UNLOCK) {
     ui.toast("🪶 Asistencia aérea de construcción desbloqueada. Pulsa B y luego Espacio.", "good");
   }
@@ -228,13 +239,15 @@ events.on("gymPuzzleProgress", ({ gymId, current, required, reset, recovered }) 
   if (gymId === "gym_mist") ui.toast(`🌫 Faros de bruma: ${current}/${required}`);
   else if (gymId === "gym_crimson") {
     ui.toast(recovered ? "🔥 Energía recuperada al reservorio." : `🔥 Energía del núcleo: ${current}/${required}`);
-  } else if (reset) ui.toast("↺ Secuencia incorrecta. Los pedestales se reinician.", "bad");
+  } else if (gymId === "gym_gale") ui.toast(`🌬 Canales de viento: ${current}/${required}`);
+  else if (reset) ui.toast("↺ Secuencia incorrecta. Los pedestales se reinician.", "bad");
   else ui.toast(`🌿 Pedestales activados: ${current}/${required}`);
   refreshGymTracker();
 });
 events.on("gymPuzzleSolved", ({ gymId }) => {
   if (gymId === "gym_mist") ui.toast("🌫 Los tres faros están encendidos.", "good");
   else if (gymId === "gym_crimson") ui.toast("🔥 El núcleo de forja está cargado.", "good");
+  else if (gymId === "gym_gale") ui.toast("🌬 Los tres canales fluyen hacia la terraza.", "good");
   else ui.toast("🌿 ¡Puzzle resuelto! La puerta del líder puede abrirse.", "good");
   maybeLeaderRoomToast(gymId ?? "gym_verdant");
   refreshGymTracker();
@@ -242,10 +255,12 @@ events.on("gymPuzzleSolved", ({ gymId }) => {
 events.on("gymEntered", ({ gymId }) => {
   if (gymId === "gym_mist") ui.toast("🌫 Gimnasio de las Brumas", "good");
   else if (gymId === "gym_crimson") ui.toast("🔥 Gimnasio de la Forja", "good");
+  else if (gymId === "gym_gale") ui.toast("🌬 Gimnasio del Vendaval", "good");
   else ui.toast("🌿 Gimnasio Verde", "good");
 });
 events.on("bossDefeated", ({ bossId }) => {
   if (bossId === "crimson_guardian") ui.toast("⚠ El Guardián Carmesí se desmorona. El camino al sur se abre.", "legendary");
+  if (bossId === "tempest_guardian") ui.toast("⚠ El Guardián del Vendaval se disipa. Las corrientes abren el gimnasio.", "legendary");
 });
 events.on("trainerDefeated", ({ gymId }) => {
   if (gymId) maybeLeaderRoomToast(gymId);
@@ -703,6 +718,10 @@ function mineBlockAt(x, y, z) {
     ui.toast("La roca madre es indestructible.");
     return;
   }
+  if (world.structures?.protectedAt?.(x, z)) {
+    ui.toast("La estructura está protegida.");
+    return;
+  }
   world.setBlock(x, y, z, B.AIR);
   sfx.break();
   spawnBreakParticles(x, y, z, block);
@@ -755,7 +774,7 @@ function maybeLeaderRoomToast(gymId) {
 }
 
 function gymWorldPos(s, local) {
-  return { x: s.x + local[0] + 0.5, y: s.y + 1.2, z: s.z + local[1] + 0.5 };
+  return { x: s.x + local[0] + 0.5, y: s.y + 1.2 + (local[2] ?? 0), z: s.z + local[1] + 0.5 };
 }
 
 function teleportPlayer(x, y, z) {
@@ -773,6 +792,14 @@ function isMistExitOpen() {
 
 function isRegion3GateOpened() {
   return regions.isGateOpened(REGION_3);
+}
+
+function localStormAt(x, z) {
+  if (!world) return false;
+  return world.structures.near(x, z, 36).some((s) => {
+    if (s.type === "tempest_spire" || s.type === "gym_gale") return true;
+    return s.type === "storm_observatory" && bosses.isSealActivated(STORM_SEAL_ID);
+  });
 }
 
 function registerGymInteractables(s, wanted) {
@@ -802,7 +829,9 @@ function registerGymInteractables(s, wanted) {
     ? "La puerta está sellada. El arco del refugio debe despertar primero."
     : gymId === "gym_crimson"
       ? "La puerta está sellada. El guardián de la ruina debe caer primero."
-      : "La puerta está cerrada. Necesitas demostrar tu experiencia como entrenador.";
+      : gymId === "gym_gale"
+        ? "La puerta está sellada. El guardián del pináculo debe caer primero."
+        : "La puerta está cerrada. Necesitas demostrar tu experiencia como entrenador.";
   put(`gym:${s.id}:door`, layout.door, 3.2,
     open ? "Entrar al gimnasio" : closedPrompt,
     () => {
@@ -954,6 +983,26 @@ function registerGymInteractables(s, wanted) {
         const destX = s.x + 0.5;
         teleportPlayer(destX, world.surfaceY(destX, destZ) + 1, destZ);
       });
+  }
+
+  if (gym.puzzle?.type === "wind_channels" && layout.channels) {
+    applyGaleGymOpening(s);
+    applyGaleLeaderOpening(s);
+    applyGaleChannelVisuals(s);
+    const st = gyms.gymState(gymId);
+    for (const [cid, local] of Object.entries(layout.channels)) {
+      const on = !!st.channels?.[cid];
+      const label = CHANNEL_LABELS[cid] ?? cid;
+      const prompt = on ? `${label} (activo)` : `${label} — Alinear corriente`;
+      put(`gym:${s.id}:channel:${cid}`, local, 2.6, prompt, () => {
+        const r = gyms.activateChannel(gymId, cid);
+        if (r.already) ui.toast("Los canales ya fluyen hacia la terraza.");
+        else if (r.first === false) ui.toast(`${label} ya fluía.`);
+        applyGaleChannelVisuals(s);
+        applyGaleLeaderOpening(s);
+        saveGame();
+      });
+    }
   }
 }
 
@@ -1203,10 +1252,145 @@ function findWindShrine(x, z) {
   return world.structures.candidate("wind_shrine", gym.cellX, gym.cellZ);
 }
 
+function findTempestSpire(x, z) {
+  if (!world) return null;
+  const near = world.structures.near(x, z, 140).find((s) => s.type === "tempest_spire");
+  if (near) return near;
+  const gym = regions.homeGym() || nearestGymAnchor(x, z);
+  if (!gym) return null;
+  return world.structures.candidate("tempest_spire", gym.cellX, gym.cellZ);
+}
+
+function findGaleGym(x, z) {
+  if (!world) return null;
+  const near = world.structures.near(x, z, 160).find((s) => s.type === "gym_gale");
+  if (near) return near;
+  const gym = regions.homeGym() || nearestGymAnchor(x, z);
+  if (!gym) return null;
+  return world.structures.candidate("gym_gale", gym.cellX, gym.cellZ);
+}
+
+function findHighlandExit(x, z) {
+  if (!world) return null;
+  const near = world.structures.near(x, z, 160).find((s) => s.type === "highland_exit");
+  if (near) return near;
+  const gym = regions.homeGym() || nearestGymAnchor(x, z);
+  if (!gym) return null;
+  return world.structures.candidate("highland_exit", gym.cellX, gym.cellZ);
+}
+
+function applyGaleGymOpening(s) {
+  if (!s || !world || !progression.isUnlocked("gym_4_path_unlocked")) return;
+  for (let ox = -1; ox <= 1; ox++) {
+    for (let dy = 1; dy <= 4; dy++) {
+      world.setBlock(s.x + ox, s.y + dy, s.z - 12, B.AIR);
+    }
+  }
+  for (let dz = -4; dz <= 6; dz++) {
+    for (let dy = 1; dy <= 5; dy++) {
+      world.setBlock(s.x - 10, s.y + dy, s.z + dz, B.AIR);
+    }
+  }
+}
+
+function applyGaleLeaderOpening(s) {
+  if (!s || !world || !gyms.canEnterLeader("gym_gale")) return;
+  world.setBlock(s.x, s.y + 17, s.z + 10, B.AIR);
+  world.setBlock(s.x, s.y + 18, s.z + 10, B.AIR);
+}
+
+function applyGaleChannelVisuals(s) {
+  if (!s || !world) return;
+  const layout = GALE_GYM_LAYOUT;
+  const st = gyms.gymState("gym_gale");
+  for (const [cid, local] of Object.entries(layout.channels)) {
+    const on = !!st.channels?.[cid];
+    const y = s.y + 2 + (local[2] ?? 0);
+    world.setBlock(s.x + local[0], y, s.z + local[1], on ? B.WIND_CRYSTAL : B.STONE);
+  }
+}
+
+function applyGaleSpireOpening(s) {
+  if (!s || !world) return;
+  if (!bosses.isSealActivated(STORM_SEAL_ID)) return;
+  world.setBlock(s.x, s.y + 2, s.z, B.WIND_CRYSTAL);
+}
+
+function applyHighlandExitOpening(s) {
+  if (!s || !world || !progression.isUnlocked("region_5_path_unlocked")) return;
+  for (let ox = -1; ox <= 1; ox++) {
+    for (let dy = 1; dy <= 5; dy++) {
+      world.setBlock(s.x + ox, s.y + dy, s.z, B.AIR);
+    }
+  }
+  for (let dz = 1; dz <= 4; dz++) {
+    world.setBlock(s.x, s.y + 1, s.z + dz, B.WIND_CRYSTAL);
+  }
+}
+
+function refreshGaleLifts(px, pz) {
+  const gym = regions.homeGym() || nearestGymAnchor(px, pz);
+  if (!gym || !world) {
+    traversal.setExtras([]);
+    return;
+  }
+  const g = REGION_GEOMETRY;
+  const extras = [];
+  const add = (id, wx, wz, y, r = 2.3, h = 14) => {
+    extras.push({
+      id,
+      type: "wind_lift",
+      x: wx + 0.5,
+      y,
+      z: wz + 0.5,
+      radius: r,
+      height: h,
+      regionId: getRegionAt(wx, wz),
+    });
+  };
+  const sealOn = bosses.isSealActivated(STORM_SEAL_ID);
+  const pathOn = progression.isUnlocked("gym_4_path_unlocked");
+  if (sealOn) {
+    add("gale:path_a", gym.x + g.galePathA.dx, gym.z + g.galePathA.dz,
+      world.surfaceY(gym.x + g.galePathA.dx, gym.z + g.galePathA.dz), 2.4, 16);
+    add("gale:spire", gym.x + g.tempestSpire.dx, gym.z + g.tempestSpire.dz,
+      world.surfaceY(gym.x + g.tempestSpire.dx, gym.z + g.tempestSpire.dz), 2.6, 14);
+  }
+  if (pathOn) {
+    add("gale:path_b", gym.x + g.galePathB.dx, gym.z + g.galePathB.dz,
+      world.surfaceY(gym.x + g.galePathB.dx, gym.z + g.galePathB.dz), 2.4, 16);
+    add("gale:gym_approach", gym.x + g.gymGale.dx, gym.z + g.gymGale.dz - 12,
+      world.surfaceY(gym.x + g.gymGale.dx, gym.z + g.gymGale.dz - 12), 2.4, 12);
+  }
+  const gs = findGaleGym(px, pz);
+  if (gs) {
+    const ch = gyms.gymState("gym_gale").channels ?? {};
+    const L = GALE_GYM_LAYOUT.lifts;
+    add("gale:recovery", gs.x + L.recovery[0], gs.z + L.recovery[1], gs.y, 2.4, 10);
+    if (ch.north) add("gale:low", gs.x + L.low[0], gs.z + L.low[1], gs.y + (L.low[2] ?? 0), 2.2, 8);
+    if (ch.east) add("gale:mid", gs.x + L.mid[0], gs.z + L.mid[1], gs.y + (L.mid[2] ?? 0), 2.2, 8);
+    if (ch.west) add("gale:high", gs.x + L.high[0], gs.z + L.high[1], gs.y + (L.high[2] ?? 0), 2.2, 8);
+  }
+  if (progression.isUnlocked("region_5_path_unlocked")) {
+    add("gale:exit", gym.x + g.highlandExit.dx, gym.z + g.highlandExit.dz,
+      world.surfaceY(gym.x + g.highlandExit.dx, gym.z + g.highlandExit.dz), 2.4, 12);
+  }
+  traversal.setExtras(extras);
+}
+
 function applyStormSeal(s) {
   if (!s || !world) return;
   const [dx, dz] = STORM_OBSERVATORY_LAYOUT.seal;
-  if (progression.isUnlocked("gym_4_clue_unlocked")) {
+  const phase = bosses.sealPhase(STORM_SEAL_ID);
+  if (phase === "activated") {
+    world.setBlock(s.x + dx, s.y + 2, s.z + dz, B.WIND_CRYSTAL);
+    world.setBlock(s.x + dx, s.y + 12, s.z + dz, B.WIND_CRYSTAL);
+    world.setBlock(s.x + dx, s.y + 13, s.z + dz, B.CRYSTAL);
+    for (let i = 3; i <= 7; i++) {
+      world.setBlock(s.x + i, s.y + 2, s.z + dz, B.WIND_CRYSTAL);
+    }
+    world.setBlock(s.x + 8, s.y + 3, s.z + dz, B.CRYSTAL);
+  } else if (phase === "resonating") {
     world.setBlock(s.x + dx, s.y + 2, s.z + dz, B.WIND_CRYSTAL);
     world.setBlock(s.x + dx, s.y + 12, s.z + dz, B.WIND_CRYSTAL);
     world.setBlock(s.x + dx, s.y + 13, s.z + dz, B.CRYSTAL);
@@ -1217,8 +1401,11 @@ function applyStormSeal(s) {
 
 function hoverBlockedZone(x, z) {
   if (!world) return false;
-  for (const s of world.structures.near(x, z, 18)) {
+  for (const s of world.structures.near(x, z, 22)) {
     const dist = Math.hypot(s.x - x, s.z - z);
+    if (s.type === "gym_gale" && dist < 16) return true;
+    if (s.type === "tempest_spire" && dist < 10 && !bosses.isSealActivated(STORM_SEAL_ID)) return true;
+    if (s.type === "highland_exit" && dist < 8 && !progression.isUnlocked("region_5_path_unlocked")) return true;
     if (s.type === "gym" || s.type === "gym_mist" || s.type === "gym_crimson") {
       if (dist > 16) continue;
       const gid = gymIdForStructure(s);
@@ -1256,6 +1443,7 @@ function toggleMap() {
 }
 
 let bossVisual = null;
+let tempestVisual = null;
 
 function rebuildCreatureVisuals() {
   if (!spawner) return 0;
@@ -1278,11 +1466,22 @@ function rebuildCreatureVisuals() {
   }
   if (bossVisual) {
     const pos = bossVisual.position.clone();
+    const sid = bossVisual.userData.bossSpeciesId || "titanor";
     scene.remove(bossVisual);
     disposeCreatureVisual(bossVisual);
-    bossVisual = buildCreatureVisual("titanor");
+    bossVisual = buildCreatureVisual(sid);
+    bossVisual.userData.bossSpeciesId = sid;
     bossVisual.position.copy(pos);
     scene.add(bossVisual);
+  }
+  if (tempestVisual) {
+    const pos = tempestVisual.position.clone();
+    scene.remove(tempestVisual);
+    disposeCreatureVisual(tempestVisual);
+    tempestVisual = buildCreatureVisual("nimbora");
+    tempestVisual.userData.bossSpeciesId = "nimbora";
+    tempestVisual.position.copy(pos);
+    scene.add(tempestVisual);
   }
   return n;
 }
@@ -1291,6 +1490,12 @@ function disposeBossVisual() {
   scene.remove(bossVisual);
   disposeCreatureVisual(bossVisual);
   bossVisual = null;
+}
+function disposeTempestVisual() {
+  if (!tempestVisual) return;
+  scene.remove(tempestVisual);
+  disposeCreatureVisual(tempestVisual);
+  tempestVisual = null;
 }
 
 function syncBossVisual(s) {
@@ -1305,9 +1510,28 @@ function syncBossVisual(s) {
   const z = s.z + dz + 0.5;
   if (!bossVisual) {
     bossVisual = buildCreatureVisual("titanor");
+    bossVisual.userData.bossSpeciesId = "titanor";
     scene.add(bossVisual);
   }
   bossVisual.position.set(x, y, z);
+}
+
+function syncTempestVisual(s) {
+  const want = !!s && bosses.isSealActivated(STORM_SEAL_ID) && !bosses.isDefeated("tempest_guardian");
+  if (!want) {
+    disposeTempestVisual();
+    return;
+  }
+  const [dx, dz] = TEMPEST_SPIRE_LAYOUT.boss;
+  const x = s.x + dx + 0.5;
+  const y = (s.y ?? world.surfaceY(s.x + dx, s.z + dz)) + 1;
+  const z = s.z + dz + 0.5;
+  if (!tempestVisual) {
+    tempestVisual = buildCreatureVisual("nimbora");
+    tempestVisual.userData.bossSpeciesId = "nimbora";
+    scene.add(tempestVisual);
+  }
+  tempestVisual.position.set(x, y, z);
 }
 
 function registerRuinInteractables(s, wanted) {
@@ -1402,18 +1626,39 @@ function registerObservatoryInteractables(s, wanted) {
   const x = s.x + dx + 0.5;
   const y = s.y + 2.2;
   const z = s.z + dz + 0.5;
-  const clue = progression.isUnlocked("gym_4_clue_unlocked");
-  const prompt = clue
-    ? "Los cristales del observatorio responden al vendaval."
-    : "El mecanismo está dormido.";
+  const phase = bosses.sealPhase(STORM_SEAL_ID);
+  let prompt;
+  if (phase === "activated") prompt = "El sello del vendaval está activo.";
+  else if (phase === "resonating") prompt = "E — Activar sello";
+  else prompt = "El mecanismo está dormido.";
   const onInteract = () => {
     progression.setFlag("storm_anomaly_inspected");
-    if (progression.isUnlocked("gym_4_clue_unlocked")) {
+    const p = bosses.sealPhase(STORM_SEAL_ID);
+    if (p === "dormant") {
       applyStormSeal(s);
-      ui.toast("Los cristales del observatorio responden al vendaval.", "legendary");
-    } else {
       ui.toast("El mecanismo está dormido.", "bad");
+      return;
     }
+    if (p === "activated") {
+      applyStormSeal(s);
+      ui.toast("El sello del vendaval está activo.", "good");
+      return;
+    }
+    const r = bosses.activateStormSeal();
+    applyStormSeal(s);
+    const spire = findTempestSpire(s.x, s.z);
+    if (spire) syncTempestVisual(spire);
+    if (r.already) {
+      ui.toast("El sello ya está activo.", "good");
+      return;
+    }
+    if (!r.ok) {
+      ui.toast(r.reason ?? "El mecanismo está dormido.", "bad");
+      return;
+    }
+    ui.toast("Los cristales se encienden. Una corriente señala el pináculo del este.", "legendary");
+    ui.refreshHud();
+    saveGame();
   };
   const existing = interaction.items.get(id);
   if (existing) {
@@ -1429,6 +1674,69 @@ function registerObservatoryInteractables(s, wanted) {
       prompt,
       data: s,
       onInteract,
+    });
+  }
+}
+
+function registerSpireInteractables(s, wanted) {
+  applyGaleSpireOpening(s);
+  syncTempestVisual(s);
+  if (!bosses.isSealActivated(STORM_SEAL_ID)) return;
+  const id = `tempest_boss:${s.id}`;
+  wanted.add(id);
+  const [dx, dz] = TEMPEST_SPIRE_LAYOUT.boss;
+  const x = s.x + dx + 0.5;
+  const y = s.y + 1.8;
+  const z = s.z + dz + 0.5;
+  const defeated = bosses.isDefeated("tempest_guardian");
+  const prompt = defeated ? "El guardián del vendaval descansa." : "Desafiar al Guardián del Vendaval";
+  const onInteract = () => {
+    if (defeated) {
+      ui.toast("El guardián del vendaval descansa.", "good");
+      return;
+    }
+    startBossBattle("tempest_guardian");
+  };
+  const existing = interaction.items.get(id);
+  if (existing) {
+    existing.prompt = prompt;
+    existing.x = x; existing.y = y; existing.z = z;
+    existing.onInteract = onInteract;
+  } else {
+    interaction.register({
+      id, type: "boss", x, y, z, range: 3.6, prompt, data: s, onInteract, critical: true,
+    });
+  }
+}
+
+function registerHighlandInteractables(s, wanted) {
+  applyHighlandExitOpening(s);
+  const id = `highland_exit:${s.id}`;
+  wanted.add(id);
+  const [dx, dz] = HIGHLAND_EXIT_LAYOUT.arch;
+  const x = s.x + dx + 0.5;
+  const y = s.y + 1.6;
+  const z = s.z + dz + 0.5;
+  const open = progression.isUnlocked("region_5_path_unlocked");
+  const prompt = open
+    ? "El arco señala más allá del vendaval."
+    : "El arco está sellado.";
+  const onInteract = () => {
+    if (!open) {
+      ui.toast("El arco está sellado. El viento aún no concede el paso.", "bad");
+      return;
+    }
+    applyHighlandExitOpening(s);
+    ui.toast("Más allá del vendaval el cielo se abre. Aún no es hora.", "good");
+  };
+  const existing = interaction.items.get(id);
+  if (existing) {
+    existing.prompt = prompt;
+    existing.x = x; existing.y = y; existing.z = z;
+    existing.onInteract = onInteract;
+  } else {
+    interaction.register({
+      id, type: "highland_exit", x, y, z, range: 3.2, prompt, data: s, onInteract, critical: true,
     });
   }
 }
@@ -1560,6 +1868,13 @@ function refreshGymTracker(nearGym = null) {
     label = st.leaderReady
       ? "Sala del líder abierta"
       : `Energía O${e.west} E${e.east} Núcleo ${e.core}/2 · reserva ${e.pool}`;
+  } else if (gymId === "gym_gale") {
+    const n = st.channelCount ?? 0;
+    label = st.leaderReady
+      ? "Terraza del líder abierta"
+      : st.puzzleSolved
+        ? "Canales alineados"
+        : `Canales de viento: ${n}/3`;
   } else {
     const cur = st.puzzleSolved ? 3 : st.puzzleAttempt.length;
     label = st.puzzleSolved
@@ -1583,6 +1898,10 @@ function onPlace() {
   if (player.occupiesBlock(x, y, z)) return;
   const existing = world.getBlock(x, y, z);
   if (existing !== B.AIR && existing !== B.WATER) return;
+  if (world.structures?.protectedAt?.(x, z)) {
+    ui.toast("La estructura está protegida.");
+    return;
+  }
   world.setBlock(x, y, z, b);
   state.inventory[b] -= 1;
   sfx.place();
@@ -1905,19 +2224,22 @@ async function startBossBattle(bossId) {
   ui.setTargetPrompt(null);
 
   const teamMonsters = def.team.map((t) => createMonster(t.speciesId, t.level));
-  const [bdx, bdz] = CRIMSON_RUIN_LAYOUT.boss;
-  const ruin = findCrimsonRuin(player.pos.x, player.pos.z);
+  const [bdx, bdz] = def.anchorOffset ?? [0, 0];
+  const arena = def.structureType === "tempest_spire"
+    ? findTempestSpire(player.pos.x, player.pos.z)
+    : findCrimsonRuin(player.pos.x, player.pos.z);
   let ox, oz;
-  if (ruin) {
-    ox = ruin.x + bdx + 0.5;
-    oz = ruin.z + bdz + 0.5;
+  if (arena) {
+    ox = arena.x + bdx + 0.5;
+    oz = arena.z + bdz + 0.5;
   } else {
     const look = player.lookDir();
     ox = player.pos.x + look.x * 5;
     oz = player.pos.z + look.z * 5;
   }
   const opponent = new TrainerOpponent(scene, world, teamMonsters[0], ox, oz);
-  disposeBossVisual();
+  if (bossId === "tempest_guardian") disposeTempestVisual();
+  else disposeBossVisual();
 
   events.emit("battleStarted", {
     type: "boss", bossId, speciesId: teamMonsters[0].speciesId, level: teamMonsters[0].level,
@@ -1940,8 +2262,14 @@ async function startBossBattle(bossId) {
   if (result === "win") {
     const reward = bosses.resolveVictory(bossId);
     events.emit("battleWon", { type: "boss", bossId });
-    const ruinNow = findCrimsonRuin(player.pos.x, player.pos.z);
-    if (ruinNow) applyGym3PathOpening(ruinNow);
+    if (bossId === "crimson_guardian") {
+      const ruinNow = findCrimsonRuin(player.pos.x, player.pos.z);
+      if (ruinNow) applyGym3PathOpening(ruinNow);
+    }
+    if (bossId === "tempest_guardian") {
+      const gym4 = findGaleGym(player.pos.x, player.pos.z);
+      if (gym4) applyGaleGymOpening(gym4);
+    }
     if (!reward) ui.toast(`El ${def.name} permanece derrotado.`, "good");
   } else if (result === "lost") {
     events.emit("battleLost", { type: "boss", bossId });
@@ -2022,6 +2350,8 @@ function loop(now) {
 
   const playing = mode === "play";
   if (playing && locked) {
+    refreshGaleLifts(player.pos.x, player.pos.z);
+    traversal.sync(player.pos.x, player.pos.z);
     const lift = traversal.sample(player);
     if (lift) player.envForce.set(lift.x, lift.y, lift.z);
     else player.envForce.set(0, 0, 0);
@@ -2106,6 +2436,7 @@ function loop(now) {
     }
 
     worldMap.pollPlayer(player);
+    refreshGaleLifts(px, pz);
     traversal.sync(px, pz);
     traversal.highlight = crafting.explorerActive();
 
@@ -2139,7 +2470,7 @@ function loop(now) {
           });
         }
       }
-      if (s.type === "gym" || s.type === "gym_mist" || s.type === "gym_crimson") {
+      if (s.type === "gym" || s.type === "gym_mist" || s.type === "gym_crimson" || s.type === "gym_gale") {
         nearGym = s;
         registerGymInteractables(s, wantedGym);
         if (s.type === "gym_mist") fogMistGym = s;
@@ -2155,6 +2486,12 @@ function loop(now) {
       }
       if (s.type === "storm_observatory") {
         registerObservatoryInteractables(s, wantedWind);
+      }
+      if (s.type === "tempest_spire") {
+        registerSpireInteractables(s, wantedWind);
+      }
+      if (s.type === "highland_exit") {
+        registerHighlandInteractables(s, wantedWind);
       }
     }
     for (const id of interaction.ids("shrine")) {
@@ -2179,12 +2516,16 @@ function loop(now) {
       if (!wantedRuin.has(id)) interaction.unregister(id);
     }
     for (const id of interaction.ids("boss")) {
-      if (!wantedRuin.has(id)) interaction.unregister(id);
+      if (!wantedRuin.has(id) && !wantedWind.has(id)) interaction.unregister(id);
     }
     for (const id of interaction.ids("storm_seal")) {
       if (!wantedWind.has(id)) interaction.unregister(id);
     }
+    for (const id of interaction.ids("highland_exit")) {
+      if (!wantedWind.has(id)) interaction.unregister(id);
+    }
     if (![...wantedRuin].some((id) => id.startsWith("crimson_boss:"))) disposeBossVisual();
+    if (![...wantedWind].some((id) => id.startsWith("tempest_boss:"))) disposeTempestVisual();
     refreshGymTracker(nearGym);
 
     // NPC de asentamientos: reconciliación por distancia, sin duplicados
@@ -2195,6 +2536,7 @@ function loop(now) {
   spawner.update(dt, player, dayFactor, elapsed);
   npcs.update(dt, player.pos, elapsed);
   if (bossVisual) animateCreatureVisual(bossVisual, elapsed, "idle", 0);
+  if (tempestVisual) animateCreatureVisual(tempestVisual, elapsed, "idle", 0);
 
   // Partículas de minado
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -2271,6 +2613,13 @@ function loop(now) {
     scene.fog.near = kit ? 16 : 8;
     scene.fog.far = 22 + 22 * beacons + (kit ? 28 : 0);
     scene.fog.color.lerp(new THREE.Color(0x6a7a88), 0.55);
+  } else if (localStormAt(camera.position.x, camera.position.z)) {
+    stormFlashT -= dt;
+    if (stormFlashT <= 0) stormFlashT = 2.8 + Math.random() * 3.5;
+    const flash = stormFlashT > 2.55 ? 0.45 : 0;
+    scene.fog.near = 12;
+    scene.fog.far = 72;
+    scene.fog.color.lerp(new THREE.Color(0x6a88b0).lerp(new THREE.Color(0xe8f4ff), flash), 0.55);
   } else if (getRegionAt(camera.position.x, camera.position.z) === REGION_4) {
     const kit = crafting.explorerActive();
     scene.fog.near = kit ? 36 : 24;
@@ -3009,6 +3358,9 @@ window.__vm = {
         canOpen: canOpenRegion4Gate(),
         pathUnlock: progression.isUnlocked("region_4_path_unlocked"),
         gym4Clue: progression.isUnlocked("gym_4_clue_unlocked"),
+        gym4Path: progression.isUnlocked("gym_4_path_unlocked"),
+        fourthGym: progression.isUnlocked("fourth_gym_completed"),
+        region5Path: progression.isUnlocked("region_5_path_unlocked"),
         aerial: progression.isUnlocked(AERIAL_UNLOCK),
         pass,
         shrine: findWindShrine(player.pos.x, player.pos.z),
@@ -3053,7 +3405,113 @@ window.__vm = {
       teleportPlayer(s.x + 1.5, s.y + 1.2, s.z + 1.5);
       return s;
     },
+    stormSeal() {
+      const s = findStormObservatory(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      return {
+        structure: s ? { id: s.id, x: s.x, y: s.y, z: s.z } : null,
+        phase: bosses.sealPhase(STORM_SEAL_ID),
+        activated: bosses.isSealActivated(STORM_SEAL_ID),
+        clue: progression.isUnlocked("gym_4_clue_unlocked"),
+        can: bosses.canActivateStormSeal(),
+      };
+    },
+    activateStormSeal() {
+      const r = bosses.activateStormSeal();
+      const obs = findStormObservatory(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (obs) applyStormSeal(obs);
+      const spire = findTempestSpire(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (spire) syncTempestVisual(spire);
+      ui.refreshHud();
+      return r;
+    },
+    tempest() {
+      const s = findTempestSpire(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      const def = BOSSES.tempest_guardian;
+      return {
+        structure: s ? { id: s.id, x: s.x, y: s.y, z: s.z } : null,
+        defeated: bosses.isDefeated("tempest_guardian"),
+        can: bosses.canBattle("tempest_guardian"),
+        seal: bosses.isSealActivated(STORM_SEAL_ID),
+        path: progression.isUnlocked("gym_4_path_unlocked"),
+        boss: def ? { id: def.id, name: def.name, speciesId: def.speciesId, level: def.team[0].level, reward: def.rewardMoney } : null,
+      };
+    },
+    gotoSpire() {
+      const s = findTempestSpire(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s) return null;
+      teleportPlayer(s.x + 0.5, s.y + 1.4, s.z - 4.5);
+      syncTempestVisual(s);
+      return s;
+    },
+    gym4() {
+      const s = findGaleGym(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      const st = gyms.gymState("gym_gale");
+      return {
+        structure: s ? { id: s.id, x: s.x, y: s.y, z: s.z, biome: s.biome } : null,
+        ...st,
+        badge: progression.hasBadge("gale_badge"),
+        path: progression.isUnlocked("gym_4_path_unlocked"),
+        nextArc: progression.isUnlocked("region_5_path_unlocked"),
+        fourth: progression.isUnlocked("fourth_gym_completed"),
+        trainers: {
+          kaia: trainers.isDefeated("gym_trainer_gale_1"),
+          orin: trainers.isDefeated("gym_trainer_gale_2"),
+          zephra: trainers.isDefeated("leader_zephra"),
+        },
+        leader: {
+          id: "leader_zephra",
+          name: "Zephra",
+          team: TRAINERS.leader_zephra.team,
+          reward: TRAINERS.leader_zephra.rewardMoney,
+        },
+        hoverBlocked: s ? hoverBlockedZone(s.x, s.z) : null,
+      };
+    },
+    gotoGym4() {
+      const s = findGaleGym(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s || !player) return null;
+      teleportPlayer(s.x + 0.5, s.y + 2, s.z - 13.5);
+      return s;
+    },
+    unlockGym4Path() {
+      progression.unlock("gym_4_clue_unlocked");
+      bosses.ensureSeal(STORM_SEAL_ID).activated = true;
+      bosses.ensure("tempest_guardian").defeated = true;
+      progression.unlock("gym_4_path_unlocked");
+      const g4 = findGaleGym(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (g4) applyGaleGymOpening(g4);
+      return this.gym4();
+    },
+    activateChannel(id) {
+      const r = gyms.activateChannel("gym_gale", id);
+      const s = findGaleGym(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (s) {
+        applyGaleChannelVisuals(s);
+        applyGaleLeaderOpening(s);
+      }
+      return r;
+    },
+    highlandExit() {
+      const s = findHighlandExit(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      const open = progression.isUnlocked("region_5_path_unlocked");
+      if (s && open) applyHighlandExitOpening(s);
+      return {
+        structure: s ? { id: s.id, x: s.x, y: s.y, z: s.z } : null,
+        unlocked: open,
+        block: s ? world.getBlock(s.x, s.y + 2, s.z) : null,
+      };
+    },
+    gotoHighlandExit() {
+      const s = findHighlandExit(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s) return null;
+      teleportPlayer(s.x + 0.5, s.y + 1.4, s.z - 3.5);
+      return s;
+    },
+    hoverBlockedAt(x, z) {
+      return hoverBlockedZone(x, z);
+    },
     windLifts() {
+      refreshGaleLifts(player?.pos.x ?? 0, player?.pos.z ?? 0);
       traversal.sync(player?.pos.x ?? 0, player?.pos.z ?? 0);
       return traversal.snapshot();
     },

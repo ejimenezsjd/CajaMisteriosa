@@ -58,7 +58,8 @@ class StatsSystem {
           structureType === "regional_gate" || structureType === "mist_settlement" ||
           structureType === "mining_camp" || structureType === "crimson_ruin" ||
           structureType === "cliff_outpost" || structureType === "wind_shrine" ||
-          structureType === "storm_observatory")) {
+          structureType === "storm_observatory" || structureType === "tempest_spire" ||
+          structureType === "gym_gale" || structureType === "highland_exit")) {
         this.s.regionalStructuresDiscovered += 1;
       }
     });
@@ -76,7 +77,7 @@ class StatsSystem {
     });
     events.on("bossDefeated", inc("bossesDefeated"));
     events.on("structureDiscovered", ({ structureType }) => {
-      if (this.s && structureType === "gym_crimson") {
+      if (this.s && (structureType === "gym_crimson" || structureType === "gym_gale")) {
         this.s.regionalStructuresDiscovered += 1;
       }
     });

@@ -70,6 +70,9 @@ export const SPECIES = {
   // Rara regional (no legendaria): cristal-viento eléctrico.
   cirrith: { id: "cirrith", name: "Cirrith", type: "electrico", stage: 2, rare: true, aerial: true, base: { hp: 70, atk: 28, def: 18, spd: 30 }, evolvesTo: null, evolveLevel: null, color: "#c8f0ff", color2: "#ffe98a" },
 
+  // Guardián de tormenta (Fase 12): standalone de encuentro, no familia, no legendario, no salvaje.
+  nimbora: { id: "nimbora", name: "Nímbora", type: "volador", stage: 3, rare: true, boss: true, base: { hp: 108, atk: 36, def: 26, spd: 31 }, evolvesTo: null, evolveLevel: null, color: "#6a88c8", color2: "#e8f0ff" },
+
   // Legendario exclusivo de VoxelMon: aparece al capturar las 8 familias originales.
   prismaton: { id: "prismaton", name: "Prismatón", type: "luz", stage: 3, legendary: true, base: { hp: 140, atk: 42, def: 34, spd: 32 }, evolvesTo: null, evolveLevel: null, color: "#c9f0ff", color2: "#ffd6f8" },
 };
@@ -119,7 +122,10 @@ export function familyOf(speciesId) {
       id = SPECIES[id].evolvesTo;
     }
   }
-  return speciesId === "prismaton" ? "prismaton" : speciesId === "cirrith" ? "cirrith" : null;
+  if (speciesId === "prismaton") return "prismaton";
+  if (speciesId === "cirrith") return "cirrith";
+  if (speciesId === "nimbora") return "nimbora";
+  return null;
 }
 
 export function speciesHasAbility(speciesId, ability) {

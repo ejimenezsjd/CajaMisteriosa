@@ -329,6 +329,8 @@ export const CREATURE_ART = {
     concept: "bestia del vendaval, velas épicas y quilla luminosa",
     visual: { model: "cefiron", shadowScale: 0.6, animationSet: "flyer_mythic", effects: ["mist", "glow"] },
     portraitScale: 0.68, portraitYaw: 0.4, portraitPitch: -0.12, portraitOffsetY: -0.1,
+    battleCameraDistance: 9.6,
+    battleVisualOffset: 0.4,
   },
   cirrith: {
     speciesId: "cirrith",
@@ -339,6 +341,18 @@ export const CREATURE_ART = {
     concept: "cometa de cristal eléctrico, rara de las cumbres",
     visual: { model: "cirrith", shadowScale: 0.34, animationSet: "crystal_entity", effects: ["glow"] },
     portraitScale: 1.05, portraitYaw: 0.35, portraitPitch: -0.08, portraitOffsetY: -0.06,
+  },
+  nimbora: {
+    speciesId: "nimbora",
+    renderer: "stylized3d",
+    scale: 2.35,
+    shadow: true,
+    shadowRadius: 0.72,
+    concept: "centinela de tormenta: veleta viva, placas de viento y corona de cristal, no un dragón",
+    visual: { model: "nimbora", shadowScale: 0.72, animationSet: "flyer_mythic", effects: ["storm", "mist", "spark"] },
+    portraitScale: 0.58, portraitYaw: 0.38, portraitPitch: -0.14, portraitOffsetY: -0.12,
+    battleCameraDistance: 10.5,
+    battleVisualOffset: 0.55,
   },
 };
 

@@ -5,7 +5,7 @@
  */
 
 import * as THREE from "three";
-import { SPECIES } from "./data.js?v=11";
+import { SPECIES } from "./data.js?v=12";
 
 function box(group, w, h, d, x, y, z, color, opts = {}) {
   const mat = new THREE.MeshLambertMaterial({ color });
@@ -288,6 +288,10 @@ export function buildNpcModel(def) {
     case "crimson_gym_guide": // visera de forja y broche de ascua
       box(g, 0.52, 0.1, 0.52, 0, 1.92, 0.02, outfit);
       box(g, 0.14, 0.14, 0.06, 0, 1.18, -0.2, accent, { emissive: accent, emissiveIntensity: 0.9 });
+      break;
+    case "gale_gym_guide": // capa de viento y broche de cristal
+      box(g, 0.62, 0.7, 0.16, 0, 1.1, 0.22, outfit);
+      box(g, 0.14, 0.14, 0.06, 0, 1.18, -0.2, accent, { emissive: accent, emissiveIntensity: 0.85 });
       break;
   }
 

@@ -97,13 +97,22 @@ export function defaultState(seed) {
         completed: false,
         entered: false,
       },
+      gym_gale: {
+        puzzleSolved: false,
+        puzzleAttempt: [],
+        channels: { north: false, east: false, west: false },
+        completed: false,
+        entered: false,
+      },
     },
-    // Fase 10: jefes regionales y sellos (fillDefaults cubre saves previos)
+    // Fase 10–12: jefes regionales y sellos (fillDefaults cubre saves previos)
     bosses: {
       crimson_guardian: { defeated: false },
+      tempest_guardian: { defeated: false },
     },
     seals: {
       crimson_ruin: { activated: false },
+      storm_observatory: { activated: false },
     },
     // Fase 6: descubrimiento de regiones y estado de la frontera
     regions: {

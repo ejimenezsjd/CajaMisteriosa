@@ -246,6 +246,66 @@ export const TRAINERS = {
     anchorOffset: [2, 10],
     colors: { skin: "#c87848", outfit: "#3a2018", accent: "#ff7040" },
   },
+
+  // ---------- Gimnasio del Vendaval (Fase 12) ----------
+
+  gym_trainer_gale_1: {
+    id: "gym_trainer_gale_1",
+    name: "Kaia",
+    role: "trainer",
+    trainerClass: "explorer",
+    gymId: "gym_gale",
+    dialogueId: "gym_trainer_kaia",
+    dialogueDefeatedId: "gym_trainer_kaia_done",
+    team: [
+      { speciesId: "vendal", level: 31 },
+      { speciesId: "voltajo", level: 32 },
+    ],
+    rewardMoney: 450,
+    repeatable: false,
+    anchorOffset: [-5, -2],
+    anchorY: 0,
+    colors: { skin: "#e0c8a8", outfit: "#4a7aa0", accent: "#c8e8ff" },
+  },
+  gym_trainer_gale_2: {
+    id: "gym_trainer_gale_2",
+    name: "Orin",
+    role: "trainer",
+    trainerClass: "ace",
+    gymId: "gym_gale",
+    dialogueId: "gym_trainer_orin",
+    dialogueDefeatedId: "gym_trainer_orin_done",
+    team: [
+      { speciesId: "cirrith", level: 32 },
+      { speciesId: "alazan", level: 33 },
+      { speciesId: "clarion", level: 34 },
+    ],
+    rewardMoney: 520,
+    repeatable: false,
+    anchorOffset: [6, 3],
+    anchorY: 6,
+    colors: { skin: "#c9b090", outfit: "#3a5878", accent: "#ffe98a" },
+  },
+  leader_zephra: {
+    id: "leader_zephra",
+    name: "Zephra",
+    role: "trainer",
+    trainerClass: "ace",
+    gymId: "gym_gale",
+    leader: true,
+    dialogueId: "gym_leader_zephra",
+    dialogueDefeatedId: "gym_leader_zephra_done",
+    team: [
+      { speciesId: "cirrith", level: 34 },
+      { speciesId: "celestor", level: 35 },
+      { speciesId: "cefiron", level: 36 },
+    ],
+    rewardMoney: 1500,
+    repeatable: false,
+    anchorOffset: [0, 13],
+    anchorY: 16,
+    colors: { skin: "#e8d4c0", outfit: "#2a4868", accent: "#90e0ff" },
+  },
 };
 
 /** Anchors deterministas de entrenadores asociados a un settlement */

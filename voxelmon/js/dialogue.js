@@ -953,12 +953,126 @@ export const DIALOGUES = {
         options: [{ text: "Capturar para construir.", next: "start" }],
       },
       obs: {
-        text: "El Observatorio de la Tormenta mira un hueco en las nubes. Hay un mecanismo dormido. Cuando reúnas cristal de viento y lo despiertes, apuntará al siguiente desafío. Todavía no hay gimnasio ahí.",
+        text: "El Observatorio de la Tormenta mira un hueco en las nubes. Hay un mecanismo dormido. Cuando reúnas cristal de viento y lo despiertes, apuntará al pináculo del este.",
         options: [{ text: "Iré a verlo.", end: true }],
       },
       clue: {
-        text: "Los cristales cantan con el vendaval. El sello del observatorio ya no está ciego: señala una plataforma alta al sur. El cuarto gimnasio aún no abre, pero el mundo ya sabe hacia dónde soplar.",
+        text: "Los cristales cantan con el vendaval. El sello ya no está ciego: señala una plataforma alta al este. Allí espera un guardián. Más allá, si lo superas, el Gimnasio del Vendaval.",
         options: [{ text: "Lo he visto.", end: true }],
+      },
+    },
+  },
+
+  gale_gym_guide_intro: {
+    npcName: "Aira",
+    nodes: {
+      start: {
+        text: "Bienvenida al Gimnasio del Vendaval. Soy Aira. Las corrientes cambian las rutas: no puedes obligar al viento, tienes que leerlo.",
+        options: [
+          { text: "¿Cómo se supera?", next: "rules" },
+          { text: "¿Los canales?", next: "puzzle" },
+          { text: "¿Quién queda?", next: "remain" },
+          { text: "Gracias.", end: true },
+        ],
+      },
+      rules: {
+        text: "Derrota a Kaia y a Orin, y alinea los tres canales. Cada uno despierta una corriente hacia la siguiente terraza. Zephra no abre hasta que el flujo llega arriba.",
+        options: [{ text: "Entendido.", next: "start" }],
+      },
+      puzzle: {
+        text: "Tres controladores: norte en el suelo, este a media altura, oeste más arriba. Enciende el de abajo para alcanzar el de en medio, y así sucesivamente. Si caes, la corriente de recuperación te devuelve. No hace falta volar ni construir.",
+        options: [{ text: "Leer el viento.", next: "start" }],
+      },
+      remain: {
+        text: "Kaia espera en la plaza. Orin, en la terraza este. Si ya cayeron, sube con los canales. Zephra observa desde lo alto: serena, no apresurada.",
+        options: [{ text: "Los buscaré.", next: "start" }],
+      },
+    },
+  },
+  gale_gym_guide_done: {
+    npcName: "Aira",
+    nodes: {
+      start: {
+        text: "La Insignia Vendaval te sienta como una vela tensa. Al sur del gimnasio un arco se ha abierto. El mundo continúa por ahí… cuando esté listo.",
+        options: [{ text: "Gracias, Aira.", end: true }],
+      },
+    },
+  },
+
+  gym_trainer_kaia: {
+    npcName: "Kaia",
+    nodes: {
+      start: {
+        text: "Exploro estas cornisas desde que el observatorio era solo piedra. El viento no pide permiso. ¿Sigues?",
+        options: [
+          {
+            text: "¡Acepto el desafío!",
+            actions: [{ type: "startTrainerBattle", trainerId: "gym_trainer_gale_1" }],
+            end: true,
+          },
+          { text: "Todavía no.", end: true },
+        ],
+      },
+    },
+  },
+  gym_trainer_kaia_done: {
+    npcName: "Kaia",
+    nodes: {
+      start: {
+        text: "Bien. El canal norte ya te sirve. Orin espera más arriba, donde el aire se afila.",
+        options: [{ text: "Gracias, Kaia.", end: true }],
+      },
+    },
+  },
+
+  gym_trainer_orin: {
+    npcName: "Orin",
+    nodes: {
+      start: {
+        text: "Domo alturas, no las forzo. Tres criaturas me acompañan. Si pretendes ver a Zephra, empieza por no pelear contra la corriente.",
+        options: [
+          {
+            text: "¡Adelante!",
+            actions: [{ type: "startTrainerBattle", trainerId: "gym_trainer_gale_2" }],
+            end: true,
+          },
+          { text: "Mejor más tarde.", end: true },
+        ],
+      },
+    },
+  },
+  gym_trainer_orin_done: {
+    npcName: "Orin",
+    nodes: {
+      start: {
+        text: "El viento te reconoce. Alinea el último canal. Zephra no abre a quien sube a empujones.",
+        options: [{ text: "Allá voy.", end: true }],
+      },
+    },
+  },
+
+  gym_leader_zephra: {
+    npcName: "Zephra",
+    nodes: {
+      start: {
+        text: "Has leído las corrientes hasta aquí. No puedes obligar al viento; tienes que aprender a leerlo. Veamos si también sabes escucharlo en combate.",
+        options: [
+          {
+            text: "Combatir",
+            actions: [{ type: "startTrainerBattle", trainerId: "leader_zephra" }],
+            end: true,
+          },
+          { text: "Todavía no", end: true },
+        ],
+      },
+    },
+  },
+  gym_leader_zephra_done: {
+    npcName: "Zephra",
+    nodes: {
+      start: {
+        text: "Esta insignia es tuya. El arco del sur responde ahora. Más allá el cielo se abre… el mundo todavía no ha puesto tierra ahí, pero ya no está ciego.",
+        options: [{ text: "Honor, Zephra.", end: true }],
       },
     },
   },

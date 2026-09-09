@@ -477,6 +477,66 @@ export const QUESTS = {
       { type: "setFlag", flagId: "storm_anomaly_inspected", amount: 1, label: "Inspecciona la anomalía del observatorio" },
     ],
     rewards: { money: 120, unlock: "gym_4_clue_unlocked" },
+    next: "quest_storm_seal",
+  },
+
+  // ---------- Fase 12: sello, guardián y Gimnasio del Vendaval ----------
+
+  quest_storm_seal: {
+    id: "quest_storm_seal",
+    title: "El sello del vendaval",
+    description: "Los cristales del observatorio responden. Activa el mecanismo dormido.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "activateSeal", sealId: "storm_observatory", amount: 1, label: "Activa el sello de la tormenta" },
+    ],
+    rewards: { money: 80 },
+    next: "quest_storm_eye",
+  },
+  quest_storm_eye: {
+    id: "quest_storm_eye",
+    title: "Ojo de la tormenta",
+    description: "El pináculo despierta. Derrota al Guardián del Vendaval.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "defeatBoss", bossId: "tempest_guardian", amount: 1, label: "Derrota al Guardián del Vendaval" },
+    ],
+    rewards: { money: 100, unlock: "gym_4_path_unlocked" },
+    next: "quest_gale_gym",
+  },
+  quest_gale_gym: {
+    id: "quest_gale_gym",
+    title: "Gimnasio en las alturas",
+    description: "Las corrientes abren un camino hacia el Gimnasio del Vendaval.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "discoverStructure", structureType: "gym_gale", amount: 1, label: "Descubre el Gimnasio del Vendaval" },
+    ],
+    rewards: { money: 60 },
+    next: "quest_master_wind",
+  },
+  quest_master_wind: {
+    id: "quest_master_wind",
+    title: "Dominar el viento",
+    description: "Derrota a Kaia y a Orin, y alinea los tres canales de viento.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "defeatTrainer", trainerId: "gym_trainer_gale_1", amount: 1, label: "Derrota a Kaia" },
+      { type: "defeatTrainer", trainerId: "gym_trainer_gale_2", amount: 1, label: "Derrota a Orin" },
+      { type: "solveGymPuzzle", gymId: "gym_gale", amount: 1, label: "Alinea los canales de viento" },
+    ],
+    rewards: { money: 120 },
+    next: "quest_gale_badge",
+  },
+  quest_gale_badge: {
+    id: "quest_gale_badge",
+    title: "Insignia Vendaval",
+    description: "La terraza de Zephra está abierta. Gana la Insignia Vendaval.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "earnBadge", badgeId: "gale_badge", amount: 1, label: "Consigue la Insignia Vendaval" },
+    ],
+    rewards: { money: 100 },
   },
 };
 
@@ -491,6 +551,7 @@ export const QUEST_ORDER = [
   "quest_beyond_mist", "quest_crimson_peaks", "quest_mining_post", "quest_mountain_wealth",
   "quest_crimson_seal", "quest_ruin_guardian", "quest_the_forge", "quest_forge_trial", "quest_forge_badge",
   "quest_crimson_pass", "quest_wind_highlands", "quest_against_wind", "quest_cliff_outpost", "quest_storm_eyes",
+  "quest_storm_seal", "quest_storm_eye", "quest_gale_gym", "quest_master_wind", "quest_gale_badge",
 ];
 
 /** eventName → [tipo de objetivo, función de filtro, cantidad del payload] */
@@ -515,6 +576,7 @@ const EVENT_OBJECTIVES = {
   flagSet: ["setFlag", (o, p) => !o.flagId || o.flagId === p.id, () => 1],
   bossDefeated: ["defeatBoss", (o, p) => !o.bossId || o.bossId === p.bossId, () => 1],
   traversalUsed: ["useTraversal", (o, p) => (!o.traversalType || o.traversalType === p.traversalType) && (!o.traversalId || o.traversalId === p.traversalId), () => 1],
+  sealActivated: ["activateSeal", (o, p) => !o.sealId || o.sealId === p.sealId, () => 1],
 };
 
 class QuestSystem {
@@ -577,6 +639,11 @@ class QuestSystem {
       this.makeAvailable("quest_crimson_pass");
       this.start("quest_crimson_pass");
     }
+    if (progression.isUnlocked("gym_4_clue_unlocked") &&
+        !this.isCompleted("quest_storm_seal") && !this.isActive("quest_storm_seal")) {
+      this.makeAvailable("quest_storm_seal");
+      this.start("quest_storm_seal");
+    }
   }
 
   setRewardHandler(fn) {
@@ -613,6 +680,11 @@ class QuestSystem {
         if (this.isCompleted("quest_crimson_pass") || this.isActive("quest_crimson_pass")) return;
         this.makeAvailable("quest_crimson_pass");
         this.start("quest_crimson_pass");
+      }
+      if (id === "gym_4_clue_unlocked") {
+        if (this.isCompleted("quest_storm_seal") || this.isActive("quest_storm_seal")) return;
+        this.makeAvailable("quest_storm_seal");
+        this.start("quest_storm_seal");
       }
     });
   }
@@ -673,6 +745,8 @@ class QuestSystem {
       } else if (obj.type === "setFlag" && obj.flagId && progression.hasFlag(obj.flagId)) {
         st.progress[i] = obj.amount;
       } else if (obj.type === "defeatBoss" && obj.bossId && bosses.isDefeated(obj.bossId)) {
+        st.progress[i] = obj.amount;
+      } else if (obj.type === "activateSeal" && obj.sealId && bosses.isSealActivated(obj.sealId)) {
         st.progress[i] = obj.amount;
       }
     });

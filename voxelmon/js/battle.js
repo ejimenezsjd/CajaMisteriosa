@@ -4,8 +4,9 @@
  */
 
 import * as THREE from "three";
-import { SPECIES, movesFor, typeMultiplier, gainXp, activePerks } from "./data.js?v=11";
+import { SPECIES, movesFor, typeMultiplier, gainXp, activePerks } from "./data.js?v=12";
 import { buildCreatureVisual, animateCreatureVisual, disposeCreatureVisual, setCreatureAnimation, playCreatureIntro } from "./creature-renderer.js";
+import { getCreatureArt } from "./creature-art.js";
 import { buildCubeBall } from "./models.js";
 import { makeLabel } from "./creatures.js";
 import { TRAINER_CLASSES } from "./trainers.js";
@@ -139,8 +140,11 @@ export class Battle {
     const az = e.z - dir.z * 4.5;
     this.allyPos = new THREE.Vector3(ax, this.world.surfaceY(ax, az) + 1, az);
     this.enemyPos = this.wild.pos.clone();
+    const art = getCreatureArt(this.enemy.speciesId);
+    const visY = art?.battleVisualOffset ?? 0;
+    this.camRadius = art?.battleCameraDistance ?? 7.5;
     this.mid = this.allyPos.clone().add(this.enemyPos).multiplyScalar(0.5);
-    this.mid.y = Math.max(this.allyPos.y, this.enemyPos.y) + 1.2;
+    this.mid.y = Math.max(this.allyPos.y, this.enemyPos.y) + 1.2 + visY;
 
     this.spawnAllyModel();
     playCreatureIntro(this.wild.group);
@@ -168,7 +172,7 @@ export class Battle {
   /** Llamado desde el bucle principal mientras dura la batalla */
   update(dt, t) {
     this.camT += dt;
-    const r = 7.5;
+    const r = this.camRadius ?? 7.5;
     const a = this.camT * 0.12 + Math.PI / 2;
     const axis = new THREE.Vector3().subVectors(this.enemyPos, this.allyPos).normalize();
     const side = new THREE.Vector3(-axis.z, 0, axis.x);
@@ -453,6 +457,10 @@ export class Battle {
               this.enemy = next;
               this.wild.setMonster(next);
               playCreatureIntro(this.wild.group);
+              const art = getCreatureArt(next.speciesId);
+              this.camRadius = art?.battleCameraDistance ?? 7.5;
+              const visY = art?.battleVisualOffset ?? 0;
+              this.mid.y = Math.max(this.allyPos.y, this.enemyPos.y) + 1.2 + visY;
               this.refreshTrainerBanner();
               const owner = this.trainer?.name ?? this.boss?.name ?? "Rival";
               this.ui.battleLog(`¡${owner} saca a ${next.name} (Nv ${next.level})!`);
