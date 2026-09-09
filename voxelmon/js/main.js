@@ -48,24 +48,24 @@ const HOTBAR = [B.DIRT, B.STONE, B.SAND, B.WOOD, B.LEAVES, B.SNOW];
 // ---------- Escena ----------
 
 const canvas = document.getElementById("game-canvas");
-let renderer;
-try {
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, failIfMajorPerformanceCaveat: false });
-} catch (err) {
-  console.error(err);
+function createRenderer() {
   try {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: false, failIfMajorPerformanceCaveat: false });
-  } catch (err2) {
-    const el = document.getElementById("title-error");
-    if (el) {
-      el.textContent = "No se pudo iniciar el gráfico 3D. Cierra otras pestañas de VoxelMon y recarga.";
-      el.classList.remove("hidden");
+    return new THREE.WebGLRenderer({ canvas, antialias: true, failIfMajorPerformanceCaveat: false });
+  } catch (err) {
+    console.error(err);
+    try {
+      return new THREE.WebGLRenderer({ canvas, antialias: false, failIfMajorPerformanceCaveat: false });
+    } catch (err2) {
+      console.error(err2);
+      return null;
     }
-    throw err2;
   }
 }
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
+const renderer = createRenderer();
+if (renderer) {
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 400);
@@ -88,13 +88,13 @@ scene.add(highlight);
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  if (renderer) renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
 // ---------- Estado ----------
 
 const ui = new UI();
-preloadCreatureArt();
+try { preloadCreatureArt(); } catch (err) { console.warn("preloadCreatureArt", err); }
 let world = null;
 let player = null;
 let spawner = null;
@@ -437,6 +437,10 @@ function abortBoot(message) {
 }
 
 async function startWorld(saved) {
+  if (!renderer) {
+    abortBoot("Este navegador no pudo iniciar el gráfico 3D. Cierra otras pestañas de VoxelMon y recarga.");
+    return;
+  }
   ui.showLoading("Generando el mundo vóxel…");
   ui.setTitleError("");
   try {
@@ -2010,7 +2014,7 @@ function loop(now) {
   elapsed += dt;
 
   if (!world || !player) {
-    renderer.render(scene, camera);
+    if (renderer) renderer.render(scene, camera);
     return;
   }
 
@@ -2300,7 +2304,7 @@ function loop(now) {
     saveGame();
   }
 
-  renderer.render(scene, camera);
+  if (renderer) renderer.render(scene, camera);
 }
 
 window.addEventListener("beforeunload", saveGame);
@@ -2308,6 +2312,10 @@ window.addEventListener("beforeunload", saveGame);
 // ---------- Inicio ----------
 
 ui.showTitle(hasPersistedSave(), hasRecoverableBackup());
+if (!renderer) {
+  ui.setTitleError("Este navegador no pudo iniciar el gráfico 3D. Cierra otras pestañas de VoxelMon y recarga.");
+}
+if (window.__vmBoot) window.__vmBoot.hideStatus();
 requestAnimationFrame(loop);
 
 // Ganchos de depuración/pruebas (no afectan al juego)

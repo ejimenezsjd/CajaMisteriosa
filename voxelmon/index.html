@@ -12,7 +12,7 @@
   <script type="importmap">
     {
       "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+        "three": "./vendor/three.module.min.js"
       }
     }
   </script>
@@ -62,6 +62,7 @@
       <p class="title-kicker">Un mundo de bloques infinito</p>
       <h1 class="game-title">VOXEL<span>MON</span></h1>
       <p class="title-lede">Explora, mina y construye… y captura las criaturas salvajes de las 8 familias para despertar al legendario <strong>Prismatón</strong>.</p>
+      <p id="title-status" class="title-status">Cargando el mundo…</p>
       <p id="title-error" class="title-error hidden" role="alert"></p>
       <div id="title-confirm" class="title-confirm hidden">
         <p>Hay una partida guardada. ¿Empezar de cero?</p>
@@ -242,19 +243,36 @@
           if (cont) cont.classList.remove("hidden");
         }
       } catch (e) { /* localStorage bloqueado */ }
-      function showErr(msg) {
-        var el = document.getElementById("title-error");
-        if (!el) return;
-        el.textContent = msg;
-        el.classList.remove("hidden");
-      }
-      setTimeout(function () {
-        if (!window.__vm) {
-          showErr("El juego no terminó de cargar. Comprueba la conexión y recarga.");
+      window.__vmBoot = {
+        hideStatus: function () {
+          var s = document.getElementById("title-status");
+          if (s) s.classList.add("hidden");
+        },
+        showError: function (msg) {
+          var s = document.getElementById("title-status");
+          if (s) s.classList.add("hidden");
+          var el = document.getElementById("title-error");
+          if (!el) return;
+          el.textContent = msg || "";
+          el.classList.toggle("hidden", !msg);
         }
-      }, 12000);
+      };
     })();
   </script>
-  <script type="module" src="js/main.js"></script>
+  <script type="module">
+    import("./js/main.js").then(function () {
+      if (window.__vmBoot) window.__vmBoot.hideStatus();
+    }).catch(function (err) {
+      console.error(err);
+      var raw = (err && (err.message || String(err))) || "error desconocido";
+      var msg = "No se pudo cargar el juego. Recarga con Ctrl+F5.";
+      if (/Failed to fetch|NetworkError|Load failed|dynamically imported module|404/i.test(raw)) {
+        msg = "Falta un archivo del juego o el navegador bloqueó un script. Recarga con Ctrl+F5. " + raw;
+      } else {
+        msg = msg + " " + raw;
+      }
+      if (window.__vmBoot) window.__vmBoot.showError(msg);
+    });
+  </script>
 </body>
 </html>
