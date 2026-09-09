@@ -226,7 +226,7 @@ function regionOfGym(gym, x, z) {
 
 /**
  * Gimnasio de progresión (home) si existe; si no, el más cercano en pad 3.
- * Usado para clasificar R2–R4. Los edificios locales usan nearestGymAnchor.
+ * Usado para el corredor R4. R2/R3 siguen el gym 3×3 original (Fases 6–10).
  */
 export function progressionGym(x = 8.5, z = 8.5) {
   return regions.homeGym() || nearestGymPad(x, z, GYM_LOOKUP_PAD);
@@ -237,9 +237,17 @@ export function nearestGymAnchor(x, z) {
   return nearestGymPad(x, z, GYM_LOOKUP_PAD);
 }
 
-/** Región lógica: corredor del gimnasio de origen, no de un gym vecino. */
+/**
+ * Región lógica.
+ *   R4 → solo el gimnasio de origen (el corredor largo no debe ser
+ *        robado por un gym procedural 260 bloques al sur).
+ *   R2/R3 → gym más cercano en pad 1, igual que Fases 6–10.
+ */
 export function getRegionAt(x, z) {
-  return regionOfGym(progressionGym(x, z), x, z);
+  const home = regions.homeGym();
+  if (home && inRect(x, z, region4BoundsFor(home))) return REGION_4;
+  const gym = nearestGymPad(x, z, 1) || home;
+  return regionOfGym(gym, x, z);
 }
 
 export function isInRegion2(x, z) {
