@@ -824,6 +824,17 @@ class QuestSystem {
         this.makeAvailable("quest_beyond_heights");
         this.start("quest_beyond_heights");
       }
+      if (id === "gym_5_clue_unlocked") {
+        if (this.isCompleted("quest_lighthouse_echo") || this.isActive("quest_lighthouse_echo")) return;
+        this.makeAvailable("quest_lighthouse_echo");
+        this.start("quest_lighthouse_echo");
+      }
+      if (id === "gym_5_path_unlocked") {
+        if (this.isCompleted("quest_tide_gym") || this.isActive("quest_tide_gym")) return;
+        if (this.isActive("quest_reef_guardian") || this.isCompleted("quest_reef_guardian")) return;
+        this.makeAvailable("quest_tide_gym");
+        this.start("quest_tide_gym");
+      }
     });
   }
 

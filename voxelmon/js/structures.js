@@ -1935,6 +1935,10 @@ export class StructureIndex {
     if (this.cache.has(key)) return this.cache.get(key);
 
     const def = STRUCTURE_TYPES[type];
+    if (!def) {
+      this.cache.set(key, null);
+      return null;
+    }
     const seed = this.world.seed;
     const salt = SALT[type];
     let result = null;
