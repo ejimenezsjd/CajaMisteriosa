@@ -3797,11 +3797,19 @@ window.__vm = {
       const c = creatureInSight();
       if (!c) return { target: null, cardHidden: document.getElementById("inspect-card")?.classList.contains("hidden") };
       const m = c.entity.monster;
+      dex.markSeen(m.speciesId, { source: "world", level: m.level });
+      ui.setInspectCard({
+        name: m.name,
+        level: m.level,
+        typeName: TYPES[m.type]?.name ?? m.type,
+        caught: dex.isCaught(m.speciesId),
+      });
       return {
         speciesId: m.speciesId,
         name: m.name,
         level: m.level,
         type: m.type,
+        typeName: TYPES[m.type]?.name ?? m.type,
         caught: dex.isCaught(m.speciesId),
         dist: c.dist,
       };
