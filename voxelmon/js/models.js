@@ -5,7 +5,7 @@
  */
 
 import * as THREE from "three";
-import { SPECIES } from "./data.js";
+import { SPECIES } from "./data.js?v=11";
 
 function box(group, w, h, d, x, y, z, color, opts = {}) {
   const mat = new THREE.MeshLambertMaterial({ color });

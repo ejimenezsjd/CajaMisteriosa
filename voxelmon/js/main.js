@@ -17,7 +17,7 @@ import { Battle, TrainerOpponent } from "./battle.js";
 import { TRAINERS, trainers } from "./trainers.js";
 import { GYMS, GYM_LAYOUT, MIST_GYM_LAYOUT, FORGE_GYM_LAYOUT, SWITCH_LABELS, BEACON_LABELS, CONDUIT_LABELS, gyms, gymIdForStructure } from "./gyms.js";
 import { UI } from "./ui.js";
-import { FAMILY_STARTERS, PERKS, SPECIES, activePerks, familyOf, createMonster, gainXp } from "./data.js";
+import { FAMILY_STARTERS, PERKS, SPECIES, activePerks, familyOf, createMonster, gainXp } from "./data.js?v=11";
 import { sfx, toggleMute } from "./audio.js";
 import { events } from "./events.js";
 import {

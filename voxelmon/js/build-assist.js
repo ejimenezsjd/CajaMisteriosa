@@ -12,10 +12,24 @@
 
 import { events } from "./events.js";
 import { progression } from "./progression.js";
-import { SPECIES, speciesHasAbility } from "./data.js";
+import { SPECIES } from "./data.js?v=11";
 import {
   getRegionAt, gateIdForRegion, REGION_1, REGION_2, REGION_3, REGION_4, regions,
 } from "./regions.js";
+
+export const AERIAL_UNLOCK = "aerial_build_assist_unlocked";
+export const MAX_HOVER_ABOVE = 28;
+const HOVER_SPEED = 5.4;
+const HOVER_VERT = 4.6;
+const SAFE_EXIT_VERT = 12;
+const CRITICAL_TYPES = new Set([
+  "npc", "trainer", "gym", "gate", "boss", "seal",
+  "ancient_path", "crimson_seal", "crimson_path", "storm_seal", "wind_seal",
+]);
+
+function speciesHasAbility(speciesId, ability) {
+  return !!SPECIES[speciesId]?.traversalAbilities?.includes(ability);
+}
 
 export const AERIAL_UNLOCK = "aerial_build_assist_unlocked";
 export const MAX_HOVER_ABOVE = 28;

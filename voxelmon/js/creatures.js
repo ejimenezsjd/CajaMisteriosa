@@ -1,7 +1,7 @@
 /** Criaturas salvajes: spawner por bioma/hora, IA de deambulación y etiquetas */
 
 import * as THREE from "three";
-import { SPECIES, createMonster } from "./data.js";
+import { SPECIES, createMonster } from "./data.js?v=11";
 import { buildCreatureVisual, animateCreatureVisual, disposeCreatureVisual } from "./creature-renderer.js";
 import { WATER_Y } from "./world.js";
 import { getBiomeDefinition } from "./biomes.js";

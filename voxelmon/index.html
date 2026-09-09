@@ -260,14 +260,14 @@
     })();
   </script>
   <script type="module">
-    import("./js/main.js").then(function () {
+    import("./js/main.js?v=boot3").then(function () {
       if (window.__vmBoot) window.__vmBoot.hideStatus();
     }).catch(function (err) {
       console.error(err);
       var raw = (err && (err.message || String(err))) || "error desconocido";
       var msg = "No se pudo cargar el juego. Recarga con Ctrl+F5.";
-      if (/Failed to fetch|NetworkError|Load failed|dynamically imported module|404/i.test(raw)) {
-        msg = "Falta un archivo del juego o el navegador bloqueó un script. Recarga con Ctrl+F5. " + raw;
+      if (/does not provide an export named|Failed to fetch|NetworkError|Load failed|dynamically imported module|404/i.test(raw)) {
+        msg = "Hay un archivo antiguo en caché o falta un script. Recarga con Ctrl+F5 o usa una ventana de incógnito. " + raw;
       } else {
         msg = msg + " " + raw;
       }
