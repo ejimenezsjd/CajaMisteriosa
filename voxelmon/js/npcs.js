@@ -127,6 +127,27 @@ export const NPC_DEFS = {
     colors: { skin: "#c89060", outfit: "#6a2018", accent: "#ff7040" },
     quests: [],
   },
+  wind_scout: {
+    role: "wind_scout",
+    name: "Nera",
+    dialogueId: "wind_scout_intro",
+    colors: { skin: "#e0c8a8", outfit: "#4a6a88", accent: "#c8e8ff" },
+    quests: ["quest_wind_highlands"],
+  },
+  highland_merchant: {
+    role: "highland_merchant",
+    name: "Siro",
+    dialogueId: "highland_merchant_intro",
+    colors: { skin: "#d0a878", outfit: "#3a5a70", accent: "#e8d080" },
+    quests: [],
+  },
+  storm_researcher: {
+    role: "storm_researcher",
+    name: "Vela",
+    dialogueId: "storm_researcher_intro",
+    colors: { skin: "#c8b8d0", outfit: "#2a4060", accent: "#90e0ff" },
+    quests: ["quest_storm_eyes"],
+  },
 };
 
 const ACTIVATION_RADIUS = 90; // los asentamientos a menos de esto tienen NPC activos
@@ -160,7 +181,7 @@ class NPCSystem {
         for (const a of trainerAnchorsFor(s)) wanted.set(a.id, a);
       } else if (s.type === "gym" || s.type === "gym_mist" || s.type === "gym_crimson") {
         for (const a of gymAnchorsFor(s)) wanted.set(a.id, a);
-      } else if (s.type === "regional_gate" || s.type === "mist_settlement" || s.type === "mining_camp") {
+      } else if (s.type === "regional_gate" || s.type === "mist_settlement" || s.type === "mining_camp" || s.type === "cliff_outpost") {
         for (const a of npcAnchorsFor(s)) wanted.set(a.id, a);
       }
     }
@@ -205,7 +226,7 @@ class NPCSystem {
       y: y + 1,
       z: group.position.z,
       range: 3.5,
-      prompt: anchor.role === "regional_merchant"
+      prompt: (anchor.role === "regional_merchant" || anchor.role === "highland_merchant")
         ? "Comerciar"
         : (anchor.trainerId ? `Hablar con ${def.name} (entrenador)` : `Hablar con ${def.name}`),
       data: npc,
@@ -237,7 +258,7 @@ class NPCSystem {
       structureId: npc.structureId,
     });
     if (npc.role === "regional_merchant") {
-      economy.show();
+      economy.show("Puesto de Kora");
       return;
     }
     let dialogueId = npc.def.dialogueId;

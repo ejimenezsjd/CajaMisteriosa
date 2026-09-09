@@ -10,7 +10,7 @@ import { B, BLOCK_NAMES, BLOCK_DROPS, COLORS } from "./blocks.js";
 import { BIOME_NAMES, getBiomeDefinition } from "./biomes.js";
 import { RESOURCES } from "./resources.js";
 import { StructureIndex } from "./structures.js";
-import { bindGymLookup, getRegionAt, REGION_2, REGION_3 } from "./regions.js";
+import { bindGymLookup, getRegionAt, REGION_2, REGION_3, REGION_4, region4HeightBonus } from "./regions.js";
 
 // Reexportados para los consumidores existentes (main.js, ui.js…)
 export { B, BLOCK_NAMES, BLOCK_DROPS } from "./blocks.js";
@@ -84,14 +84,19 @@ export class World {
    * Bioma jugable.
    *   Región 2: plains/forest → mist_forest (ocean/beach/desert/snow/mountain intactos).
    *   Región 3: overlay crimson_highlands sobre tierra firme (no ocean/beach).
+   *   Región 4: overlay wind_highlands sobre tierra firme (no ocean/beach).
    * Fuera de esos rectángulos coincide con baseBiomeAt (saves antiguos intactos).
    * terrainAt no se modifica: el overlay es solo clasificación + bloques superficiales.
+   * La verticalidad de R4 se aplica en generateChunkData vía region4HeightBonus.
    */
   biomeAt(x, z) {
     const fx = Math.floor(x);
     const fz = Math.floor(z);
     const base = this.biomeFromTerrain(this.terrainAt(fx, fz));
     const region = getRegionAt(fx, fz);
+    if (region === REGION_4 && base !== "ocean" && base !== "beach") {
+      return "wind_highlands";
+    }
     if (region === REGION_3 && base !== "ocean" && base !== "beach") {
       return "crimson_highlands";
     }
@@ -101,11 +106,18 @@ export class World {
     return base;
   }
 
+  region4BonusAt(x, z) {
+    if (getRegionAt(x, z) !== REGION_4) return 0;
+    return region4HeightBonus(Math.floor(x), Math.floor(z), this.seed);
+  }
+
   hasTreeAt(x, z) {
     const t = this.terrainAt(x, z);
     if (t.h <= WATER_Y + 1 || t.mountain > 0.6) return null;
-    // Región 3: vegetación muy escasa. No toca las densidades de R1/R2.
-    const density = getRegionAt(x, z) === REGION_3 ? 0.006 : t.treeDensity;
+    // Región 3: vegetación muy escasa. Región 4: arbustos bajos aparte.
+    const region = getRegionAt(x, z);
+    if (region === REGION_4) return null;
+    const density = region === REGION_3 ? 0.006 : t.treeDensity;
     if (columnHash(x, z, this.seed + 999) >= density) return null;
     // Evita árboles pegados
     if (columnHash(x - 1, z, this.seed + 999) < this.terrainAt(x - 1, z).treeDensity) return null;
@@ -133,6 +145,19 @@ export class World {
     return { h: t.h, trunk: th };
   }
 
+  /** Arbustos inclinados solo en Región 4. Sal distinta a hasTreeAt. */
+  hasWindShrubAt(x, z) {
+    if (getRegionAt(x, z) !== REGION_4) return null;
+    const t = this.terrainAt(x, z);
+    if (t.h <= WATER_Y + 1) return null;
+    const salt = this.seed + 88127;
+    if (columnHash(x, z, salt) >= 0.045) return null;
+    if (columnHash(x - 1, z, salt) < 0.045) return null;
+    const h = t.h + this.region4BonusAt(x, z);
+    const th = 2 + Math.floor(columnHash(x, z, this.seed + 557) * 2);
+    return { h, trunk: th };
+  }
+
   generateChunkData(cx, cz) {
     const t0 = performance.now();
     const data = new Uint8Array(CHUNK * CHUNK * HEIGHT);
@@ -144,7 +169,11 @@ export class World {
         const wx = x0 + lx;
         const wz = z0 + lz;
         const t = this.terrainAt(wx, wz);
-        const h = t.h;
+        let h = t.h;
+        const overlayBiome = this.biomeAt(wx, wz);
+        if (overlayBiome === "wind_highlands" && t.h > WATER_Y) {
+          h = Math.min(HEIGHT - 4, t.h + this.region4BonusAt(wx, wz));
+        }
         for (let y = 0; y <= h; y++) {
           let b;
           if (y === 0) b = B.BEDROCK;
@@ -160,13 +189,12 @@ export class World {
           }
           data[idx(lx, y, lz)] = b;
         }
-        if (t.desert && h > WATER_Y + 1) {
+        if (t.desert && h > WATER_Y + 1 && overlayBiome !== "wind_highlands") {
           for (let y = Math.max(1, h - 2); y < h; y++) data[idx(lx, y, lz)] = B.SAND;
         }
         for (let y = h + 1; y <= WATER_Y; y++) data[idx(lx, y, lz)] = B.WATER;
 
         // Overlays visuales: solo dentro de su rectángulo regional.
-        const overlayBiome = this.biomeAt(wx, wz);
         if (overlayBiome === "mist_forest" && data[idx(lx, h, lz)] === B.GRASS) {
           data[idx(lx, h, lz)] = B.MIST_GRASS;
         }
@@ -176,6 +204,15 @@ export class World {
               top === B.DIRT || top === B.MIST_GRASS) {
             data[idx(lx, h, lz)] = B.CRIMSON_STONE;
           }
+        }
+        if (overlayBiome === "wind_highlands") {
+          const exposed = columnHash(wx, wz, this.seed + 44011) > 0.38;
+          for (let y = Math.max(t.h, 1); y < h; y++) {
+            if (data[idx(lx, y, lz)] === B.DIRT || data[idx(lx, y, lz)] === B.STONE) {
+              data[idx(lx, y, lz)] = B.WINDSTONE;
+            }
+          }
+          data[idx(lx, h, lz)] = exposed ? B.WINDSTONE : B.SKY_GRASS;
         }
 
         // Recursos especiales según las reglas del bioma (hash determinista
@@ -187,21 +224,20 @@ export class World {
           const res = RESOURCES[rule.id];
           if (!res || res.crafted) continue;
           if (res.surface) {
-            // Brote superficial sobre hierba (o musgo brumoso en Región 2)
             const ground = data[idx(lx, h, lz)];
-            const okGround = ground === B.GRASS || ground === B.MIST_GRASS || ground === B.CRIMSON_STONE;
+            const okGround = ground === B.GRASS || ground === B.MIST_GRASS || ground === B.CRIMSON_STONE ||
+              ground === B.SKY_GRASS || ground === B.WINDSTONE;
             if (h > WATER_Y + 1 && h + 1 < HEIGHT && okGround) {
               data[idx(lx, h + 1, lz)] = res.block;
             }
           } else {
-            // Veta subterránea dentro de la banda de profundidad del recurso
             const d = res.depth;
             const lo = d.minY;
             const hi = Math.min(d.maxY ?? HEIGHT - 1, h - d.belowSurface);
             if (hi >= lo) {
               const y = Math.min(hi, lo + Math.floor(columnHash(wx, wz, this.seed + 131071 + ri * 101) * (hi - lo + 1)));
               const i = idx(lx, y, lz);
-              if (data[i] === B.STONE) data[i] = res.block;
+              if (data[i] === B.STONE || data[i] === B.WINDSTONE) data[i] = res.block;
             }
           }
         }
@@ -265,6 +301,27 @@ export class World {
           }
         }
         for (let y = baseY; y <= topY; y++) stamp(tx, y, tz, B.WOOD);
+      }
+    }
+
+    // Arbustos alpinos de Región 4 (no altera hasTreeAt de R1–R3)
+    for (let tz = z0 - 2; tz < z0 + CHUNK + 2; tz++) {
+      for (let tx = x0 - 2; tx < x0 + CHUNK + 2; tx++) {
+        const shrub = this.hasWindShrubAt(tx, tz);
+        if (!shrub) continue;
+        const stamp = (wx, wy, wz, b, keepSolid = false) => {
+          const lx = wx - x0;
+          const lz = wz - z0;
+          if (lx < 0 || lx >= CHUNK || lz < 0 || lz >= CHUNK || wy < 1 || wy >= HEIGHT) return;
+          const i = idx(lx, wy, lz);
+          if (keepSolid && data[i] !== B.AIR) return;
+          data[i] = b;
+        };
+        const lean = columnHash(tx, tz, this.seed + 12) > 0.5 ? 1 : -1;
+        for (let y = shrub.h + 1; y <= shrub.h + shrub.trunk; y++) stamp(tx, y, tz, B.WOOD);
+        stamp(tx + lean, shrub.h + shrub.trunk, tz, B.LEAVES, true);
+        stamp(tx, shrub.h + shrub.trunk + 1, tz, B.LEAVES, true);
+        stamp(tx - lean, shrub.h + shrub.trunk, tz, B.LEAVES, true);
       }
     }
 

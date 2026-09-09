@@ -1,8 +1,8 @@
 /**
- * RegionSystem mínimo (Fases 6 y 9).
+ * RegionSystem mínimo (Fases 6, 9 y 11).
  *
- * BIOMA  → tipo de entorno local (plains, forest, mist_forest, crimson_highlands…)
- * REGIÓN → macrozona de progresión (region_1, region_2, region_3)
+ * BIOMA  → tipo de entorno local (plains, forest, mist_forest, crimson_highlands, wind_highlands…)
+ * REGIÓN → macrozona de progresión (region_1 … region_4)
  *
  * Estrategia geométrica O(1):
  *   Se localiza el gimnasio más cercano en la celda actual y sus 8 vecinas
@@ -11,21 +11,27 @@
  *   Región 2: rectángulo al sur (+Z) de ese gimnasio (z +58 … +220).
  *   Región 3: continuación al sur del Gimnasio de las Brumas, empezando
  *             DESPUÉS de Región 2 (z +221 … +442, anclada a gym2).
+ *   Región 4: continuación al sur de crimson_pass / Gym 3, empezando
+ *             DESPUÉS de Región 3 (z +443 … +693, anclada a gym3).
+ *             No solapa R3: el paso (gym3.z+15 = gym1.z+427) sigue en R3.
  *   El resto del mundo es region_1.
  *
- * No se altera terrainAt ni la clasificación base: los overlays de bioma
- * (mist_forest, crimson_highlands) solo se aplican dentro de su rectángulo.
- * Los saves antiguos siguen viendo el mismo mundo en Región 1 y 2.
+ * No se altera terrainAt ni la clasificación base de R1–R3: los overlays
+ * de bioma solo se aplican dentro de su rectángulo. La altura extra de R4
+ * es un bonus de columna (region4HeightBonus) usado en generateChunkData,
+ * no un cambio de terrainAt, así R1/R2/R3 permanecen bit-idénticos.
  *
  * El lookup del gimnasio se inyecta con bindGymLookup para no crear un
  * ciclo regions ↔ structures ↔ world.
  */
 
 import { events } from "./events.js";
+import { fbm2 } from "./noise.js";
 
 export const REGION_1 = "region_1";
 export const REGION_2 = "region_2";
 export const REGION_3 = "region_3";
+export const REGION_4 = "region_4";
 
 /** Offsets y tamaño de los corredores post-gimnasio (bloques). */
 export const REGION_GEOMETRY = {
@@ -49,6 +55,19 @@ export const REGION_GEOMETRY = {
   crimsonRuin: { dx: 30, dz: 362 },
   // Gym 3: al sur de la ruina, aún dentro de r3z1=442 (radio 16 → z≤428)
   gymCrimson: { dx: 38, dz: 412 },
+  // Región 4: gym3.x ± 110, z = gym1.z+443 … gym1.z+693.
+  // Empieza 1 bloque después de R3 para no recolorear el tramo final
+  // del Paso Carmesí (gym1.z+427) ni el último anillo de R3.
+  r4HalfW: 110,
+  r4z0: 443,
+  r4z1: 693,
+  // Offset desde el centro de Gym 3 hasta un punto ya dentro de R4.
+  r4EntranceDz: 39,
+  windShrine: { dx: 18, dz: 470 },
+  cliffOutpost: { dx: 38, dz: 520 },
+  stormObservatory: { dx: 58, dz: 650 },
+  windLiftA: { dx: 82, dz: 560 },
+  windLiftB: { dx: -8, dz: 610 },
 };
 
 export const REGIONS = {
@@ -68,6 +87,12 @@ export const REGIONS = {
     name: "Cumbres Carmesí",
     shortName: "Carmesí",
     gateId: "region_3",
+  },
+  [REGION_4]: {
+    id: REGION_4,
+    name: "Altos del Vendaval",
+    shortName: "Vendaval",
+    gateId: "region_4",
   },
 };
 
@@ -118,6 +143,38 @@ export function region3BoundsFor(gym) {
   };
 }
 
+export function region4BoundsFor(gym) {
+  const g = REGION_GEOMETRY;
+  const gx = gym.x + g.gymCrimson.dx;
+  const gz = gym.z + g.gymCrimson.dz;
+  return {
+    x0: gx - g.r4HalfW,
+    x1: gx + g.r4HalfW,
+    z0: gym.z + g.r4z0,
+    z1: gym.z + g.r4z1,
+    gym,
+    gym3: { x: gx, z: gz },
+    entranceZ: gz + (g.r4z0 - g.gymCrimson.dz) + 8,
+  };
+}
+
+function smoothstep(a, b, x) {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * Extra de altura solo en Región 4. No entra en terrainAt, así las
+ * columnas de R1–R3 no cambian. generateChunkData y las estructuras
+ * regionales de R4 suman este bonus sobre t.h.
+ */
+export function region4HeightBonus(x, z, seed = 0) {
+  const plateau = smoothstep(0.28, 0.78, fbm2(x * 0.016, z * 0.016, seed + 91001, 4));
+  const ridge = smoothstep(0.4, 0.82, fbm2(x * 0.01, z * 0.028, seed + 91003, 3));
+  const spire = smoothstep(0.7, 0.92, fbm2(x * 0.045 + 40, z * 0.045 - 20, seed + 91002, 3));
+  return Math.floor(5 + plateau * 9 + ridge * 5 + spire * 7);
+}
+
 /** Gimnasio más cercano en la vecindad de celdas 3×3. O(1) con caché. */
 export function nearestGymAnchor(x, z) {
   if (!_gymCandidate) return null;
@@ -142,6 +199,8 @@ export function nearestGymAnchor(x, z) {
 export function getRegionAt(x, z) {
   const gym = nearestGymAnchor(x, z);
   if (!gym) return REGION_1;
+  const b4 = region4BoundsFor(gym);
+  if (x >= b4.x0 && x <= b4.x1 && z >= b4.z0 && z <= b4.z1) return REGION_4;
   const b3 = region3BoundsFor(gym);
   if (x >= b3.x0 && x <= b3.x1 && z >= b3.z0 && z <= b3.z1) return REGION_3;
   const b2 = region2BoundsFor(gym);
@@ -155,6 +214,15 @@ export function isInRegion2(x, z) {
 
 export function isInRegion3(x, z) {
   return getRegionAt(x, z) === REGION_3;
+}
+
+export function isInRegion4(x, z) {
+  return getRegionAt(x, z) === REGION_4;
+}
+
+/** Destino de una región: el gateId que hay que abrir para entrar. */
+export function gateIdForRegion(regionId) {
+  return REGIONS[regionId]?.gateId ?? null;
 }
 
 class RegionSystem {

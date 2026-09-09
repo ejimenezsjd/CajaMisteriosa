@@ -32,11 +32,15 @@ const SALT = {
   mining_camp: 12111,
   crimson_ruin: 13112,
   gym_crimson: 14113,
+  cliff_outpost: 15114,
+  wind_shrine: 16115,
+  storm_observatory: 17116,
 };
 
 const REGIONAL_TYPES = new Set([
   "regional_gate", "watchtower", "ancient_outpost", "mist_settlement", "gym_mist",
   "mining_camp", "crimson_ruin", "gym_crimson",
+  "cliff_outpost", "wind_shrine", "storm_observatory",
 ]);
 
 export const STRUCTURE_TYPES = {
@@ -192,6 +196,41 @@ export const STRUCTURE_TYPES = {
     maxSlope: 8,
     build: buildForgeGym,
   },
+  cliff_outpost: {
+    id: "cliff_outpost",
+    name: "Puesto del Acantilado",
+    icon: "🏕",
+    cell: 260,
+    chance: 1,
+    radius: 10,
+    maxSlope: 12,
+    build: buildCliffOutpost,
+    npcAnchors: [
+      { role: "wind_scout", local: [0, -4] },
+      { role: "highland_merchant", local: [-4, 3] },
+      { role: "storm_researcher", local: [5, 2] },
+    ],
+  },
+  wind_shrine: {
+    id: "wind_shrine",
+    name: "Santuario del Viento",
+    icon: "🌬",
+    cell: 260,
+    chance: 1,
+    radius: 5,
+    maxSlope: 12,
+    build: buildWindShrine,
+  },
+  storm_observatory: {
+    id: "storm_observatory",
+    name: "Observatorio de la Tormenta",
+    icon: "🔭",
+    cell: 260,
+    chance: 1,
+    radius: 8,
+    maxSlope: 14,
+    build: buildStormObservatory,
+  },
 };
 
 /** Locales del banco y del arco sellado (Gym 2 hook) respecto al centro */
@@ -210,6 +249,21 @@ export const CRIMSON_RUIN_LAYOUT = {
   seal: [0, 0],
   boss: [0, 4],
   pathGate: [0, 7],
+};
+
+export const CLIFF_OUTPOST_LAYOUT = {
+  stall: [-4, 4],
+  lift: [0, 6],
+};
+
+export const WIND_SHRINE_LAYOUT = {
+  lift: [0, 0],
+};
+
+export const STORM_OBSERVATORY_LAYOUT = {
+  seal: [0, 0],
+  lift: [0, -4],
+  beacon: [0, 0],
 };
 
 /** Radio máximo entre todos los tipos: margen de solape chunk/estructura */
@@ -911,7 +965,7 @@ function buildForgeGym(stamp, x, y, z, rng, ground) {
   stamp(x - 2, y + 1, z - 13, B.EMBER_ORE);
   stamp(x + 2, y + 1, z - 13, B.EMBER_ORE);
 
-  // Crimson Pass: hook sur hacia el siguiente arco (no es Región 4)
+  // Crimson Pass: hook sur hacia Región 4 (el hueco se abre al usar el paso)
   for (let dx = -3; dx <= 3; dx++) {
     fillFloor(stamp, ground, x, y, z, dx, 15, B.CRIMSON_STONE);
     if (Math.abs(dx) <= 1) {
@@ -920,6 +974,94 @@ function buildForgeGym(stamp, x, y, z, rng, ground) {
       wall(dx, 15);
     }
   }
+}
+
+/** Hub pequeño de los Altos del Vendaval: plaza, puesto y corriente. */
+function buildCliffOutpost(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 10, 12);
+  for (let dx = -8; dx <= 8; dx++) {
+    for (let dz = -8; dz <= 8; dz++) {
+      if (Math.abs(dx) + Math.abs(dz) > 14) continue;
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.WINDSTONE);
+    }
+  }
+  const hut = (ox, oz) => {
+    for (let dx = -2; dx <= 2; dx++) {
+      for (let dz = -2; dz <= 2; dz++) {
+        fillFloor(stamp, ground, x, y, z, ox + dx, oz + dz, B.STONE);
+        const edge = Math.abs(dx) === 2 || Math.abs(dz) === 2;
+        if (edge && !(dx === 0 && dz === 2)) {
+          for (let dy = 1; dy <= 3; dy++) stamp(x + ox + dx, y + dy, z + oz + dz, B.WOOD);
+        }
+        stamp(x + ox + dx, y + 4, z + oz + dz, B.LEAVES);
+      }
+    }
+    stamp(x + ox, y + 1, z + oz + 2, B.AIR);
+    stamp(x + ox, y + 2, z + oz + 2, B.AIR);
+  };
+  hut(-5, 2);
+  hut(5, 1);
+  hut(0, -5);
+  stamp(x, y + 1, z, B.WOOD);
+  stamp(x, y + 2, z, B.WIND_CRYSTAL);
+  for (let dy = 1; dy <= 4; dy++) {
+    stamp(x, y + dy, z + 6, B.AIR);
+  }
+  stamp(x, y + 1, z + 6, B.CRYSTAL);
+  if (rng() < 0.9) stamp(x + 3, y + 1, z - 2, B.HERB);
+  if (rng() < 0.7) stamp(x - 3, y + 1, z + 4, B.HERB);
+}
+
+/** Landmark + tutorial de wind lift (no es un santuario curativo). */
+function buildWindShrine(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 5, 14);
+  for (let dx = -4; dx <= 4; dx++) {
+    for (let dz = -4; dz <= 4; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.WINDSTONE);
+    }
+  }
+  for (const [cx, cz] of [[-3, -3], [3, -3], [-3, 3], [3, 3]]) {
+    for (let dy = 1; dy <= 5; dy++) stamp(x + cx, y + dy, z + cz, B.STONE);
+    stamp(x + cx, y + 6, z + cz, B.CRYSTAL);
+  }
+  stamp(x, y + 1, z, B.CRYSTAL);
+  stamp(x, y + 2, z, B.WIND_CRYSTAL);
+  for (let dy = 1; dy <= 8; dy++) {
+    if (dy !== 1 && dy !== 2) stamp(x, y + dy, z, B.AIR);
+  }
+  if (rng() < 0.8) stamp(x + 2, y + 1, z, B.HERB);
+}
+
+/**
+ * Observatorio alto: lore, revelado de mapa, criatura rara y sello del Gym 4.
+ * No es el Gimnasio 4.
+ */
+function buildStormObservatory(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 8, 18);
+  for (let dx = -6; dx <= 6; dx++) {
+    for (let dz = -6; dz <= 6; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.WINDSTONE);
+    }
+  }
+  for (let dy = 1; dy <= 12; dy++) {
+    for (const [dx, dz] of [[-3, -3], [-3, 3], [3, -3], [3, 3]]) {
+      stamp(x + dx, y + dy, z + dz, dy > 8 ? B.CRYSTAL : B.STONE);
+    }
+  }
+  for (let dx = -4; dx <= 4; dx++) {
+    for (let dz = -4; dz <= 4; dz++) {
+      stamp(x + dx, y + 9, z + dz, B.WINDSTONE);
+      if (Math.abs(dx) === 4 || Math.abs(dz) === 4) stamp(x + dx, y + 10, z + dz, B.STONE);
+    }
+  }
+  stamp(x, y + 1, z, B.STONE);
+  stamp(x, y + 2, z, B.WIND_CRYSTAL);
+  stamp(x, y + 11, z, B.WOOD);
+  stamp(x, y + 12, z, B.WIND_CRYSTAL);
+  stamp(x, y + 13, z, B.CRYSTAL);
+  stamp(x, y + 1, z - 4, B.CRYSTAL);
+  if (rng() < 0.95) stamp(x + 2, y + 10, z, B.WIND_CRYSTAL);
+  if (rng() < 0.8) stamp(x - 2, y + 1, z + 2, B.HERB);
 }
 
 // ---------- Índice determinista por celdas ----------
@@ -1020,8 +1162,21 @@ export class StructureIndex {
     } else if (type === "gym_crimson") {
       x = gym.x + g.gymCrimson.dx;
       z = gym.z + g.gymCrimson.dz;
+    } else if (type === "cliff_outpost") {
+      x = gym.x + g.cliffOutpost.dx;
+      z = gym.z + g.cliffOutpost.dz;
+    } else if (type === "wind_shrine") {
+      x = gym.x + g.windShrine.dx;
+      z = gym.z + g.windShrine.dz;
+    } else if (type === "storm_observatory") {
+      x = gym.x + g.stormObservatory.dx;
+      z = gym.z + g.stormObservatory.dz;
     }
     const t = this.world.terrainAt(x, z);
+    let y = Math.max(t.h, WATER_Y + 1);
+    if (type === "cliff_outpost" || type === "wind_shrine" || type === "storm_observatory") {
+      y = Math.min(60, y + this.world.region4BonusAt(x, z));
+    }
     return {
       id: `${type}:${cellX},${cellZ}`,
       type,
@@ -1030,7 +1185,7 @@ export class StructureIndex {
       cellX,
       cellZ,
       x,
-      y: Math.max(t.h, WATER_Y + 1),
+      y,
       z,
       biome: this.world.biomeAt(x, z),
     };
@@ -1043,9 +1198,9 @@ export class StructureIndex {
       const def = STRUCTURE_TYPES[type];
       const r = def.radius;
       // Estructuras regionales se indexan en la celda del gimnasio, pero su
-      // (x,z) real puede caer varias celdas al sur (gate +52 … gym_crimson +412).
-      // pad=2 cubre ~520 bloques a cell=260: ruina, Gym 3 y el radio de NPCs.
-      const pad = REGIONAL_TYPES.has(type) ? 2 : 0;
+      // (x,z) real puede caer varias celdas al sur (gate +52 … observatory +650).
+      // pad=3 cubre ~780 bloques a cell=260: R4 y el radio de NPCs.
+      const pad = REGIONAL_TYPES.has(type) ? 3 : 0;
       const c0x = Math.floor((xMin - r) / def.cell) - pad;
       const c1x = Math.floor((xMax + r) / def.cell) + pad;
       const c0z = Math.floor((zMin - r) / def.cell) - pad;

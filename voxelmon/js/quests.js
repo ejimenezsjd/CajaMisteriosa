@@ -24,6 +24,7 @@
  *   defeatTrainer     ← trainerDefeated    (trainerId / trainerClass)
  *   setFlag           ← flagSet            (flagId opcional)
  *   defeatBoss        ← bossDefeated       (bossId opcional)
+ *   useTraversal      ← traversalUsed      (traversalType / traversalId)
  *
  * Idempotencia: una quest completada nunca vuelve a activarse ni a entregar
  * recompensas; complete() ignora quests ya completadas.
@@ -417,6 +418,65 @@ export const QUESTS = {
       { type: "earnBadge", badgeId: "crimson_badge", amount: 1, label: "Consigue la Insignia Forja" },
     ],
     rewards: { money: 90 },
+    next: "quest_crimson_pass",
+  },
+  quest_crimson_pass: {
+    id: "quest_crimson_pass",
+    title: "El Paso Carmesí",
+    description: "La Insignia Forja ha despertado el mecanismo del paso sur. Ábrelo.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "openRegionGate", regionId: "region_4", amount: 1, label: "Abre el Paso Carmesí" },
+    ],
+    rewards: { money: 50 },
+    next: "quest_wind_highlands",
+  },
+  quest_wind_highlands: {
+    id: "quest_wind_highlands",
+    title: "Altos del Vendaval",
+    description: "Cruza el paso y pisa la cuarta región.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "discoverRegion", regionId: "region_4", amount: 1, label: "Descubre los Altos del Vendaval" },
+    ],
+    rewards: { money: 60 },
+    next: "quest_against_wind",
+  },
+  quest_against_wind: {
+    id: "quest_against_wind",
+    title: "Contra el viento",
+    description: "El santuario del viento enseña las corrientes. Encuéntralo y úsalo.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "discoverStructure", structureType: "wind_shrine", amount: 1, label: "Descubre el Santuario del Viento" },
+      { type: "useTraversal", traversalType: "wind_lift", amount: 1, label: "Usa una corriente ascendente" },
+    ],
+    rewards: { money: 70 },
+    next: "quest_cliff_outpost",
+  },
+  quest_cliff_outpost: {
+    id: "quest_cliff_outpost",
+    title: "El puesto del acantilado",
+    description: "Hay un hub pequeño entre las mesetas. Habla con quien vigila el viento.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "discoverStructure", structureType: "cliff_outpost", amount: 1, label: "Descubre el Puesto del Acantilado" },
+      { type: "talkToNPC", roles: ["wind_scout", "storm_researcher"], amount: 1, label: "Habla con Nera o Vela" },
+    ],
+    rewards: { money: 80 },
+    next: "quest_storm_eyes",
+  },
+  quest_storm_eyes: {
+    id: "quest_storm_eyes",
+    title: "Ojos en la tormenta",
+    description: "Cristal de viento, observatorio y el mecanismo dormido. El cuarto gimnasio aún no abre.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "collectResource", resourceId: "wind_crystal", amount: 1, label: "Recolecta cristal de viento" },
+      { type: "discoverStructure", structureType: "storm_observatory", amount: 1, label: "Descubre el Observatorio de la Tormenta" },
+      { type: "setFlag", flagId: "storm_anomaly_inspected", amount: 1, label: "Inspecciona la anomalía del observatorio" },
+    ],
+    rewards: { money: 120, unlock: "gym_4_clue_unlocked" },
   },
 };
 
@@ -430,6 +490,7 @@ export const QUEST_ORDER = [
   "quest_into_mist", "quest_mist_lights", "quest_mist_trial", "quest_mist_badge",
   "quest_beyond_mist", "quest_crimson_peaks", "quest_mining_post", "quest_mountain_wealth",
   "quest_crimson_seal", "quest_ruin_guardian", "quest_the_forge", "quest_forge_trial", "quest_forge_badge",
+  "quest_crimson_pass", "quest_wind_highlands", "quest_against_wind", "quest_cliff_outpost", "quest_storm_eyes",
 ];
 
 /** eventName → [tipo de objetivo, función de filtro, cantidad del payload] */
@@ -438,7 +499,7 @@ const EVENT_OBJECTIVES = {
   creatureCaptured: ["captureCreature", (o, p) => !o.speciesId || o.speciesId === p.speciesId, () => 1],
   structureDiscovered: ["discoverStructure", (o, p) => !o.structureType || o.structureType === p.structureType, () => 1],
   biomeDiscovered: ["discoverBiome", (o, p) => !o.biomeId || o.biomeId === (p.biomeId ?? p.biome), () => 1],
-  npcTalked: ["talkToNPC", (o, p) => !o.role || o.role === p.role, () => 1],
+  npcTalked: ["talkToNPC", (o, p) => !o.role && !o.roles || o.role === p.role || (o.roles && o.roles.includes(p.role)), () => 1],
   tradeCompleted: ["trade", (o, p) => !o.traderId || o.traderId === p.traderId, () => 1],
   blockMined: ["mineBlock", (o, p) => !o.block || o.block === p.block, () => 1],
   trainerDefeated: ["defeatTrainer",
@@ -453,6 +514,7 @@ const EVENT_OBJECTIVES = {
   itemSold: ["sellItem", (o, p) => !o.itemId || o.itemId === p.itemId, (p) => p.amount ?? 1],
   flagSet: ["setFlag", (o, p) => !o.flagId || o.flagId === p.id, () => 1],
   bossDefeated: ["defeatBoss", (o, p) => !o.bossId || o.bossId === p.bossId, () => 1],
+  traversalUsed: ["useTraversal", (o, p) => (!o.traversalType || o.traversalType === p.traversalType) && (!o.traversalId || o.traversalId === p.traversalId), () => 1],
 };
 
 class QuestSystem {
@@ -510,6 +572,11 @@ class QuestSystem {
         this.start("quest_crimson_seal");
       }
     }
+    if (progression.isUnlocked("region_4_path_unlocked") &&
+        !this.isCompleted("quest_crimson_pass") && !this.isActive("quest_crimson_pass")) {
+      this.makeAvailable("quest_crimson_pass");
+      this.start("quest_crimson_pass");
+    }
   }
 
   setRewardHandler(fn) {
@@ -541,6 +608,11 @@ class QuestSystem {
         if (this.isCompleted("quest_crimson_seal") || this.isActive("quest_crimson_seal")) return;
         this.makeAvailable("quest_crimson_seal");
         this.start("quest_crimson_seal");
+      }
+      if (id === "region_4_path_unlocked") {
+        if (this.isCompleted("quest_crimson_pass") || this.isActive("quest_crimson_pass")) return;
+        this.makeAvailable("quest_crimson_pass");
+        this.start("quest_crimson_pass");
       }
     });
   }

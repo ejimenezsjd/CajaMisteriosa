@@ -55,6 +55,9 @@ const BLOCK_CSS = {
   22: "#6a2c28",
   23: "#c85020",
   24: "#e04048",
+  26: "#9ab0c8",
+  27: "#8a9a58",
+  28: "#7ad4f0",
 };
 
 export class UI {
@@ -149,7 +152,7 @@ export class UI {
     this.el.infoBalls.textContent = `▣ Cubos: ${s.balls}`;
     $("info-money").textContent = `⌾ Monedas: ${s.money ?? 0}`;
     const fams = FAMILY_STARTERS.filter((f) => this.familyCaught(f)).length;
-    this.el.infoDex.textContent = `◆ Dex: ${fams}/8${s.dex.caught.prismaton ? " ✦" : ""}`;
+    this.el.infoDex.textContent = `◆ Dex: ${fams}/${FAMILY_STARTERS.length}${s.dex.caught.prismaton ? " ✦" : ""}`;
 
     const strip = this.el.teamStrip;
     strip.innerHTML = "";
@@ -264,6 +267,20 @@ export class UI {
     el.classList.toggle("hidden", !visible);
   }
 
+  setBuildHud(info) {
+    const box = $("build-hud");
+    if (!box) return;
+    if (!info || !info.mode) {
+      box.classList.add("hidden");
+      return;
+    }
+    $("build-hud-title").textContent = info.hovering ? "MODO CONSTRUCCIÓN · AIRE" : "MODO CONSTRUCCIÓN";
+    $("build-hud-sub").textContent = info.unlocked
+      ? (info.hovering ? "WASD mover · Espacio subir · Shift bajar · B salir" : "ASISTENCIA AÉREA DISPONIBLE · Espacio para elevarte")
+      : "Captura una criatura voladora capaz para desbloquear asistencia aérea.";
+    box.classList.remove("hidden");
+  }
+
   setTargetPrompt(text) {
     if (text) {
       this.el.targetPrompt.textContent = text;
@@ -292,7 +309,7 @@ export class UI {
       let id = f;
       while (id) { line.push(id); id = SPECIES[id].evolvesTo; }
       return line;
-    }), "prismaton"];
+    }), "cirrith", "prismaton"];
     for (const id of order) {
       const sp = SPECIES[id];
       const caught = !!this.state.dex.caught[id];
@@ -307,13 +324,14 @@ export class UI {
       grid.appendChild(cell);
     }
     const fams = FAMILY_STARTERS.filter((f) => this.familyCaught(f)).length;
-    $("dex-progress").textContent = `Familias capturadas: ${fams}/8` +
+    $("dex-progress").textContent = `Familias capturadas: ${fams}/${FAMILY_STARTERS.length}` +
       (this.state.dex.caught.prismaton ? " · ✦ Prismatón obtenido" : fams >= 8 ? " · ¡El legendario te espera!" : "");
 
     const perkGrid = $("dex-perks");
     perkGrid.innerHTML = "";
     for (const fam of FAMILY_STARTERS) {
       const p = PERKS[fam];
+      if (!p) continue;
       const unlocked = this.familyCaught(fam);
       const cell = document.createElement("div");
       cell.className = "perk-cell" + (unlocked ? " unlocked" : "");

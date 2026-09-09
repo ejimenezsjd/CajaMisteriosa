@@ -56,7 +56,9 @@ class StatsSystem {
     events.on("structureDiscovered", ({ structureType }) => {
       if (this.s && (structureType === "watchtower" || structureType === "ancient_outpost" ||
           structureType === "regional_gate" || structureType === "mist_settlement" ||
-          structureType === "mining_camp" || structureType === "crimson_ruin")) {
+          structureType === "mining_camp" || structureType === "crimson_ruin" ||
+          structureType === "cliff_outpost" || structureType === "wind_shrine" ||
+          structureType === "storm_observatory")) {
         this.s.regionalStructuresDiscovered += 1;
       }
     });

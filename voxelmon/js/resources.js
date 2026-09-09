@@ -150,11 +150,30 @@ export const RESOURCES = {
     crafted: true,
     futureUse: "activar el sello de la Ruina Carmesí y despertar al guardián",
   },
+  wind_crystal: {
+    id: "wind_crystal",
+    name: "Cristal de viento",
+    icon: "💠",
+    block: B.WIND_CRYSTAL,
+    rarity: "rara",
+    surface: true,
+    futureUse: "quest de Región 4, economía y pista del Gimnasio 4",
+  },
+  sky_herb: {
+    id: "sky_herb",
+    name: "Hierba de altura",
+    icon: "🌾",
+    block: B.HERB,
+    rarity: "poco común",
+    surface: true,
+    futureUse: "venta y medicina futura",
+  },
 };
 
-const BY_BLOCK = Object.fromEntries(
-  Object.values(RESOURCES).map((r) => [r.block, r])
-);
+const BY_BLOCK = {};
+for (const r of Object.values(RESOURCES)) {
+  if (BY_BLOCK[r.block] == null) BY_BLOCK[r.block] = r;
+}
 
 /** Definición de recurso asociada a un bloque, o null si es un bloque normal */
 export function resourceForBlock(blockId) {

@@ -51,8 +51,8 @@ export const SPECIES = {
   titanor: { id: "titanor", name: "Titanor", type: "tierra", stage: 3, base: { hp: 110, atk: 30, def: 34, spd: 11 }, evolvesTo: null, evolveLevel: null, color: "#8a6030", color2: "#c09050" },
 
   plumin: { id: "plumin", name: "Plumín", type: "volador", stage: 1, base: { hp: 40, atk: 13, def: 8, spd: 15 }, evolvesTo: "alazan", evolveLevel: 5, color: "#8eb6e0", color2: "#c0dcf0" },
-  alazan: { id: "alazan", name: "Alazán", type: "volador", stage: 2, base: { hp: 58, atk: 21, def: 13, spd: 24 }, evolvesTo: "celestor", evolveLevel: 10, color: "#6090c8", color2: "#90b8e8" },
-  celestor: { id: "celestor", name: "Celestor", type: "volador", stage: 3, base: { hp: 82, atk: 32, def: 20, spd: 30 }, evolvesTo: null, evolveLevel: null, color: "#4070b0", color2: "#70a0e0" },
+  alazan: { id: "alazan", name: "Alazán", type: "volador", stage: 2, base: { hp: 58, atk: 21, def: 13, spd: 24 }, evolvesTo: "celestor", evolveLevel: 10, color: "#6090c8", color2: "#90b8e8", traversalAbilities: ["build_hover"] },
+  celestor: { id: "celestor", name: "Celestor", type: "volador", stage: 3, base: { hp: 82, atk: 32, def: 20, spd: 30 }, evolvesTo: null, evolveLevel: null, color: "#4070b0", color2: "#70a0e0", traversalAbilities: ["build_hover"] },
 
   umbra: { id: "umbra", name: "Umbra", type: "sombra", stage: 1, base: { hp: 41, atk: 14, def: 9, spd: 13 }, evolvesTo: "sombrio", evolveLevel: 5, color: "#7a5aa0", color2: "#b090d0" },
   sombrio: { id: "sombrio", name: "Sombrío", type: "sombra", stage: 2, base: { hp: 60, atk: 23, def: 15, spd: 18 }, evolvesTo: "nocrix", evolveLevel: 10, color: "#5a3a80", color2: "#9070b8" },
@@ -62,11 +62,19 @@ export const SPECIES = {
   clarion: { id: "clarion", name: "Clarion", type: "luz", stage: 2, base: { hp: 64, atk: 20, def: 16, spd: 19 }, evolvesTo: "aureon", evolveLevel: 10, color: "#e8d878", color2: "#fff0a0" },
   aureon: { id: "aureon", name: "Aureon", type: "luz", stage: 3, base: { hp: 90, atk: 31, def: 24, spd: 25 }, evolvesTo: null, evolveLevel: null, color: "#d8c050", color2: "#ffe870" },
 
-  // Legendario exclusivo de VoxelMon: aparece al capturar las 8 familias.
+  // Familia del vendaval (Fase 11): mamífero planeador de membranas, no otra línea de aves.
+  brisin: { id: "brisin", name: "Brisín", type: "volador", stage: 1, base: { hp: 42, atk: 12, def: 9, spd: 16 }, evolvesTo: "vendal", evolveLevel: 12, color: "#b8d8e8", color2: "#f0f6ea" },
+  vendal: { id: "vendal", name: "Vendal", type: "volador", stage: 2, base: { hp: 64, atk: 22, def: 14, spd: 26 }, evolvesTo: "cefiron", evolveLevel: 22, color: "#7eb0d0", color2: "#d8ecf8", traversalAbilities: ["build_hover"] },
+  cefiron: { id: "cefiron", name: "Céfiron", type: "volador", stage: 3, base: { hp: 92, atk: 33, def: 22, spd: 34 }, evolvesTo: null, evolveLevel: null, color: "#4a88b8", color2: "#c8e8ff", traversalAbilities: ["build_hover"] },
+
+  // Rara regional (no legendaria): cristal-viento eléctrico.
+  cirrith: { id: "cirrith", name: "Cirrith", type: "electrico", stage: 2, rare: true, aerial: true, base: { hp: 70, atk: 28, def: 18, spd: 30 }, evolvesTo: null, evolveLevel: null, color: "#c8f0ff", color2: "#ffe98a" },
+
+  // Legendario exclusivo de VoxelMon: aparece al capturar las 8 familias originales.
   prismaton: { id: "prismaton", name: "Prismatón", type: "luz", stage: 3, legendary: true, base: { hp: 140, atk: 42, def: 34, spd: 32 }, evolvesTo: null, evolveLevel: null, color: "#c9f0ff", color2: "#ffd6f8" },
 };
 
-export const FAMILY_STARTERS = ["emberin", "gotita", "semilla", "chispin", "piedrita", "plumin", "umbra", "lucier"];
+export const FAMILY_STARTERS = ["emberin", "gotita", "semilla", "chispin", "piedrita", "plumin", "umbra", "lucier", "brisin"];
 
 /** Habilidad pasiva permanente que otorga cada familia al capturarla */
 export const PERKS = {
@@ -111,7 +119,11 @@ export function familyOf(speciesId) {
       id = SPECIES[id].evolvesTo;
     }
   }
-  return speciesId === "prismaton" ? "prismaton" : null;
+  return speciesId === "prismaton" ? "prismaton" : speciesId === "cirrith" ? "cirrith" : null;
+}
+
+export function speciesHasAbility(speciesId, ability) {
+  return !!SPECIES[speciesId]?.traversalAbilities?.includes(ability);
 }
 
 export const MOVES = {

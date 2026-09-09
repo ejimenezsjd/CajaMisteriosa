@@ -211,6 +211,33 @@ export const BIOMES = {
     ambience: { heat: true },
   },
 
+  wind_highlands: {
+    id: "wind_highlands",
+    name: "Altos del Vendaval",
+    climate: { temperature: 0.28, humidity: 0.35 },
+    terrain: { surfaceBlock: B.WINDSTONE, subsurfaceBlock: B.STONE },
+    vegetation: { treeDensity: 0.018 },
+    difficulty: 4,
+    creatures: [
+      { family: "brisin", weight: 5, time: "any", regions: ["region_4"] },
+      { family: "plumin", weight: 3, time: "day", regions: ["region_4"] },
+      { family: "chispin", weight: 3, time: "any", regions: ["region_4"] },
+      { family: "lucier", weight: 2, time: "day", regions: ["region_4"] },
+      { family: "umbra", weight: 1, time: "night", regions: ["region_4"] },
+      { family: "cirrith", weight: 1, time: "any", regions: ["region_4"], minHeight: 36 },
+    ],
+    resources: [
+      { id: "sky_herb", chance: 0.016 },
+      { id: "wind_crystal", chance: 0.006 },
+      { id: "coal", chance: 0.05 },
+      { id: "iron", chance: 0.035 },
+      { id: "copper", chance: 0.03 },
+      { id: "crystal_shard", chance: 0.008 },
+    ],
+    structures: ["cliff_outpost", "wind_shrine", "storm_observatory", "healing_shrine"],
+    ambience: { wind: true, fogFar: true },
+  },
+
   ocean: {
     id: "ocean",
     name: "Océano",
