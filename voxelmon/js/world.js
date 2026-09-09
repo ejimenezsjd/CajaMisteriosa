@@ -11,7 +11,7 @@ import { BIOME_NAMES, getBiomeDefinition } from "./biomes.js";
 import { RESOURCES } from "./resources.js";
 import { StructureIndex } from "./structures.js";
 import { bindGymLookup, getRegionAt, REGION_2, REGION_3, REGION_4, REGION_5, region4HeightBonus, region5Height, regions } from "./regions.js";
-import { stampRegionalPaths } from "./routes.js";
+import { stampRegionalPaths, stampAzureCurrents } from "./routes.js";
 
 // Reexportados para los consumidores existentes (main.js, ui.js…)
 export { B, BLOCK_NAMES, BLOCK_DROPS } from "./blocks.js";
@@ -363,6 +363,7 @@ export class World {
     };
     this.structures.stampChunk(x0, z0, CHUNK, stampStruct);
     stampRegionalPaths(this, x0, z0, CHUNK, stampStruct);
+    stampAzureCurrents(this, x0, z0, CHUNK, stampStruct);
 
     // Ediciones del jugador
     for (const key in this.edits) {

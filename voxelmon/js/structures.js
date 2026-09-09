@@ -1573,7 +1573,14 @@ function buildTidalRuins(stamp, x, y, z, rng, ground) {
 
   for (let dx = -2; dx <= 2; dx++) {
     for (let dz = 3; dz <= 5; dz++) {
-      if (rng() < 0.35) stamp(x + dx, y, z + dz, B.WATER);
+      stamp(x + dx, y, z + dz, B.WATER);
+      if (y > WATER_Y) stamp(x + dx, WATER_Y, z + dz, B.WATER);
+    }
+  }
+  // Canal somero fijo en la cámara central (no depende de rng).
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dz = -1; dz <= 2; dz++) {
+      stamp(x + dx, Math.min(y, WATER_Y), z + dz, B.WATER);
     }
   }
   stamp(x + L.pickup[0], y + 1, z + L.pickup[1], B.TIDAL_PEARL);

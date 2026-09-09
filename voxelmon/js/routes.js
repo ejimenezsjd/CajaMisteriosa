@@ -9,6 +9,9 @@
 import { B } from "./blocks.js";
 import { REGION_GEOMETRY, regions } from "./regions.js";
 
+/** Igual que WATER_Y en world.js. No importar world (ciclo routes ↔ world). */
+const WATER_SURFACE = 12;
+
 export const ROUTES = {
   azure_route_1: {
     id: "azure_route_1",
@@ -167,7 +170,19 @@ function chunkHits(b, x0, z0, size) {
  * Estampa los corredores de R5 que tocan este chunk.
  * `stamp(wx, wy, wz, block)` escribe en generateChunkData.
  */
+let _stamping = false;
+
 export function stampRegionalPaths(world, x0, z0, size, stamp) {
+  if (_stamping) return;
+  _stamping = true;
+  try {
+    stampRegionalPathsInner(world, x0, z0, size, stamp);
+  } finally {
+    _stamping = false;
+  }
+}
+
+function stampRegionalPathsInner(world, x0, z0, size, stamp) {
   const gym = regions.homeGym();
   if (!gym) return;
   const g = REGION_GEOMETRY;
@@ -228,10 +243,13 @@ function stampRoute(world, gym, route, x0, z0, size, stamp) {
           const wx = Math.round(p.x + ox);
           const wz = Math.round(p.z + oz);
           if (wx < x0 || wx > x1 || wz < z0 || wz > z1) continue;
-      const h = world.columnHeight ? world.columnHeight(wx, wz) : world.terrainAt(wx, wz).h;
+          const h = world.columnHeight ? world.columnHeight(wx, wz) : world.terrainAt(wx, wz).h;
           const y = Math.max(h, 1);
           stamp(wx, y, wz, block);
-          if (world.getBlock && world.getBlock(wx, y + 1, wz) === B.WATER) {
+          // No llamar world.getBlock aquí: dispara ensureChunkData → generateChunkData
+          // → stampRegionalPaths (stack overflow). Si la columna está bajo el agua,
+          // se abre un hueco de aire sobre el sendero con el stamp del chunk actual.
+          if (h <= WATER_SURFACE) {
             stamp(wx, y + 1, wz, B.AIR);
           }
         }
@@ -242,6 +260,32 @@ function stampRoute(world, gym, route, x0, z0, size, stamp) {
 
 function iOddJitter(a, c) {
   return ((Math.round(a.x + c.z) & 1) ? 5 : -5);
+}
+
+/** Pozas de agua deterministas en las anclas de corriente (sin getBlock). */
+export function stampAzureCurrents(world, x0, z0, size, stamp) {
+  const gym = regions.homeGym();
+  if (!gym) return;
+  const g = REGION_GEOMETRY;
+  const pts = [g.currentA, g.currentB, g.currentC];
+  const x1 = x0 + size - 1;
+  const z1 = z0 + size - 1;
+  for (const p of pts) {
+    const cx = gym.x + p.dx;
+    const cz = gym.z + p.dz;
+    if (cx + 4 < x0 || cx - 4 > x1 || cz + 4 < z0 || cz - 4 > z1) continue;
+    for (let dx = -3; dx <= 3; dx++) {
+      for (let dz = -3; dz <= 3; dz++) {
+        if (Math.hypot(dx, dz) > 3.5) continue;
+        const wx = cx + dx;
+        const wz = cz + dz;
+        if (wx < x0 || wx > x1 || wz < z0 || wz > z1) continue;
+        stamp(wx, WATER_SURFACE - 1, wz, B.SAND);
+        stamp(wx, WATER_SURFACE, wz, B.WATER);
+        stamp(wx, WATER_SURFACE + 1, wz, B.AIR);
+      }
+    }
+  }
 }
 
 export function routeSnapshot() {

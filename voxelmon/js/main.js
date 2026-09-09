@@ -1896,22 +1896,29 @@ function findAzure(type, x, z) {
 function applyLighthouseBeam(s) {
   if (!s || !world) return;
   const on = progression.hasFlag("lighthouse_activated") || progression.isUnlocked("gym_5_clue_unlocked");
+  const clue = progression.isUnlocked("gym_5_clue_unlocked");
   const [dx, dz] = AZURE_LIGHTHOUSE_LAYOUT.lens;
   if (on) {
-    stampLighthouseCrystal(s, dx, dz, true);
+    stampLighthouseCrystal(s, dx, dz, true, clue);
     worldMap.revealRadius(s.x, s.z, 6, "azure_lighthouse");
   } else {
-    stampLighthouseCrystal(s, dx, dz, false);
+    stampLighthouseCrystal(s, dx, dz, false, false);
   }
 }
 
-function stampLighthouseCrystal(s, dx, dz, on) {
+function stampLighthouseCrystal(s, dx, dz, on, clue = false) {
   world.setBlock(s.x + dx, s.y + 15, s.z + dz, B.CRYSTAL);
   world.setBlock(s.x + dx, s.y + 16, s.z + dz, on ? B.WIND_CRYSTAL : B.CRYSTAL);
   world.setBlock(s.x + dx, s.y + 17, s.z + dz, on ? B.WIND_CRYSTAL : B.AIR);
   if (on) {
     for (let i = 1; i <= 6; i++) {
       world.setBlock(s.x + dx + i, s.y + 16, s.z + dz + 1, B.CRYSTAL);
+    }
+  }
+  // Consumidor físico de gym_5_clue_unlocked: haz extra hacia el este.
+  if (clue) {
+    for (let i = 7; i <= 14; i++) {
+      world.setBlock(s.x + dx + i, s.y + 16, s.z + dz, B.WIND_CRYSTAL);
     }
   }
 }
@@ -3985,6 +3992,11 @@ window.__vm = {
       progression.addBadge("gale_badge");
       progression.unlock("fourth_gym_completed");
       progression.unlock("region_5_path_unlocked");
+      // El atajo de debug no pasa por Gyms 1–4: sin estas gates la barrera
+      // de R4 expulsa al jugador del arco en cada frame.
+      regions.openGate(REGION_2, { x: 0, z: 0 });
+      regions.openGate(REGION_3, { x: 0, z: 0 });
+      regions.openGate(REGION_4, { x: 0, z: 0 });
       const s = findHighlandExit(player?.pos.x ?? 0, player?.pos.z ?? 0);
       if (s) applyHighlandExitOpening(s);
       regions.openGate(REGION_5, { x: s?.x ?? 0, z: s?.z ?? 0 });
@@ -4071,14 +4083,26 @@ window.__vm = {
       ui.refreshHud();
       return { dest, uid: m.uid, speciesId: m.speciesId, level: m.level, first, hp: m.hp, xp: m.xp, snapshot: creatureStorage.snapshot() };
     },
-    forceEvolve(uid) {
+    forceEvolve(uid, xp = 50000) {
       const found = creatureStorage.find(uid) ?? { monster: state.team[0], where: "party" };
       const m = found.monster;
       if (!m) return null;
-      const evs = gainXp(m, 50000);
+      const evs = gainXp(m, xp);
       if (evs.some((e) => e.type === "evolve")) ui.onEvolve?.(m);
       ui.refreshHud();
       return { speciesId: m.speciesId, level: m.level, events: evs };
+    },
+    resumePlay() {
+      if (mode === "battle") return mode;
+      ui.hide(ui.el.pause);
+      ui.hide?.(ui.el.dex);
+      document.getElementById("inventory-ui")?.classList.add("hidden");
+      document.getElementById("pc-ui")?.classList.add("hidden");
+      document.getElementById("map-ui")?.classList.add("hidden");
+      worldMap.hide?.();
+      if (mode !== "play") mode = "play";
+      locked = true;
+      return mode;
     },
     openInventory() { toggleInventory(); return mode; },
     openDex() { toggleDex(); return mode; },
