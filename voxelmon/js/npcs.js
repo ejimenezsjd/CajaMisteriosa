@@ -157,10 +157,20 @@ export const NPC_DEFS = {
     colors: { skin: "#e8d8c8", outfit: "#3a6088", accent: "#90e0ff" },
     quests: [],
   },
+  tide_gym_guide: {
+    role: "tide_gym_guide",
+    name: "Nami",
+    dialogueId: "tide_gym_guide_intro",
+    dialogueCompletedId: "tide_gym_guide_done",
+    gymId: "gym_tide",
+    colors: { skin: "#e8d4c0", outfit: "#1a6878", accent: "#7ee8d8" },
+    quests: [],
+  },
   azure_guide: {
     role: "azure_guide",
     name: "Maris",
     dialogueId: "azure_guide_intro",
+    dialogueCompletedId: "azure_guide_done",
     colors: { skin: "#e8d0b8", outfit: "#2a6a78", accent: "#7ee8d8" },
     quests: ["quest_azure_port"],
   },
@@ -168,6 +178,7 @@ export const NPC_DEFS = {
     role: "azure_healer",
     name: "Calla",
     dialogueId: "azure_healer_intro",
+    dialogueCompletedId: "azure_healer_done",
     colors: { skin: "#f0d8c8", outfit: "#3dba9a", accent: "#b8fff0" },
     quests: [],
   },
@@ -182,6 +193,7 @@ export const NPC_DEFS = {
     role: "azure_researcher",
     name: "Quill",
     dialogueId: "azure_researcher_intro",
+    dialogueCompletedId: "azure_researcher_done",
     colors: { skin: "#c8b8d0", outfit: "#2a5060", accent: "#90e0ff" },
     quests: ["quest_ruin_echoes"],
   },
@@ -189,6 +201,7 @@ export const NPC_DEFS = {
     role: "sailor",
     name: "Bram",
     dialogueId: "azure_sailor_intro",
+    dialogueCompletedId: "azure_sailor_done",
     colors: { skin: "#c89068", outfit: "#2a4060", accent: "#d0a040" },
     quests: [],
   },
@@ -251,7 +264,7 @@ class NPCSystem {
       if (s.type === "settlement") {
         for (const a of npcAnchorsFor(s)) wanted.set(a.id, a);
         for (const a of trainerAnchorsFor(s)) wanted.set(a.id, a);
-      } else if (s.type === "gym" || s.type === "gym_mist" || s.type === "gym_crimson" || s.type === "gym_gale") {
+      } else if (s.type === "gym" || s.type === "gym_mist" || s.type === "gym_crimson" || s.type === "gym_gale" || s.type === "gym_tide") {
         for (const a of gymAnchorsFor(s)) wanted.set(a.id, a);
       } else if (s.type === "regional_gate" || s.type === "mist_settlement" || s.type === "mining_camp" || s.type === "cliff_outpost") {
         for (const a of npcAnchorsFor(s)) wanted.set(a.id, a);
@@ -338,9 +351,13 @@ class NPCSystem {
       return;
     }
     let dialogueId = npc.def.dialogueId;
-    if (npc.trainerId && trainers.isDefeated(npc.trainerId) && !npc.def.repeatable) {
+    if (npc.trainerId && npc.def.leader && gyms.isCompleted(npc.def.gymId) && npc.def.dialogueCompletedId) {
+      dialogueId = npc.def.dialogueCompletedId;
+    } else if (npc.trainerId && trainers.isDefeated(npc.trainerId) && !npc.def.repeatable) {
       dialogueId = npc.def.dialogueDefeatedId ?? dialogueId;
-    } else if ((npc.role === "gym_guide" || npc.role === "mist_gym_guide" || npc.role === "crimson_gym_guide" || npc.role === "gale_gym_guide") && gyms.isCompleted(npc.def.gymId)) {
+    } else if ((npc.role === "gym_guide" || npc.role === "mist_gym_guide" || npc.role === "crimson_gym_guide" || npc.role === "gale_gym_guide" || npc.role === "tide_gym_guide") && gyms.isCompleted(npc.def.gymId)) {
+      dialogueId = npc.def.dialogueCompletedId ?? dialogueId;
+    } else if ((npc.role === "azure_guide" || npc.role === "azure_healer" || npc.role === "azure_researcher" || npc.role === "sailor") && progression.isUnlocked("fifth_gym_completed")) {
       dialogueId = npc.def.dialogueCompletedId ?? dialogueId;
     } else if (npc.role === "gatekeeper") {
       if (regions.isGateOpened("region_2")) dialogueId = npc.def.dialogueOpenedId ?? dialogueId;

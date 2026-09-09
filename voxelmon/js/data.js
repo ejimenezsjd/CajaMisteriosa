@@ -81,6 +81,9 @@ export const SPECIES = {
   // Guardián de tormenta (Fase 12): standalone de encuentro, no familia, no legendario, no salvaje.
   nimbora: { id: "nimbora", name: "Nímbora", type: "volador", stage: 3, rare: true, boss: true, obtainable: false, base: { hp: 108, atk: 36, def: 26, spd: 31 }, evolvesTo: null, evolveLevel: null, color: "#6a88c8", color2: "#e8f0ff" },
 
+  // Guardián de marea (Fase 14): standalone de encuentro, no familia, no legendario, no salvaje.
+  mariscol: { id: "mariscol", name: "Mariscol", type: "agua", stage: 3, rare: true, boss: true, obtainable: false, base: { hp: 118, atk: 36, def: 38, spd: 18 }, evolvesTo: null, evolveLevel: null, color: "#1a5868", color2: "#e8c878" },
+
   // Legendario exclusivo de VoxelMon: aparece al capturar las 8 familias originales.
   prismaton: { id: "prismaton", name: "Prismatón", type: "luz", stage: 3, legendary: true, base: { hp: 140, atk: 42, def: 34, spd: 32 }, evolvesTo: null, evolveLevel: null, color: "#c9f0ff", color2: "#ffd6f8" },
 };
@@ -97,7 +100,7 @@ export const DEX_ORDER = [
   "lucier", "clarion", "aureon",
   "brisin", "vendal", "cefiron",
   "riflin", "marecal", "arrecanto",
-  "cirrith", "fosmar", "nimbora", "prismaton",
+  "cirrith", "fosmar", "nimbora", "mariscol", "prismaton",
 ];
 
 export const DEX_ENTRIES = {
@@ -134,6 +137,7 @@ export const DEX_ENTRIES = {
   cirrith: { rarity: "rara", habitat: "observatorios y crestas", description: "Cometa de cristal eléctrico, no un pájaro. El núcleo le late en amarillo cuando se acerca una tormenta. Rara, esquiva, y del todo capturable si das con ella." },
   fosmar: { rarity: "rara", habitat: "ruinas inundadas y canales de noche", description: "Un destello con voluntad. Flota sobre aguas bajas y deja un rastro de fosforescencia. No es un faro: es quien recuerda dónde estuvo la luz." },
   nimbora: { rarity: "guardián", habitat: "pináculo del vendaval", description: "Centinela de la tormenta: veleta viva, placas de viento y corona de cristal. No es un dragón ni un legendario. Custodia el umbral del gimnasio; no se deja llevar en cubo." },
+  mariscol: { rarity: "guardián", habitat: "atolón de arrecife al este del Faro Azur", description: "Marea ancestral con caparazón fractal y placas coralinas. No es un kraken ni una ballena: es un guardián bajo y ancho, de brazos-aleta y cristales de sal. Custodia el paso al gimnasio; no se captura." },
   prismaton: { rarity: "legendaria", habitat: "umbral del mundo", description: "Cuando las ocho familias originales se reúnen en la Dex, el aire se quiebra en colores que no existían. Prismatón no llega: se revela, como si el mundo hubiera estado incompleto." },
 };
 
@@ -204,6 +208,7 @@ export function familyOf(speciesId) {
   if (speciesId === "cirrith") return "cirrith";
   if (speciesId === "fosmar") return "fosmar";
   if (speciesId === "nimbora") return "nimbora";
+  if (speciesId === "mariscol") return "mariscol";
   return null;
 }
 

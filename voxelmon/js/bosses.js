@@ -44,10 +44,27 @@ export const BOSSES = {
     repeatable: false,
     anchorOffset: [0, 0],
   },
+  reef_guardian: {
+    id: "reef_guardian",
+    name: "Guardián del Arrecife",
+    banner: "⚠ GUARDIÁN DEL ARRECIFE",
+    regionId: "region_5",
+    structureType: "reef_atoll",
+    sealId: "reef_atoll",
+    speciesId: "mariscol",
+    team: [{ speciesId: "mariscol", level: 40 }],
+    rewardMoney: 800,
+    unlocks: ["gym_5_path_unlocked"],
+    capture: false,
+    flee: false,
+    repeatable: false,
+    anchorOffset: [0, 0],
+  },
 };
 
 export const SEAL_ID = "crimson_ruin";
 export const STORM_SEAL_ID = "storm_observatory";
+export const REEF_SEAL_ID = "reef_atoll";
 export const RESONATOR_ID = "crimson_resonator";
 
 export function defaultBossState() {
@@ -72,8 +89,10 @@ class BossSystem {
     if (!state.seals) state.seals = {};
     if (!state.bosses.crimson_guardian) state.bosses.crimson_guardian = defaultBossState();
     if (!state.bosses.tempest_guardian) state.bosses.tempest_guardian = defaultBossState();
+    if (!state.bosses.reef_guardian) state.bosses.reef_guardian = defaultBossState();
     if (!state.seals.crimson_ruin) state.seals.crimson_ruin = defaultSealState();
     if (!state.seals.storm_observatory) state.seals.storm_observatory = defaultSealState();
+    if (!state.seals.reef_atoll) state.seals.reef_atoll = defaultSealState();
     this.b = state.bosses;
     this.seals = state.seals;
   }
@@ -110,6 +129,11 @@ class BossSystem {
     if (this.isSealActivated(id)) return "activated";
     if (id === STORM_SEAL_ID) {
       if (progression.isUnlocked("gym_4_clue_unlocked")) return "resonating";
+      return "dormant";
+    }
+    if (id === REEF_SEAL_ID) {
+      if (this.isSealActivated(id)) return "activated";
+      if (progression.hasFlag("lighthouse_signal")) return "resonating";
       return "dormant";
     }
     if (progression.isUnlocked("gym_3_clue_unlocked")) return "resonating";
@@ -160,6 +184,29 @@ class BossSystem {
     if (!check.ok) return check;
     this.ensureSeal(STORM_SEAL_ID).activated = true;
     events.emit("sealActivated", { sealId: STORM_SEAL_ID, regionId: "region_4" });
+    return { ok: true, activated: true };
+  }
+
+  canActivateReefSeal() {
+    if (this.isSealActivated(REEF_SEAL_ID)) {
+      return { ok: false, already: true, reason: "El corazón de coral ya late." };
+    }
+    if (!progression.hasFlag("lighthouse_signal")) {
+      return { ok: false, reason: "El atolón duerme. El faro aún no ha señalado este paso." };
+    }
+    return { ok: true };
+  }
+
+  /**
+   * Activa el sello del arrecife sin ítem. Requiere la señal del faro.
+   * Idempotente.
+   */
+  activateReefSeal() {
+    const check = this.canActivateReefSeal();
+    if (check.already) return { ok: true, already: true };
+    if (!check.ok) return check;
+    this.ensureSeal(REEF_SEAL_ID).activated = true;
+    events.emit("sealActivated", { sealId: REEF_SEAL_ID, regionId: "region_5" });
     return { ok: true, activated: true };
   }
 

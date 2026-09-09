@@ -396,6 +396,18 @@ export const CREATURE_ART = {
     visual: { model: "fosmar", shadowScale: 0.3, animationSet: "floater", effects: ["glow"] },
     portraitScale: 1.1, portraitYaw: 0.32, portraitPitch: -0.06, portraitOffsetY: -0.04,
   },
+  mariscol: {
+    speciesId: "mariscol",
+    renderer: "stylized3d",
+    scale: 2.45,
+    shadow: true,
+    shadowRadius: 0.82,
+    concept: "marea ancestral: caparazón fractal, placas coralinas y cristales de sal, no un kraken",
+    visual: { model: "mariscol", shadowScale: 0.82, animationSet: "quadruped_mythic", effects: ["mist", "glow"] },
+    portraitScale: 0.56, portraitYaw: 0.34, portraitPitch: -0.16, portraitOffsetY: -0.14,
+    battleCameraDistance: 11.2,
+    battleVisualOffset: 0.4,
+  },
 };
 
 export function getCreatureArt(speciesId) {

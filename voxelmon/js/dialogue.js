@@ -1077,6 +1077,129 @@ export const DIALOGUES = {
     },
   },
 
+  tide_gym_guide_intro: {
+    npcName: "Nami",
+    nodes: {
+      start: {
+        text: "Bienvenida al Gimnasio de las Mareas. Soy Nami. No luches contra la corriente: cambia por dónde fluye.",
+        options: [
+          { text: "¿Cómo se supera?", next: "rules" },
+          { text: "¿Las cuencas?", next: "puzzle" },
+          { text: "¿Quién queda?", next: "remain" },
+          { text: "Gracias.", end: true },
+        ],
+      },
+      rules: {
+        text: "Derrota a Luma y a Daro, y alinea los tres niveles. Cada cuenca abre o cierra un canal. Talassa no recibe a quien llega a empujones.",
+        options: [{ text: "Entendido.", next: "start" }],
+      },
+      puzzle: {
+        text: "Tres controladores: oeste, centro y este. Ciclan bajamar, media y pleamar. El camino al líder aparece cuando los tres aciertan juntos. Si caes, la corriente de retorno te devuelve. No hace falta volar ni una criatura concreta.",
+        options: [{ text: "Leer la marea.", next: "start" }],
+      },
+      remain: {
+        text: "Luma espera en bajamar, al oeste. Daro, en el arrecife este. Talassa observa desde la terraza: calma, no prisa.",
+        options: [{ text: "Los buscaré.", next: "start" }],
+      },
+    },
+  },
+  tide_gym_guide_done: {
+    npcName: "Nami",
+    nodes: {
+      start: {
+        text: "La Insignia Marea te sienta como agua en calma. Al este, el arco del mar abierto ya no está ciego.",
+        options: [{ text: "Gracias, Nami.", end: true }],
+      },
+    },
+  },
+
+  gym_trainer_luma: {
+    npcName: "Luma",
+    nodes: {
+      start: {
+        text: "Guardiana de Bajamar. Cuando el agua baja, se ve el suelo. ¿Sigues?",
+        options: [
+          {
+            text: "¡Acepto el desafío!",
+            actions: [{ type: "startTrainerBattle", trainerId: "gym_trainer_tide_1" }],
+            end: true,
+          },
+          { text: "Todavía no.", end: true },
+        ],
+      },
+    },
+  },
+  gym_trainer_luma_done: {
+    npcName: "Luma",
+    nodes: {
+      start: {
+        text: "Bien. El oeste ya te sirve. Daro espera donde el coral no perdona.",
+        options: [{ text: "Gracias, Luma.", end: true }],
+      },
+    },
+  },
+
+  gym_trainer_daro: {
+    npcName: "Daro",
+    nodes: {
+      start: {
+        text: "Vigía del Arrecife. Tres criaturas, tres lecturas de corriente. Si pretendes ver a Talassa, no pelees contra el agua.",
+        options: [
+          {
+            text: "¡Adelante!",
+            actions: [{ type: "startTrainerBattle", trainerId: "gym_trainer_tide_2" }],
+            end: true,
+          },
+          { text: "Mejor más tarde.", end: true },
+        ],
+      },
+    },
+  },
+  gym_trainer_daro_done: {
+    npcName: "Daro",
+    nodes: {
+      start: {
+        text: "El arrecife te reconoce. Alinea las cuencas. Talassa no abre a quien fuerza el canal.",
+        options: [{ text: "Allá voy.", end: true }],
+      },
+    },
+  },
+
+  gym_leader_talassa: {
+    npcName: "Talassa",
+    nodes: {
+      start: {
+        text: "Has leído los cambios hasta aquí. A veces hay que retroceder para avanzar. Veamos si también sabes adaptarte en combate.",
+        options: [
+          {
+            text: "Combatir",
+            actions: [{ type: "startTrainerBattle", trainerId: "leader_talassa" }],
+            end: true,
+          },
+          { text: "Todavía no", end: true },
+        ],
+      },
+    },
+  },
+  gym_leader_talassa_done: {
+    npcName: "Talassa",
+    nodes: {
+      start: {
+        text: "Esta insignia es tuya. El mar abierto responde ahora. Más allá el horizonte no acaba: solo cambia de color.",
+        options: [{ text: "Honor, Talassa.", end: true }],
+      },
+    },
+  },
+  gym_leader_talassa_badge: {
+    npcName: "Talassa",
+    nodes: {
+      start: {
+        text: "La marea ya te conoce. El arco del este espera cuando quieras ver qué hay después.",
+        options: [{ text: "Hasta pronto.", end: true }],
+      },
+    },
+  },
+
   azure_guide_intro: {
     npcName: "Maris",
     nodes: {
@@ -1103,6 +1226,15 @@ export const DIALOGUES = {
       },
     },
   },
+  azure_guide_done: {
+    npcName: "Maris",
+    nodes: {
+      start: {
+        text: "Las luces del gimnasio se ven desde la plaza cuando la marea está alta. El guardián ya no cierra el paso. Talassa te reconoce: eso se nota en el puerto.",
+        options: [{ text: "El mar sigue.", end: true }],
+      },
+    },
+  },
 
   azure_healer_intro: {
     npcName: "Calla",
@@ -1126,6 +1258,26 @@ export const DIALOGUES = {
       pc: {
         text: "El terminal no muerde. Deposita, retira, cambia el líder. Las instancias siguen siendo las mismas.",
         options: [{ text: "Lo usaré.", next: "start" }],
+      },
+    },
+  },
+  azure_healer_done: {
+    npcName: "Calla",
+    nodes: {
+      start: {
+        text: "Volviste con la Insignia Marea y sin pedir un milagro. El equipo sigue siendo carne: si se cansa, aquí estoy.",
+        options: [
+          {
+            text: "¿Puedes curar a mi equipo?",
+            actions: [{ type: "heal", source: "azure_healer" }],
+            next: "healed",
+          },
+          { text: "Gracias, Calla.", end: true },
+        ],
+      },
+      healed: {
+        text: "Listo. El arco del este no cura: no lo olvides.",
+        options: [{ text: "Entendido.", end: true }],
       },
     },
   },
@@ -1169,6 +1321,15 @@ export const DIALOGUES = {
       },
     },
   },
+  azure_researcher_done: {
+    npcName: "Quill",
+    nodes: {
+      start: {
+        text: "El faro ya no apunta a un vacío: hay gimnasio, hay insignia, hay un arco que no cruzaré todavía. Yo mido ruinas. Tú, horizontes.",
+        options: [{ text: "Sigue midiendo.", end: true }],
+      },
+    },
+  },
 
   azure_sailor_intro: {
     npcName: "Bram",
@@ -1176,6 +1337,15 @@ export const DIALOGUES = {
       start: {
         text: "Las barcas están amarradas. No hay travesía todavía: el mar se mira, no se monta. Si quieres isla, usa el puente o la corriente.",
         options: [{ text: "Entendido.", end: true }],
+      },
+    },
+  },
+  azure_sailor_done: {
+    npcName: "Bram",
+    nodes: {
+      start: {
+        text: "Las corrientes cambiaron. El gimnasio se enciende a lo lejos. Las barcas siguen amarradas: el mar abierto es un arco, no una travesía.",
+        options: [{ text: "Lo he visto.", end: true }],
       },
     },
   },

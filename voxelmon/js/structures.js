@@ -51,6 +51,10 @@ const SALT = {
   fisherman_camp: 27126,
   weathered_shrine: 28127,
   broken_span: 29128,
+  reef_atoll: 30129,
+  tidal_bridge: 31130,
+  gym_tide: 32131,
+  open_sea_gate: 33132,
 };
 
 const REGIONAL_TYPES = new Set([
@@ -60,6 +64,7 @@ const REGIONAL_TYPES = new Set([
   "tempest_spire", "gym_gale", "highland_exit",
   "coastal_gate", "azure_port", "azure_bridge", "tidal_ruins", "azure_lighthouse",
   "tide_lookout", "fisherman_camp", "weathered_shrine", "broken_span",
+  "reef_atoll", "tidal_bridge", "gym_tide", "open_sea_gate",
 ]);
 
 export const STRUCTURE_TYPES = {
@@ -387,6 +392,51 @@ export const STRUCTURE_TYPES = {
     maxSlope: 16,
     build: buildBrokenSpan,
   },
+  reef_atoll: {
+    id: "reef_atoll",
+    name: "Atolón del Arrecife",
+    icon: "🐚",
+    cell: 260,
+    chance: 1,
+    radius: 10,
+    maxSlope: 16,
+    safeZone: true,
+    safeRadius: 10,
+    build: buildReefAtoll,
+  },
+  tidal_bridge: {
+    id: "tidal_bridge",
+    name: "Puente de Marea",
+    icon: "🌉",
+    cell: 260,
+    chance: 1,
+    radius: 7,
+    maxSlope: 16,
+    build: buildTidalBridge,
+  },
+  gym_tide: {
+    id: "gym_tide",
+    name: "Gimnasio de las Mareas",
+    icon: "🌊",
+    cell: 260,
+    chance: 1,
+    radius: 14,
+    maxSlope: 16,
+    dungeon: true,
+    safeZone: true,
+    safeRadius: 14,
+    build: buildTideGym,
+  },
+  open_sea_gate: {
+    id: "open_sea_gate",
+    name: "Arco del mar abierto",
+    icon: "↕",
+    cell: 260,
+    chance: 1,
+    radius: 6,
+    maxSlope: 16,
+    build: buildOpenSeaGate,
+  },
 };
 
 /** Locales del banco y del arco sellado (Gym 2 hook) respecto al centro */
@@ -466,6 +516,17 @@ export const AZURE_LIGHTHOUSE_LAYOUT = {
   platform: [0, 0],
 };
 
+export const REEF_ATOLL_LAYOUT = {
+  seal: [0, 0],
+  boss: [0, 2],
+  approach: [0, -8],
+};
+
+export const OPEN_SEA_GATE_LAYOUT = {
+  arch: [0, 0],
+  beacon: [0, 4],
+};
+
 export const COASTAL_GATE_LAYOUT = {
   arch: [0, 0],
   sign: [0, 2],
@@ -474,11 +535,13 @@ export const COASTAL_GATE_LAYOUT = {
 const AZURE_TYPES = new Set([
   "coastal_gate", "azure_port", "azure_bridge", "tidal_ruins", "azure_lighthouse",
   "tide_lookout", "fisherman_camp", "weathered_shrine", "broken_span",
+  "reef_atoll", "tidal_bridge", "gym_tide", "open_sea_gate",
 ]);
 
 export const PROTECTED_STRUCTURE_TYPES = new Set([
   "gym_gale", "tempest_spire", "highland_exit", "storm_observatory",
   "azure_lighthouse", "tidal_ruins",
+  "gym_tide", "reef_atoll", "tidal_bridge", "open_sea_gate",
 ]);
 
 /** Radio máximo entre todos los tipos: margen de solape chunk/estructura */
@@ -1643,6 +1706,210 @@ function buildBrokenSpan(stamp, x, y, z, rng, ground) {
   }
 }
 
+function coralCol(stamp, x, y, z, dx, dz, h, cap = B.CRYSTAL) {
+  for (let dy = 1; dy <= h; dy++) {
+    stamp(x + dx, y + dy, z + dz, dy > h - 2 ? B.CORAL_ROCK : B.STONE);
+  }
+  stamp(x + dx, y + h + 1, z + dz, cap);
+}
+
+function buildReefAtoll(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 10, 12);
+  for (let dx = -9; dx <= 9; dx++) {
+    for (let dz = -9; dz <= 9; dz++) {
+      const d = Math.hypot(dx, dz);
+      if (d > 9.2) continue;
+      const ring = d > 7.2;
+      fillFloor(stamp, ground, x, y, z, dx, dz, ring ? B.CORAL_ROCK : B.PACKED_SAND);
+      if (ring && d < 8.4) {
+        stamp(x + dx, y, z + dz, B.SAND);
+        stamp(x + dx, y + 1, z + dz, B.WATER);
+      }
+    }
+  }
+  plat(stamp, ground, x, y, z, 0, 0, 3, B.CORAL_ROCK);
+  for (let dy = 1; dy <= 6; dy++) stamp(x, y + dy, z, B.CORAL_ROCK);
+  stamp(x, y + 7, z, B.TIDAL_PEARL);
+  stamp(x, y + 8, z, B.CRYSTAL);
+  stamp(x + 1, y + 1, z, B.CORAL_ROCK);
+  stamp(x - 1, y + 1, z, B.CORAL_ROCK);
+  stamp(x, y + 1, z + 1, B.WOOD);
+  stamp(x, y + 2, z + 1, B.CRYSTAL);
+  for (const [ox, oz] of [[-6, -2], [6, -1], [-4, 5], [5, 4], [-7, 3], [7, -4]]) {
+    stamp(x + ox, y + 1, z + oz, B.CORAL_ROCK);
+    stamp(x + ox, y + 2, z + oz, rng() < 0.5 ? B.TIDAL_PEARL : B.CRYSTAL);
+  }
+  for (let a = 0; a < 8; a++) {
+    const ox = Math.round(Math.cos(a * 0.785) * 8);
+    const oz = Math.round(Math.sin(a * 0.785) * 8);
+    stamp(x + ox, y + 1, z + oz, B.WOOD);
+  }
+}
+
+function buildTidalBridge(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 7, 8);
+  for (let dz = -6; dz <= 6; dz++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.CORAL_ROCK);
+      if (Math.abs(dz) % 3 === 0) stamp(x + dx, y + 1, z + dz, B.WOOD);
+    }
+  }
+  for (let dx = -2; dx <= 2; dx++) {
+    fillFloor(stamp, ground, x, y, z, dx, 0, B.PACKED_SAND);
+  }
+  // Hueco central cerrado con cristal hasta gym_5_path_unlocked.
+  for (let dy = 1; dy <= 4; dy++) {
+    stamp(x, y + dy, z, B.CRYSTAL);
+    stamp(x - 1, y + dy, z, B.CRYSTAL);
+    stamp(x + 1, y + dy, z, B.CRYSTAL);
+  }
+  stamp(x, y + 5, z, B.TIDAL_PEARL);
+  coralCol(stamp, x, y, z, -5, -5, 5, B.CRYSTAL);
+  coralCol(stamp, x, y, z, 5, 5, 5, B.WIND_CRYSTAL);
+}
+
+function buildTideGym(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 14, 18);
+
+  for (let dx = -12; dx <= 12; dx++) {
+    for (let dz = -14; dz <= 14; dz++) {
+      const d = Math.hypot(dx / 12, dz / 14);
+      if (d > 1.08) continue;
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.CORAL_ROCK);
+    }
+  }
+  for (let dx = -8; dx <= 8; dx++) {
+    for (let dz = -10; dz <= 10; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.PACKED_SAND);
+    }
+  }
+
+  // Silueta: pilares, anillos, cúpula.
+  for (const [cx, cz] of [[-11, -12], [11, -12], [-11, 13], [11, 13], [-11, 0], [11, 0]]) {
+    coralCol(stamp, x, y, z, cx, cz, 10, B.TIDAL_PEARL);
+  }
+  for (let a = 0; a < 12; a++) {
+    const ox = Math.round(Math.cos(a * 0.523) * 9);
+    const oz = Math.round(Math.sin(a * 0.523) * 9);
+    stamp(x + ox, y + 8, z + oz, B.CORAL_ROCK);
+    stamp(x + ox, y + 9, z + oz, a % 2 ? B.CRYSTAL : B.WIND_CRYSTAL);
+  }
+  for (let dx = -2; dx <= 2; dx++) {
+    for (let dz = -2; dz <= 2; dz++) {
+      if (Math.abs(dx) === 2 || Math.abs(dz) === 2) stamp(x + dx, y + 12, z + dz, B.CORAL_ROCK);
+    }
+  }
+  stamp(x, y + 13, z, B.CRYSTAL);
+  stamp(x, y + 14, z, B.TIDAL_PEARL);
+
+  // Cascadas en la cara norte (visibles desde el faro).
+  for (let dy = 4; dy >= 1; dy--) {
+    stamp(x - 3, y + dy, z - 13, B.WATER);
+    stamp(x + 3, y + dy, z - 13, B.WATER);
+  }
+
+  // Canales de agua (trinchera).
+  const trench = (dx0, dz0, dx1, dz1) => {
+    const steps = Math.max(Math.abs(dx1 - dx0), Math.abs(dz1 - dz0), 1);
+    for (let i = 0; i <= steps; i++) {
+      const tx = Math.round(dx0 + (dx1 - dx0) * (i / steps));
+      const tz = Math.round(dz0 + (dz1 - dz0) * (i / steps));
+      stamp(x + tx, y, z + tz, B.SAND);
+      stamp(x + tx, y + 1, z + tz, B.WATER);
+      stamp(x + tx, y + 2, z + tz, B.AIR);
+    }
+  };
+  trench(-6, -3, -6, 8);
+  trench(6, -3, 6, 8);
+  trench(-5, 2, 5, 2);
+
+  // Pasarelas de madera (siempre transitables hacia los controladores).
+  for (let dx = -8; dx <= 8; dx++) {
+    stamp(x + dx, y + 1, z - 6, B.WOOD);
+  }
+  for (let dz = -8; dz <= 8; dz++) {
+    stamp(x - 8, y + 1, z + dz, B.WOOD);
+    stamp(x + 8, y + 1, z + dz, B.WOOD);
+  }
+
+  // Controladores.
+  stamp(x - 6, y + 1, z - 4, B.CRYSTAL);
+  stamp(x - 6, y + 2, z - 4, B.STONE);
+  stamp(x, y + 1, z - 2, B.CRYSTAL);
+  stamp(x, y + 2, z - 2, B.STONE);
+  stamp(x + 6, y + 1, z - 4, B.CRYSTAL);
+  stamp(x + 6, y + 2, z - 4, B.STONE);
+
+  // Pozo de recuperación.
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dz = 7; dz <= 9; dz++) {
+      stamp(x + dx, y, z + dz, B.SAND);
+      stamp(x + dx, y + 1, z + dz, B.WATER);
+      for (let dy = 2; dy <= 4; dy++) stamp(x + dx, y + dy, z + dz, B.AIR);
+    }
+  }
+  stamp(x, y + 1, z + 8, B.CRYSTAL);
+
+  // Terraza del líder (sur, semiabierta).
+  for (let dx = -5; dx <= 5; dx++) {
+    for (let dz = 10; dz <= 14; dz++) {
+      stamp(x + dx, y + 2, z + dz, B.CORAL_ROCK);
+    }
+  }
+  for (let dx = -5; dx <= 5; dx++) {
+    if (dx === 0) {
+      stamp(x, y + 3, z + 10, B.CRYSTAL);
+      stamp(x, y + 4, z + 10, B.CRYSTAL);
+      continue;
+    }
+    for (let dy = 3; dy <= 5; dy++) stamp(x + dx, y + dy, z + 10, B.STONE);
+  }
+  stamp(x, y + 3, z + 13, B.TIDAL_PEARL);
+  stamp(x, y + 4, z + 13, B.WIND_CRYSTAL);
+
+  // Puerta norte (cristales hasta gym_5_path).
+  for (let dx = -1; dx <= 1; dx++) {
+    fillFloor(stamp, ground, x, y, z, dx, -13, B.PACKED_SAND);
+    for (let dy = 1; dy <= 4; dy++) stamp(x + dx, y + dy, z - 13, B.CRYSTAL);
+  }
+  stamp(x - 2, y + 1, z - 13, B.STONE);
+  stamp(x + 2, y + 1, z - 13, B.STONE);
+
+  // Perímetro suave: no se entra andando por detrás.
+  for (let dz = -12; dz <= 14; dz++) {
+    for (let dy = 1; dy <= 4; dy++) {
+      if (dz === -13) continue;
+      stamp(x + 12, y + dy, z + dz, B.CORAL_ROCK);
+      stamp(x - 12, y + dy, z + dz, B.CORAL_ROCK);
+    }
+  }
+  for (let dx = -11; dx <= 11; dx++) {
+    if (dx === 0) continue;
+    for (let dy = 1; dy <= 4; dy++) stamp(x + dx, y + dy, z + 14, B.CORAL_ROCK);
+  }
+
+  stamp(x, y + 1, z - 9, B.WOOD);
+  stamp(x, y + 2, z - 9, B.WIND_CRYSTAL);
+  if (rng() < 0.8) stamp(x + 3, y + 1, z - 7, B.HERB);
+}
+
+function buildOpenSeaGate(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 6, 12);
+  plat(stamp, ground, x, y, z, 0, 0, 5, B.PACKED_SAND);
+  for (let dx = -3; dx <= 3; dx++) {
+    for (let dy = 1; dy <= 7; dy++) {
+      if (Math.abs(dx) === 3) stamp(x + dx, y + dy, z, B.CORAL_ROCK);
+    }
+  }
+  stamp(x - 3, y + 8, z, B.TIDAL_PEARL);
+  stamp(x + 3, y + 8, z, B.TIDAL_PEARL);
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = 1; dy <= 6; dy++) stamp(x + dx, y + dy, z, B.CRYSTAL);
+  }
+  stamp(x, y + 1, z + 4, B.WOOD);
+  stamp(x, y + 2, z + 4, B.CRYSTAL);
+}
+
 export function isWildSpawnBlocked(world, x, z) {
   if (!world?.structures) return false;
   for (const s of world.structures.near(x, z, 28)) {
@@ -1797,6 +2064,18 @@ export class StructureIndex {
     } else if (type === "broken_span") {
       x = gym.x + g.brokenSpan.dx;
       z = gym.z + g.brokenSpan.dz;
+    } else if (type === "reef_atoll") {
+      x = gym.x + g.reefAtoll.dx;
+      z = gym.z + g.reefAtoll.dz;
+    } else if (type === "tidal_bridge") {
+      x = gym.x + g.tidalBridge.dx;
+      z = gym.z + g.tidalBridge.dz;
+    } else if (type === "gym_tide") {
+      x = gym.x + g.gymTide.dx;
+      z = gym.z + g.gymTide.dz;
+    } else if (type === "open_sea_gate") {
+      x = gym.x + g.openSeaGate.dx;
+      z = gym.z + g.openSeaGate.dz;
     }
     const t = this.world.terrainAt(x, z);
     let y = Math.max(t.h, WATER_Y + 1);
@@ -1829,7 +2108,7 @@ export class StructureIndex {
       const r = def.radius;
       // Estructuras regionales se indexan en la celda del gimnasio, pero su
       // (x,z) real puede caer varias celdas al sur (gate +52 … faro +928).
-      // pad=4 cubre ~1040 bloques a cell=260: R5 incluida.
+      // pad=4 cubre ~1040 bloques a cell=260: R5 extendida (z1 1040) incluida.
       const pad = REGIONAL_TYPES.has(type) ? 4 : 0;
       const c0x = Math.floor((xMin - r) / def.cell) - pad;
       const c1x = Math.floor((xMax + r) / def.cell) + pad;

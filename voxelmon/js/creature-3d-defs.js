@@ -806,6 +806,37 @@ STYLIZED_MODELS.fosmar = {
   ],
 };
 
+STYLIZED_MODELS.mariscol = {
+  profile: "quadruped_mythic",
+  height: 1,
+  effects: ["mist", "glow"],
+  parts: [
+    P({ name: "body", type: "ellipsoid", pos: [0, 0.42, 0.04], scale: [0.92, 0.38, 1.05], color: "#1a5868" }),
+    P({ name: "shell", type: "dodecahedron", parent: "body", pos: [0, 0.16, 0.04], scale: [0.62, 0.22, 0.78], color: "#2a7080", mat: "dark" }),
+    P({ name: "fractal_a", type: "icosahedron", parent: "shell", pos: [-0.18, 0.08, -0.12], scale: [0.22, 0.14, 0.2], color: "#e8c878" }),
+    P({ name: "fractal_b", type: "icosahedron", parent: "shell", pos: [0.2, 0.1, 0.08], scale: [0.2, 0.12, 0.18], color: "#c8a050" }),
+    P({ name: "fractal_c", type: "dodecahedron", parent: "shell", pos: [0, 0.12, 0.22], scale: [0.18, 0.1, 0.16], color: "#7ee8d8", mat: "emissive", emissive: "#3ec8b4", emissiveIntensity: 0.6 }),
+    P({ name: "plate_l", type: "icosahedron", parent: "body", pos: [-0.4, 0.08, -0.18], scale: [0.32, 0.22, 0.28], color: "#ffb090", mat: "dark" }),
+    P({ name: "plate_r", type: "icosahedron", parent: "body", pos: [0.4, 0.08, -0.18], scale: [0.32, 0.22, 0.28], color: "#ffb090", mat: "dark" }),
+    P({ name: "core", type: "ellipsoid", parent: "body", pos: [0, 0.02, -0.12], scale: [0.18, 0.1, 0.28], color: "#b8fff0", mat: "emissive", emissive: "#7ee8d8", emissiveIntensity: 0.9 }),
+    P({ name: "head", type: "ellipsoid", parent: "body", pos: [0, 0.14, -0.52], scale: [0.36, 0.28, 0.34], color: "#246878" }),
+    P({ name: "brow", type: "ellipsoid", parent: "head", pos: [0, 0.1, -0.04], scale: [0.28, 0.08, 0.16], color: "#e8c878" }),
+    P({ name: "eye_l", type: "eye", parent: "head", pos: [-0.1, 0.04, -0.14], size: 0.052, white: "#e8ffff", iris: "#103848" }),
+    P({ name: "eye_r", type: "eye", parent: "head", pos: [0.1, 0.04, -0.14], size: 0.052, white: "#e8ffff", iris: "#103848" }),
+    P({ name: "muzzle", type: "ellipsoid", parent: "head", pos: [0, -0.04, -0.16], scale: [0.22, 0.12, 0.18], color: "#f2c2a8" }),
+    P({ name: "salt_l", type: "cone", parent: "head", pos: [-0.14, 0.16, 0.02], rot: [0.15, 0, 0.45], scale: [0.08, 0.22, 0.08], color: "#e8fff8", mat: "emissive", emissive: "#b8fff0" }),
+    P({ name: "salt_r", type: "cone", parent: "head", pos: [0.14, 0.16, 0.02], rot: [0.15, 0, -0.45], scale: [0.08, 0.22, 0.08], color: "#e8fff8", mat: "emissive", emissive: "#b8fff0" }),
+    P({ name: "arm_l", type: "taper", parent: "body", pos: [-0.38, -0.02, -0.22], rot: [0.4, 0.2, 0.6], scale: [0.16, 0.42, 0.14], color: "#145058", meshPos: [0, -0.18, 0] }),
+    P({ name: "arm_r", type: "taper", parent: "body", pos: [0.38, -0.02, -0.22], rot: [0.4, -0.2, -0.6], scale: [0.16, 0.42, 0.14], color: "#145058", meshPos: [0, -0.18, 0] }),
+    P({ name: "fin_l", type: "cone", parent: "arm_l", pos: [0, -0.2, 0], rot: [0.9, 0, 0.3], scale: [0.1, 0.22, 0.06], color: "#3ec8b4" }),
+    P({ name: "fin_r", type: "cone", parent: "arm_r", pos: [0, -0.2, 0], rot: [0.9, 0, -0.3], scale: [0.1, 0.22, 0.06], color: "#3ec8b4" }),
+    P({ name: "leg_bl", type: "taper", parent: "body", pos: [-0.26, -0.12, 0.32], scale: [0.18, 0.28, 0.2], color: "#145058", meshPos: [0, -0.14, 0] }),
+    P({ name: "leg_br", type: "taper", parent: "body", pos: [0.26, -0.12, 0.32], scale: [0.18, 0.28, 0.2], color: "#145058", meshPos: [0, -0.14, 0] }),
+    P({ name: "tail", type: "cone", parent: "body", pos: [0, 0.02, 0.52], rot: [0.85, 0, 0], scale: [0.22, 0.4, 0.16], color: "#2aa898" }),
+    P({ name: "tail_fan", type: "icosahedron", parent: "tail", pos: [0, 0.2, 0], scale: [0.28, 0.12, 0.1], color: "#e8c878" }),
+  ],
+};
+
 export function getStylizedModel(id) {
   return STYLIZED_MODELS[id] ?? null;
 }
