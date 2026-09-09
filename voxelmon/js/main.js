@@ -1347,10 +1347,20 @@ function registerObservatoryInteractables(s, wanted) {
   const prompt = clue
     ? "Los cristales del observatorio responden al vendaval."
     : "El mecanismo está dormido.";
+  const onInteract = () => {
+    progression.setFlag("storm_anomaly_inspected");
+    if (progression.isUnlocked("gym_4_clue_unlocked")) {
+      applyStormSeal(s);
+      ui.toast("Los cristales del observatorio responden al vendaval.", "legendary");
+    } else {
+      ui.toast("El mecanismo está dormido.", "bad");
+    }
+  };
   const existing = interaction.items.get(id);
   if (existing) {
     existing.prompt = prompt;
     existing.x = x; existing.y = y; existing.z = z;
+    existing.onInteract = onInteract;
   } else {
     interaction.register({
       id,
@@ -1359,15 +1369,7 @@ function registerObservatoryInteractables(s, wanted) {
       range: 3.4,
       prompt,
       data: s,
-      onInteract: () => {
-        progression.setFlag("storm_anomaly_inspected");
-        if (clue) {
-          applyStormSeal(s);
-          ui.toast("Los cristales del observatorio responden al vendaval.", "legendary");
-        } else {
-          ui.toast("El mecanismo está dormido.", "bad");
-        }
-      },
+      onInteract,
     });
   }
 }
@@ -2936,19 +2938,20 @@ window.__vm = {
     gotoCliffOutpost() {
       const s = findCliffOutpost(player?.pos.x ?? 0, player?.pos.z ?? 0);
       if (!s) return null;
-      teleportPlayer(s.x + 0.5, s.y + 2, s.z + 0.5);
+      teleportPlayer(s.x + 0.5, s.y + 1.2, s.z + 1.5);
       return s;
     },
     gotoWindShrine() {
       const s = findWindShrine(player?.pos.x ?? 0, player?.pos.z ?? 0);
       if (!s) return null;
-      teleportPlayer(s.x + 0.5, s.y + 2, s.z + 0.5);
+      teleportPlayer(s.x + 1.5, s.y + 1.2, s.z + 1.5);
       return s;
     },
     gotoObservatory() {
       const s = findStormObservatory(player?.pos.x ?? 0, player?.pos.z ?? 0);
       if (!s) return null;
-      teleportPlayer(s.x + 0.5, s.y + 2, s.z + 0.5);
+      applyStormSeal(s);
+      teleportPlayer(s.x + 1.5, s.y + 1.2, s.z + 1.5);
       return s;
     },
     windLifts() {
