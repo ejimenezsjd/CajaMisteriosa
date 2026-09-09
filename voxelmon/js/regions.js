@@ -5,10 +5,10 @@
  * REGIÓN → macrozona de progresión (region_1 … region_4)
  *
  * Estrategia geométrica O(1):
- *   Se localizan gimnasios en un pad de 3 celdas (7×7, lookups cacheados).
- *   La región se decide por el corredor que contiene el punto (R4>R3>R2),
- *   no solo por el gimnasio euclídeamente más cercano: R4 llega a z+693
- *   (2–3 celdas al sur, cell=260) y otro gym cercano no debe “robarla”.
+ *   Las macrozonas de progresión (R2–R4) se anclan al gimnasio de origen
+ *   (`regions.home`, el más cercano a (8.5, 8.5) al empezar). Así un gym
+ *   procedural vecino no pinta su R3/R4 encima del corredor del jugador.
+ *   nearestGymAnchor sigue buscando en pad 3 para edificios locales.
  *
  *   Región 2: rectángulo al sur (+Z) de ese gimnasio (z +58 … +220).
  *   Región 3: continuación al sur del Gimnasio de las Brumas, empezando
@@ -179,7 +179,26 @@ function inRect(x, z, b) {
   return x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1;
 }
 
-const REGION_RANK = { [REGION_4]: 4, [REGION_3]: 3, [REGION_2]: 2, [REGION_1]: 1 };
+function nearestGymPad(x, z, pad) {
+  if (!_gymCandidate) return null;
+  const cs = REGION_GEOMETRY.gymCell;
+  const cx = Math.floor(x / cs);
+  const cz = Math.floor(z / cs);
+  let best = null;
+  let bestD = Infinity;
+  for (let dz = -pad; dz <= pad; dz++) {
+    for (let dx = -pad; dx <= pad; dx++) {
+      const c = _gymCandidate("gym", cx + dx, cz + dz);
+      if (!c) continue;
+      const d = (c.x - x) * (c.x - x) + (c.z - z) * (c.z - z);
+      if (d < bestD) {
+        bestD = d;
+        best = c;
+      }
+    }
+  }
+  return best;
+}
 
 /** Gimnasios en la vecindad 7×7 (pad 3). Lookups cacheados. */
 export function nearbyGymAnchors(x, z) {
@@ -197,34 +216,30 @@ export function nearbyGymAnchors(x, z) {
   return out;
 }
 
+function regionOfGym(gym, x, z) {
+  if (!gym) return REGION_1;
+  if (inRect(x, z, region4BoundsFor(gym))) return REGION_4;
+  if (inRect(x, z, region3BoundsFor(gym))) return REGION_3;
+  if (inRect(x, z, region2BoundsFor(gym))) return REGION_2;
+  return REGION_1;
+}
+
 /**
- * Ancla regional del punto: el gimnasio cuyo corredor contiene (x,z).
- * Prioridad R4 > R3 > R2 > R1; a igualdad, el más cercano.
+ * Gimnasio de progresión (home) si existe; si no, el más cercano en pad 3.
+ * Usado para clasificar R2–R4. Los edificios locales usan nearestGymAnchor.
  */
-export function regionAnchorAt(x, z) {
-  const list = nearbyGymAnchors(x, z);
-  let best = { gym: null, region: REGION_1, d: Infinity };
-  for (const gym of list) {
-    const d = (gym.x - x) * (gym.x - x) + (gym.z - z) * (gym.z - z);
-    let region = REGION_1;
-    if (inRect(x, z, region4BoundsFor(gym))) region = REGION_4;
-    else if (inRect(x, z, region3BoundsFor(gym))) region = REGION_3;
-    else if (inRect(x, z, region2BoundsFor(gym))) region = REGION_2;
-    const betterRank = REGION_RANK[region] > REGION_RANK[best.region];
-    const closerSame = region === best.region && d < best.d;
-    if (betterRank || closerSame) best = { gym, region, d };
-  }
-  return best;
+export function progressionGym(x = 8.5, z = 8.5) {
+  return regions.homeGym() || nearestGymPad(x, z, GYM_LOOKUP_PAD);
 }
 
-/** Gimnasio de la ancla regional (corredor que contiene el punto, o el más cercano). */
+/** Gimnasio más cercano en pad 3 (edificios, NPCs, debug). */
 export function nearestGymAnchor(x, z) {
-  return regionAnchorAt(x, z).gym;
+  return nearestGymPad(x, z, GYM_LOOKUP_PAD);
 }
 
-/** Región lógica en (x, z). Coste constante: hasta 49 lookups cacheados. */
+/** Región lógica: corredor del gimnasio de origen, no de un gym vecino. */
 export function getRegionAt(x, z) {
-  return regionAnchorAt(x, z).region;
+  return regionOfGym(progressionGym(x, z), x, z);
 }
 
 export function isInRegion2(x, z) {
@@ -251,10 +266,27 @@ class RegionSystem {
 
   attach(state) {
     this.s = state.regions;
-    // La región de partida cuenta como conocida (sin toast).
     if (this.s && !this.s.discovered[REGION_1]) {
       this.s.discovered[REGION_1] = true;
     }
+  }
+
+  /** Fija el gimnasio de progresión (spawn). Idempotente. Llamar ANTES de generar chunks. */
+  ensureHome(x = 8.5, z = 8.5) {
+    if (!this.s) return null;
+    if (this.s.home?.cellX != null) {
+      return this.homeGym();
+    }
+    const gym = nearestGymPad(x, z, 1) || nearestGymPad(x, z, GYM_LOOKUP_PAD);
+    if (!gym) return null;
+    this.s.home = { x: gym.x, z: gym.z, cellX: gym.cellX, cellZ: gym.cellZ };
+    return gym;
+  }
+
+  homeGym() {
+    const h = this.s?.home;
+    if (!h || !_gymCandidate) return null;
+    return _gymCandidate("gym", h.cellX, h.cellZ) || h;
   }
 
   isDiscovered(id) {
@@ -299,6 +331,7 @@ class RegionSystem {
       at: null,
       discovered: { ...(this.s?.discovered ?? {}) },
       gates: JSON.parse(JSON.stringify(this.s?.gates ?? {})),
+      home: this.s?.home ? { ...this.s.home } : null,
     };
   }
 }

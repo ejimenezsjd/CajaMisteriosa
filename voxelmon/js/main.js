@@ -414,6 +414,9 @@ async function startWorld(saved) {
   world = new World(scene, state.seed, state.edits);
   const px = state.pos?.x ?? 8.5;
   const pz = state.pos?.z ?? 8.5;
+  regions.attach(state);
+  // El corredor R2–R4 se ancla al gym de origen ANTES de generar chunks.
+  regions.ensureHome(8.5, 8.5);
 
   // Pregenera el área inicial
   let guard = 0;
@@ -427,7 +430,6 @@ async function startWorld(saved) {
   refreshPerks();
   progression.attach(state);
   stats.attach(state);
-  regions.attach(state);
   economy.attach(state);
   crafting.attach(state);
   interaction.clear();
@@ -2903,7 +2905,7 @@ window.__vm = {
     },
     region4() {
       if (!world || !player) return null;
-      const gym = nearestGymAnchor(player.pos.x, player.pos.z);
+      const gym = regions.homeGym() || nearestGymAnchor(player.pos.x, player.pos.z);
       const b = gym ? region4BoundsFor(gym) : null;
       const pass = this.gym3()?.pass;
       return {

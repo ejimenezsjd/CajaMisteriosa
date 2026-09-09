@@ -8,7 +8,7 @@
  */
 
 import { events } from "./events.js";
-import { getRegionAt, REGION_GEOMETRY, nearestGymAnchor, REGION_4 } from "./regions.js";
+import { getRegionAt, REGION_GEOMETRY, nearestGymAnchor, REGION_4, regions } from "./regions.js";
 
 const BOOST_Y = 9.2;
 const HORIZ = 2.4;
@@ -29,7 +29,7 @@ class TraversalSystem {
 
   /** Volúmenes deterministas cerca del jugador (anclas regionales + estructuras). */
   sync(px, pz) {
-    const gym = nearestGymAnchor(px, pz);
+    const gym = regions.homeGym() || nearestGymAnchor(px, pz);
     const next = [];
     if (gym) {
       const g = REGION_GEOMETRY;
