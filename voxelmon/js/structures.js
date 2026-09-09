@@ -35,12 +35,16 @@ const SALT = {
   cliff_outpost: 15114,
   wind_shrine: 16115,
   storm_observatory: 17116,
+  tempest_spire: 18117,
+  gym_gale: 19118,
+  highland_exit: 20119,
 };
 
 const REGIONAL_TYPES = new Set([
   "regional_gate", "watchtower", "ancient_outpost", "mist_settlement", "gym_mist",
   "mining_camp", "crimson_ruin", "gym_crimson",
   "cliff_outpost", "wind_shrine", "storm_observatory",
+  "tempest_spire", "gym_gale", "highland_exit",
 ]);
 
 export const STRUCTURE_TYPES = {
@@ -231,12 +235,43 @@ export const STRUCTURE_TYPES = {
     maxSlope: 14,
     build: buildStormObservatory,
   },
+  tempest_spire: {
+    id: "tempest_spire",
+    name: "Pináculo del Vendaval",
+    icon: "⚡",
+    cell: 260,
+    chance: 1,
+    radius: 8,
+    maxSlope: 14,
+    build: buildTempestSpire,
+  },
+  gym_gale: {
+    id: "gym_gale",
+    name: "Gimnasio del Vendaval",
+    icon: "🌬",
+    cell: 260,
+    chance: 1,
+    radius: 13,
+    maxSlope: 14,
+    build: buildGaleGym,
+  },
+  highland_exit: {
+    id: "highland_exit",
+    name: "Arco de las alturas",
+    icon: "↕",
+    cell: 260,
+    chance: 1,
+    radius: 6,
+    maxSlope: 14,
+    build: buildHighlandExit,
+  },
 };
 
 /** Locales del banco y del arco sellado (Gym 2 hook) respecto al centro */
 export const MIST_SETTLEMENT_LAYOUT = {
   workbench: [3, 1],
   ancientPath: [0, 10],
+  pc: [4, -1],
 };
 
 /** Puesto minero (Fase 9): landmark central y sello de la ruina. */
@@ -251,9 +286,14 @@ export const CRIMSON_RUIN_LAYOUT = {
   pathGate: [0, 7],
 };
 
+export const SETTLEMENT_LAYOUT = {
+  pc: [5, -3],
+};
+
 export const CLIFF_OUTPOST_LAYOUT = {
   stall: [-4, 4],
   lift: [0, 6],
+  pc: [2, 5],
 };
 
 export const WIND_SHRINE_LAYOUT = {
@@ -265,6 +305,20 @@ export const STORM_OBSERVATORY_LAYOUT = {
   lift: [0, -4],
   beacon: [0, 0],
 };
+
+export const TEMPEST_SPIRE_LAYOUT = {
+  boss: [0, 0],
+  lift: [0, -5],
+};
+
+export const HIGHLAND_EXIT_LAYOUT = {
+  arch: [0, 0],
+  vista: [0, 4],
+};
+
+export const PROTECTED_STRUCTURE_TYPES = new Set([
+  "gym_gale", "tempest_spire", "highland_exit", "storm_observatory",
+]);
 
 /** Radio máximo entre todos los tipos: margen de solape chunk/estructura */
 export const MAX_STRUCT_RADIUS = Math.max(...Object.values(STRUCTURE_TYPES).map((d) => d.radius));
@@ -409,6 +463,10 @@ function buildSettlement(stamp, x, y, z, rng, ground) {
   buildHut(stamp, ground, x, y, z, 7, 6, 2, B.STONE, B.WOOD, [-1, 0]);
   // Casa de la sanadora (madera, tejado de hojas), puerta hacia la plaza
   buildHut(stamp, ground, x, y, z, 7, -6, 2, B.WOOD, B.LEAVES, [-1, 0]);
+  // Terminal PC junto a la sanadora
+  fillFloor(stamp, ground, x, y, z, 5, -3, B.STONE);
+  stamp(x + 5, y + 1, z - 3, B.WOOD);
+  stamp(x + 5, y + 2, z - 3, B.CRYSTAL);
 
   // Puesto del comerciante: 4 postes, techo de hojas y mostrador
   for (const [px, pz] of [[-9, 2], [-9, 6], [-5, 2], [-5, 6]]) {
@@ -671,6 +729,9 @@ function buildMistSettlement(stamp, x, y, z, rng, ground) {
 
   // Casa del explorador (norte de la plaza, dz negativo = hacia el gym)
   buildHut(stamp, ground, x, y, z, 0, -5, 2, B.STONE, B.WOOD, [0, 1]);
+  fillFloor(stamp, ground, x, y, z, 4, -1, B.STONE);
+  stamp(x + 4, y + 1, z - 1, B.WOOD);
+  stamp(x + 4, y + 2, z - 1, B.CRYSTAL);
 
   // Arco sellado al sur: sendero hacia el futuro Gimnasio 2
   for (const dx of [-3, 3]) {
@@ -1008,6 +1069,9 @@ function buildCliffOutpost(stamp, x, y, z, rng, ground) {
     stamp(x, y + dy, z + 6, B.AIR);
   }
   stamp(x, y + 1, z + 6, B.CRYSTAL);
+  fillFloor(stamp, ground, x, y, z, 2, 5, B.STONE);
+  stamp(x + 2, y + 1, z + 5, B.WOOD);
+  stamp(x + 2, y + 2, z + 5, B.CRYSTAL);
   if (rng() < 0.9) stamp(x + 3, y + 1, z - 2, B.HERB);
   if (rng() < 0.7) stamp(x - 3, y + 1, z + 4, B.HERB);
 }
@@ -1062,6 +1126,144 @@ function buildStormObservatory(stamp, x, y, z, rng, ground) {
   stamp(x, y + 1, z - 4, B.CRYSTAL);
   if (rng() < 0.95) stamp(x + 2, y + 10, z, B.WIND_CRYSTAL);
   if (rng() < 0.8) stamp(x - 2, y + 1, z + 2, B.HERB);
+}
+
+/** Arena elevada del Guardián del Vendaval. */
+function buildTempestSpire(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 8, 16);
+  for (let dx = -7; dx <= 7; dx++) {
+    for (let dz = -7; dz <= 7; dz++) {
+      if (dx * dx + dz * dz > 52) continue;
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.WINDSTONE);
+    }
+  }
+  for (const [cx, cz] of [[-5, -5], [5, -5], [-5, 5], [5, 5], [0, -6], [0, 6]]) {
+    for (let dy = 1; dy <= 6; dy++) stamp(x + cx, y + dy, z + cz, dy > 4 ? B.CRYSTAL : B.STONE);
+    stamp(x + cx, y + 7, z + cz, B.WIND_CRYSTAL);
+  }
+  stamp(x, y + 1, z, B.CRYSTAL);
+  stamp(x, y + 2, z, B.WIND_CRYSTAL);
+  for (let dx = -2; dx <= 2; dx++) fillFloor(stamp, ground, x, y, z, dx, -7, B.WINDSTONE);
+}
+
+/**
+ * Gimnasio semiabierto: plaza, terrazas, canales y terraza del líder.
+ * El techo no cierra el cielo. Los lifts se registran en runtime.
+ */
+function buildGaleGym(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 13, 22);
+
+  for (let dx = -10; dx <= 10; dx++) {
+    for (let dz = -12; dz <= 14; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.WINDSTONE);
+    }
+  }
+
+  const col = (dx, dz, h = 8) => {
+    for (let dy = 1; dy <= h; dy++) stamp(x + dx, y + dy, z + dz, dy > h - 2 ? B.CRYSTAL : B.STONE);
+    stamp(x + dx, y + h + 1, z + dz, B.WIND_CRYSTAL);
+  };
+  for (const [cx, cz] of [[-9, -11], [9, -11], [-9, 13], [9, 13], [-9, 0], [9, 0]]) {
+    col(cx, cz, 9);
+  }
+
+  // Pozo de recuperación (centro-sur de la plaza)
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dz = 7; dz <= 9; dz++) {
+      stamp(x + dx, y, z + dz, B.STONE);
+      for (let dy = 1; dy <= 4; dy++) stamp(x + dx, y + dy, z + dz, B.AIR);
+    }
+  }
+  stamp(x, y + 1, z + 8, B.CRYSTAL);
+
+  // Terraza este (media altura) — Orin / canal este
+  for (let dx = 4; dx <= 8; dx++) {
+    for (let dz = 1; dz <= 6; dz++) {
+      stamp(x + dx, y + 6, z + dz, B.WINDSTONE);
+    }
+  }
+  for (let dx = 4; dx <= 8; dx++) {
+    stamp(x + dx, y + 7, z + 1, B.STONE);
+    stamp(x + dx, y + 7, z + 6, B.STONE);
+  }
+
+  // Terraza oeste (alta) — canal oeste
+  for (let dx = -8; dx <= -4; dx++) {
+    for (let dz = 4; dz <= 8; dz++) {
+      stamp(x + dx, y + 11, z + dz, B.WINDSTONE);
+    }
+  }
+
+  // Terraza del líder (sur, más alta)
+  for (let dx = -5; dx <= 5; dx++) {
+    for (let dz = 10; dz <= 14; dz++) {
+      stamp(x + dx, y + 16, z + dz, B.WINDSTONE);
+    }
+  }
+  for (let dx = -5; dx <= 5; dx++) {
+    if (dx === 0) {
+      stamp(x, y + 17, z + 10, B.WIND_CRYSTAL);
+      stamp(x, y + 18, z + 10, B.CRYSTAL);
+      continue;
+    }
+    for (let dy = 17; dy <= 20; dy++) stamp(x + dx, y + dy, z + 10, B.STONE);
+  }
+
+  // Canales: norte (suelo), este (media), oeste (alta)
+  stamp(x, y + 1, z - 4, B.CRYSTAL);
+  stamp(x, y + 2, z - 4, B.STONE);
+  stamp(x + 6, y + 7, z + 4, B.CRYSTAL);
+  stamp(x + 6, y + 8, z + 4, B.STONE);
+  stamp(x - 6, y + 12, z + 6, B.CRYSTAL);
+  stamp(x - 6, y + 13, z + 6, B.STONE);
+
+  // Puerta norte: cristales (se abren al tener gym_4_path)
+  for (let dx = -1; dx <= 1; dx++) {
+    fillFloor(stamp, ground, x, y, z, dx, -12, B.WINDSTONE);
+    for (let dy = 1; dy <= 4; dy++) stamp(x + dx, y + dy, z - 12, B.CRYSTAL);
+  }
+  stamp(x - 2, y + 1, z - 12, B.STONE);
+  stamp(x + 2, y + 1, z - 12, B.STONE);
+
+  // Barrera oeste (hacia el pináculo) hasta que el path abra
+  for (let dz = -4; dz <= 6; dz++) {
+    for (let dy = 1; dy <= 5; dy++) stamp(x - 10, y + dy, z + dz, B.CRYSTAL);
+  }
+
+  // Perímetro este y sur: no se entra andando por detrás
+  for (let dz = -11; dz <= 14; dz++) {
+    for (let dy = 1; dy <= 5; dy++) stamp(x + 10, y + dy, z + dz, B.STONE);
+  }
+  for (let dx = -9; dx <= 9; dx++) {
+    if (dx === 0) continue;
+    for (let dy = 1; dy <= 5; dy++) stamp(x + dx, y + dy, z + 14, B.STONE);
+  }
+
+  stamp(x, y + 1, z - 8, B.WOOD);
+  stamp(x, y + 2, z - 8, B.WIND_CRYSTAL);
+  stamp(x, y + 17, z + 13, B.WIND_CRYSTAL);
+  if (rng() < 0.8) stamp(x + 3, y + 1, z - 6, B.HERB);
+}
+
+/** Hook físico hacia Región 5: arco cerrado hasta la cuarta insignia. */
+function buildHighlandExit(stamp, x, y, z, rng, ground) {
+  clearAir(stamp, x, y, z, 6, 12);
+  for (let dx = -4; dx <= 4; dx++) {
+    for (let dz = -3; dz <= 5; dz++) {
+      fillFloor(stamp, ground, x, y, z, dx, dz, B.WINDSTONE);
+    }
+  }
+  for (let dx = -3; dx <= 3; dx++) {
+    for (let dy = 1; dy <= 6; dy++) {
+      if (Math.abs(dx) === 3) stamp(x + dx, y + dy, z, B.STONE);
+    }
+  }
+  stamp(x - 3, y + 7, z, B.WIND_CRYSTAL);
+  stamp(x + 3, y + 7, z, B.WIND_CRYSTAL);
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = 1; dy <= 5; dy++) stamp(x + dx, y + dy, z, B.CRYSTAL);
+  }
+  stamp(x, y + 1, z + 4, B.CRYSTAL);
 }
 
 // ---------- Índice determinista por celdas ----------
@@ -1171,10 +1373,20 @@ export class StructureIndex {
     } else if (type === "storm_observatory") {
       x = gym.x + g.stormObservatory.dx;
       z = gym.z + g.stormObservatory.dz;
+    } else if (type === "tempest_spire") {
+      x = gym.x + g.tempestSpire.dx;
+      z = gym.z + g.tempestSpire.dz;
+    } else if (type === "gym_gale") {
+      x = gym.x + g.gymGale.dx;
+      z = gym.z + g.gymGale.dz;
+    } else if (type === "highland_exit") {
+      x = gym.x + g.highlandExit.dx;
+      z = gym.z + g.highlandExit.dz;
     }
     const t = this.world.terrainAt(x, z);
     let y = Math.max(t.h, WATER_Y + 1);
-    if (type === "cliff_outpost" || type === "wind_shrine" || type === "storm_observatory") {
+    if (type === "cliff_outpost" || type === "wind_shrine" || type === "storm_observatory" ||
+        type === "tempest_spire" || type === "gym_gale" || type === "highland_exit") {
       y = Math.min(60, y + this.world.region4BonusAt(x, z));
     }
     return {
@@ -1221,6 +1433,16 @@ export class StructureIndex {
   near(x, z, radius) {
     return this.inRect(x - radius, z - radius, x + radius, z + radius)
       .filter((s) => Math.hypot(s.x - x, s.z - z) <= radius);
+  }
+
+  /** Huella protegida (Gym 4, pináculo, arco, observatorio): minería/colocación mínima. */
+  protectedAt(x, z) {
+    for (const s of this.near(x, z, 16)) {
+      if (!PROTECTED_STRUCTURE_TYPES.has(s.type)) continue;
+      const r = STRUCTURE_TYPES[s.type]?.radius ?? 8;
+      if (Math.hypot(s.x - x, s.z - z) <= r) return s;
+    }
+    return null;
   }
 
   /** Estampa en un chunk (x0,z0 esquina, size bloques) las estructuras que lo tocan */

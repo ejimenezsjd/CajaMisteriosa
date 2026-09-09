@@ -46,6 +46,9 @@ export const MAP_MARKERS = {
   cliff_outpost: { icon: "🏕", color: "#a8c8e8", label: "Puesto del acantilado", z: 2 },
   wind_shrine: { icon: "🌬", color: "#90d8f8", label: "Santuario del viento", z: 2 },
   storm_observatory: { icon: "🔭", color: "#c0e8ff", label: "Observatorio de la Tormenta", z: 3 },
+  gym_gale: { icon: "🌬", color: "#90d8f8", label: "Gimnasio del Vendaval", z: 3 },
+  tempest_spire: { icon: "⚡", color: "#c8e8ff", label: "Pináculo del Vendaval", z: 2 },
+  highland_exit: { icon: "↕", color: "#a0c0e0", label: "Arco de las alturas", z: 2 },
 };
 
 const REVEAL_RADIUS = {
@@ -335,9 +338,12 @@ class MapSystem {
       }
       if (m.type.startsWith("gym")) {
         const gid = m.type === "gym" ? "gym_verdant" : m.type;
-        const done = gyms.isCompleted?.(gid) || progression.hasBadge(
-          gid === "gym_verdant" ? "verdant_badge" : gid === "gym_mist" ? "mist_badge" : "crimson_badge"
-        );
+        const badge = gid === "gym_verdant" ? "verdant_badge"
+          : gid === "gym_mist" ? "mist_badge"
+          : gid === "gym_crimson" ? "crimson_badge"
+          : gid === "gym_gale" ? "gale_badge"
+          : null;
+        const done = gyms.isCompleted?.(gid) || (badge && progression.hasBadge(badge));
         ctx.strokeStyle = done ? "#6ee86e" : "#f0d878";
         ctx.lineWidth = 2;
         ctx.stroke();

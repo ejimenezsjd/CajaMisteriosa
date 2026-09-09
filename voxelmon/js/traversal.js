@@ -19,12 +19,19 @@ class TraversalSystem {
     this.inside = new Set();
     this.world = null;
     this.highlight = false;
+    this.extras = [];
   }
 
   attach(world) {
     this.world = world;
     this.lifts = [];
     this.inside.clear();
+    this.extras = [];
+  }
+
+  /** Volúmenes extra (gym path, puzzle, recovery). No pisan los anclajes F11. */
+  setExtras(list) {
+    this.extras = Array.isArray(list) ? list : [];
   }
 
   /** Volúmenes deterministas cerca del jugador (anclas regionales + estructuras). */
@@ -54,6 +61,10 @@ class TraversalSystem {
       add("storm_observatory:lift", g.stormObservatory.dx, g.stormObservatory.dz, 2.8, 18);
       add("region_4:lift_a", g.windLiftA.dx, g.windLiftA.dz, 2.4, 16);
       add("region_4:lift_b", g.windLiftB.dx, g.windLiftB.dz, 2.4, 16);
+    }
+    for (const e of this.extras) {
+      if (Math.hypot(e.x - px, e.z - pz) > 90) continue;
+      next.push(e);
     }
     this.lifts = next;
   }

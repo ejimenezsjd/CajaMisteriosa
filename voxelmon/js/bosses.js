@@ -17,6 +17,7 @@ export const BOSSES = {
     banner: "⚠ GUARDIÁN CARMESÍ",
     regionId: "region_3",
     structureType: "crimson_ruin",
+    sealId: "crimson_ruin",
     speciesId: "titanor",
     team: [{ speciesId: "titanor", level: 26 }],
     rewardMoney: 500,
@@ -27,9 +28,26 @@ export const BOSSES = {
     // Patio sur del sello (coordenadas locales de crimson_ruin)
     anchorOffset: [0, 4],
   },
+  tempest_guardian: {
+    id: "tempest_guardian",
+    name: "Guardián del Vendaval",
+    banner: "⚠ GUARDIÁN DEL VENDAVAL",
+    regionId: "region_4",
+    structureType: "tempest_spire",
+    sealId: "storm_observatory",
+    speciesId: "nimbora",
+    team: [{ speciesId: "nimbora", level: 35 }],
+    rewardMoney: 650,
+    unlocks: ["gym_4_path_unlocked"],
+    capture: false,
+    flee: false,
+    repeatable: false,
+    anchorOffset: [0, 0],
+  },
 };
 
 export const SEAL_ID = "crimson_ruin";
+export const STORM_SEAL_ID = "storm_observatory";
 export const RESONATOR_ID = "crimson_resonator";
 
 export function defaultBossState() {
@@ -53,7 +71,9 @@ class BossSystem {
     if (!state.bosses) state.bosses = {};
     if (!state.seals) state.seals = {};
     if (!state.bosses.crimson_guardian) state.bosses.crimson_guardian = defaultBossState();
+    if (!state.bosses.tempest_guardian) state.bosses.tempest_guardian = defaultBossState();
     if (!state.seals.crimson_ruin) state.seals.crimson_ruin = defaultSealState();
+    if (!state.seals.storm_observatory) state.seals.storm_observatory = defaultSealState();
     this.b = state.bosses;
     this.seals = state.seals;
   }
@@ -83,10 +103,15 @@ class BossSystem {
   }
 
   /**
-   * inert → resonating (gym_3_clue_unlocked) → activated (resonador usado).
+   * crimson: inert → resonating (gym_3_clue) → activated (resonador).
+   * storm: dormant → resonating (gym_4_clue) → activated (E, sin ítem).
    */
   sealPhase(id = SEAL_ID) {
     if (this.isSealActivated(id)) return "activated";
+    if (id === STORM_SEAL_ID) {
+      if (progression.isUnlocked("gym_4_clue_unlocked")) return "resonating";
+      return "dormant";
+    }
     if (progression.isUnlocked("gym_3_clue_unlocked")) return "resonating";
     return "inert";
   }
@@ -116,11 +141,34 @@ class BossSystem {
     return { ok: true, activated: true };
   }
 
+  canActivateStormSeal() {
+    if (this.isSealActivated(STORM_SEAL_ID)) {
+      return { ok: false, already: true, reason: "El sello ya está activo." };
+    }
+    if (!progression.isUnlocked("gym_4_clue_unlocked")) {
+      return { ok: false, reason: "El mecanismo está dormido." };
+    }
+    return { ok: true };
+  }
+
+  /**
+   * Activa el sello de la tormenta sin consumir ítems. Idempotente.
+   */
+  activateStormSeal() {
+    const check = this.canActivateStormSeal();
+    if (check.already) return { ok: true, already: true };
+    if (!check.ok) return check;
+    this.ensureSeal(STORM_SEAL_ID).activated = true;
+    events.emit("sealActivated", { sealId: STORM_SEAL_ID, regionId: "region_4" });
+    return { ok: true, activated: true };
+  }
+
   canBattle(id) {
     const def = BOSSES[id];
     if (!def) return { ok: false, reason: "Ese guardián no existe." };
     if (!this.b) return { ok: false, reason: "Partida no iniciada." };
-    if (!this.isSealActivated()) {
+    const sealId = def.sealId ?? SEAL_ID;
+    if (!this.isSealActivated(sealId)) {
       return { ok: false, reason: "El sello aún no ha sido activado." };
     }
     if (this.isDefeated(id) && !def.repeatable) {

@@ -70,6 +70,13 @@ export const REGION_GEOMETRY = {
   stormObservatory: { dx: 58, dz: 650 },
   windLiftA: { dx: 82, dz: 560 },
   windLiftB: { dx: -8, dz: 610 },
+  // Fase 12: al este del observatorio, aún dentro de R4 (gym3.x±110, z≤693).
+  // No hay espacio al sur del observatorio (radio 8 → z 658; R4 acaba en 693).
+  tempestSpire: { dx: 75, dz: 656 },
+  gymGale: { dx: 97, dz: 662 },
+  highlandExit: { dx: 97, dz: 684 },
+  galePathA: { dx: 66, dz: 653 },
+  galePathB: { dx: 85, dz: 658 },
 };
 
 export const REGIONS = {

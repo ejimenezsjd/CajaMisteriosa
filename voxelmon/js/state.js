@@ -18,6 +18,8 @@ export function defaultStats() {
     blocksPlaced: 0,
     creaturesSeen: 0,
     creaturesCaught: 0,
+    uniqueSpeciesSeen: 0,
+    uniqueSpeciesCaught: 0,
     creaturesDefeated: 0,
     battlesWon: 0,
     battlesLost: 0,
@@ -68,6 +70,8 @@ export function defaultState(seed) {
     balls: 10,
     money: 0,
     inventory: {},
+    invNorm: 0,
+    creatureStorage: { creatures: [] },
     dex: { seen: {}, caught: {} },
     edits: {},
     dayTime: 0.3,
@@ -97,13 +101,22 @@ export function defaultState(seed) {
         completed: false,
         entered: false,
       },
+      gym_gale: {
+        puzzleSolved: false,
+        puzzleAttempt: [],
+        channels: { north: false, east: false, west: false },
+        completed: false,
+        entered: false,
+      },
     },
-    // Fase 10: jefes regionales y sellos (fillDefaults cubre saves previos)
+    // Fase 10–12: jefes regionales y sellos (fillDefaults cubre saves previos)
     bosses: {
       crimson_guardian: { defeated: false },
+      tempest_guardian: { defeated: false },
     },
     seals: {
       crimson_ruin: { activated: false },
+      storm_observatory: { activated: false },
     },
     // Fase 6: descubrimiento de regiones y estado de la frontera
     regions: {
@@ -117,6 +130,7 @@ export function defaultState(seed) {
     },
     // Fase 7–8: buffs temporales (kit) y gym_mist. SAVE_VERSION sigue en 2.
     buffs: { explorerUntil: 0 },
+    // Fase 12.5: inventario normalizado y PC. SAVE_VERSION sigue en 2.
     // Fase 11: mapa (celdas sparse + markers). Pan/zoom no se persisten.
     map: {
       discoveredCells: {},

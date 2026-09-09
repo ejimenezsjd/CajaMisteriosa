@@ -168,6 +168,9 @@ function tickEffects(nodes, t, effects) {
         p.position.set(Math.sin(a) * 0.16, 0.05 + Math.sin(a * 0.8) * 0.1, Math.cos(a) * 0.12);
       } else if (name === "spark") {
         p.position.set(Math.sin(a * 3) * 0.14, 0.2 + Math.sin(a * 5) * 0.08, Math.cos(a * 2) * 0.1);
+      } else if (name === "storm") {
+        p.position.set(Math.sin(a * 2.2) * 0.22, 0.18 + Math.abs(Math.sin(a * 4)) * 0.16, Math.cos(a * 1.6) * 0.16);
+        p.scale.setScalar(0.04 + Math.abs(Math.sin(a * 3)) * 0.03);
       } else if (name === "glow" || name === "crystal" || name === "prism") {
         const s = 0.05 + Math.sin(t * 3 + k) * 0.015;
         p.position.set((k - 1.5) * 0.06, 0.08 + Math.sin(t * 2 + k) * 0.04, 0);
@@ -498,6 +501,7 @@ const FX_COLOR = {
   mist: "#80d0ff",
   leaf: "#60d090",
   spark: "#ffe680",
+  storm: "#b8e0ff",
   glow: "#fff0a0",
   crystal: "#ff6a40",
   prism: "#80d8ff",

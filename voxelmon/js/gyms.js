@@ -10,6 +10,7 @@
  * Gym 1 (gym_verdant): puzzle de secuencia de pedestales.
  * Gym 2 (gym_mist): faros de bruma en cualquier orden, sin reset.
  * Gym 3 (gym_crimson): distribución de energía (reservorio 3).
+ * Gym 4 (gym_gale): canales de viento que activan lifts internos.
  *
  * Anti-farm de insignia: resolveLeaderVictory() llama a trainers.resolveVictory
  * (dinero + trainerDefeated una sola vez) y solo entonces concede badge/unlocks
@@ -73,6 +74,33 @@ export const FORGE_GYM_LAYOUT = {
   passHook: [0, 15],
 };
 
+/** Gimnasio del Vendaval: entrada al norte (desde el pináculo / el observatorio). */
+export const GALE_GYM_LAYOUT = {
+  door: [0, -12, 0],
+  exit: [0, -13, 0],
+  reception: [0, -8, 0],
+  guide: [4, -8, 0],
+  channels: {
+    north: [0, -4, 0],
+    east: [6, 4, 6],
+    west: [-6, 6, 11],
+  },
+  lifts: {
+    low: [2, 1, 0],
+    mid: [6, 1, 6],
+    high: [-6, 3, 11],
+    recovery: [0, 8, 0],
+  },
+  leaderDoor: [0, 10, 16],
+  leaderRoom: [0, 13, 16],
+};
+
+export const CHANNEL_LABELS = {
+  north: "Canal norte",
+  east: "Canal este",
+  west: "Canal oeste",
+};
+
 export const CONDUIT_LABELS = {
   west: "Conducto oeste",
   east: "Conducto este",
@@ -92,6 +120,7 @@ export const GYM_BY_STRUCTURE = {
   gym: "gym_verdant",
   gym_mist: "gym_mist",
   gym_crimson: "gym_crimson",
+  gym_gale: "gym_gale",
 };
 
 export function gymIdForStructure(s) {
@@ -160,12 +189,31 @@ export const GYMS = {
       unlocks: ["third_gym_completed", "region_4_path_unlocked"],
     },
   },
+
+  gym_gale: {
+    id: "gym_gale",
+    name: "Gimnasio del Vendaval",
+    badgeId: "gale_badge",
+    badgeName: "Insignia Vendaval",
+    region: "region_4",
+    structureType: "gym_gale",
+    requirements: { progression: ["gym_4_path_unlocked"] },
+    trainers: ["gym_trainer_gale_1", "gym_trainer_gale_2"],
+    leader: "leader_zephra",
+    puzzle: { type: "wind_channels", channels: ["north", "east", "west"] },
+    layout: GALE_GYM_LAYOUT,
+    guideRole: "gale_gym_guide",
+    rewards: {
+      unlocks: ["fourth_gym_completed", "region_5_path_unlocked"],
+    },
+  },
 };
 
 export function defaultGymState(id = "gym_verdant") {
   const st = { puzzleSolved: false, puzzleAttempt: [], completed: false, entered: false };
   if (id === "gym_mist") st.beacons = { north: false, east: false, west: false };
   if (id === "gym_crimson") st.energy = { west: 0, east: 0, core: 0, pool: ENERGY_POOL };
+  if (id === "gym_gale") st.channels = { north: false, east: false, west: false };
   return st;
 }
 
@@ -182,7 +230,7 @@ export function gymAnchorsFor(s) {
     structureId: s.id,
     x: s.x + layout.guide[0],
     z: s.z + layout.guide[1],
-    y: floorY,
+    y: floorY + (layout.guide[2] ?? 0),
   }];
   for (const tid of [...gym.trainers, gym.leader]) {
     const t = TRAINERS[tid];
@@ -194,7 +242,7 @@ export function gymAnchorsFor(s) {
       structureId: s.id,
       x: s.x + t.anchorOffset[0],
       z: s.z + t.anchorOffset[1],
-      y: floorY,
+      y: floorY + (t.anchorY ?? 0),
     });
   }
   return out;
@@ -211,6 +259,7 @@ class GymSystem {
     if (this.g && !this.g.gym_verdant) this.g.gym_verdant = defaultGymState("gym_verdant");
     if (this.g && !this.g.gym_mist) this.g.gym_mist = defaultGymState("gym_mist");
     if (this.g && !this.g.gym_crimson) this.g.gym_crimson = defaultGymState("gym_crimson");
+    if (this.g && !this.g.gym_gale) this.g.gym_gale = defaultGymState("gym_gale");
   }
 
   setProgression(p) {
@@ -226,6 +275,9 @@ class GymSystem {
     if (id === "gym_crimson" && !this.g[id].energy) {
       this.g[id].energy = { west: 0, east: 0, core: 0, pool: ENERGY_POOL };
     }
+    if (id === "gym_gale" && !this.g[id].channels) {
+      this.g[id].channels = { north: false, east: false, west: false };
+    }
     return this.g[id];
   }
 
@@ -235,6 +287,8 @@ class GymSystem {
     const beacons = st.beacons ? { ...st.beacons } : null;
     const beaconCount = beacons ? Object.values(beacons).filter(Boolean).length : 0;
     const energy = st.energy ? { ...st.energy } : null;
+    const channels = st.channels ? { ...st.channels } : null;
+    const channelCount = channels ? Object.values(channels).filter(Boolean).length : 0;
     return {
       id,
       name: gym.name,
@@ -243,6 +297,8 @@ class GymSystem {
       beacons,
       beaconCount,
       energy,
+      channels,
+      channelCount,
       completed: !!st.completed,
       entered: !!st.entered,
       trainersRequired: gym.trainers,
@@ -343,6 +399,7 @@ class GymSystem {
     st.puzzleAttempt = [];
     if (st.beacons) st.beacons = { north: false, east: false, west: false };
     if (st.energy) st.energy = { west: 0, east: 0, core: 0, pool: ENERGY_POOL };
+    if (st.channels) st.channels = { north: false, east: false, west: false };
   }
 
   /**
@@ -395,6 +452,40 @@ class GymSystem {
     const st = this.ensure(id);
     const need = CONDUIT_CAPS[conduitId] ?? 1;
     return (st.energy?.[conduitId] ?? 0) >= need;
+  }
+
+  /**
+   * Canales de viento: cada controlador se enciende una vez (sin reset).
+   * El orden lo impone el espacio: este solo se alcanza con el lift norte,
+   * oeste con el lift este. Idempotente por canal.
+   */
+  activateChannel(id, channelId) {
+    const gym = GYMS[id];
+    const st = this.ensure(id);
+    const keys = gym.puzzle.channels ?? ["north", "east", "west"];
+    if (!st.channels) st.channels = { north: false, east: false, west: false };
+    if (!(channelId in st.channels)) return { ok: false, error: "Canal desconocido." };
+    const required = keys.length;
+    if (st.puzzleSolved) {
+      return { ok: true, already: true, current: required, required };
+    }
+    const first = !st.channels[channelId];
+    st.channels[channelId] = true;
+    const current = keys.filter((k) => st.channels[k]).length;
+    if (first) {
+      events.emit("gymPuzzleProgress", { gymId: id, current, required, reset: false, channelId });
+    }
+    if (current === required) {
+      st.puzzleSolved = true;
+      events.emit("gymPuzzleSolved", { gymId: id });
+      return { ok: true, solved: true, current, required, first };
+    }
+    return { ok: true, current, required, first };
+  }
+
+  channelOpen(id, channelId) {
+    const st = this.ensure(id);
+    return !!st.channels?.[channelId];
   }
 
   /**

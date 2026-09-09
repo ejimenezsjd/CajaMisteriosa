@@ -12,7 +12,7 @@
 
 import { events } from "./events.js";
 import { progression } from "./progression.js";
-import { SPECIES } from "./data.js?v=11";
+import { SPECIES } from "./data.js?v=13";
 import {
   getRegionAt, gateIdForRegion, REGION_1, REGION_2, REGION_3, REGION_4, regions,
 } from "./regions.js";
@@ -25,6 +25,7 @@ const SAFE_EXIT_VERT = 12;
 const CRITICAL_TYPES = new Set([
   "npc", "trainer", "gym", "gate", "boss", "seal",
   "ancient_path", "crimson_seal", "crimson_path", "storm_seal", "wind_seal",
+  "tempest_boss", "highland_exit", "gale_channel", "pc",
 ]);
 
 function speciesHasAbility(speciesId, ability) {

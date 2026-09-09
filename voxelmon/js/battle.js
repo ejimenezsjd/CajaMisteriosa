@@ -4,12 +4,14 @@
  */
 
 import * as THREE from "three";
-import { SPECIES, movesFor, typeMultiplier, gainXp, activePerks } from "./data.js?v=11";
+import { SPECIES, movesFor, typeMultiplier, gainXp, activePerks } from "./data.js?v=13";
 import { buildCreatureVisual, animateCreatureVisual, disposeCreatureVisual, setCreatureAnimation, playCreatureIntro } from "./creature-renderer.js";
+import { getCreatureArt } from "./creature-art.js";
 import { buildCubeBall } from "./models.js";
 import { makeLabel } from "./creatures.js";
 import { TRAINER_CLASSES } from "./trainers.js";
 import { sfx } from "./audio.js";
+import { inventory } from "./inventory.js";
 
 /**
  * Adaptador de oponente para combates contra entrenadores (Fase 4): imita
@@ -139,8 +141,11 @@ export class Battle {
     const az = e.z - dir.z * 4.5;
     this.allyPos = new THREE.Vector3(ax, this.world.surfaceY(ax, az) + 1, az);
     this.enemyPos = this.wild.pos.clone();
+    const art = getCreatureArt(this.enemy.speciesId);
+    const visY = art?.battleVisualOffset ?? 0;
+    this.camRadius = art?.battleCameraDistance ?? 7.5;
     this.mid = this.allyPos.clone().add(this.enemyPos).multiplyScalar(0.5);
-    this.mid.y = Math.max(this.allyPos.y, this.enemyPos.y) + 1.2;
+    this.mid.y = Math.max(this.allyPos.y, this.enemyPos.y) + 1.2 + visY;
 
     this.spawnAllyModel();
     playCreatureIntro(this.wild.group);
@@ -168,7 +173,7 @@ export class Battle {
   /** Llamado desde el bucle principal mientras dura la batalla */
   update(dt, t) {
     this.camT += dt;
-    const r = 7.5;
+    const r = this.camRadius ?? 7.5;
     const a = this.camT * 0.12 + Math.PI / 2;
     const axis = new THREE.Vector3().subVectors(this.enemyPos, this.allyPos).normalize();
     const side = new THREE.Vector3(-axis.z, 0, axis.x);
@@ -266,14 +271,14 @@ export class Battle {
       await sleep(600);
       return null;
     }
-    if (this.state.balls <= 0) {
+    if (inventory.count("balls") <= 0) {
       this.ui.battleLog("¡No te quedan cubos! Consíguelos ganando combates.");
       await sleep(700);
       return null;
     }
-    this.state.balls -= 1;
+    inventory.remove("balls", 1, "capture");
     this.ui.refreshHud();
-    this.ui.battleLog(`Lanzaste un cubo… (quedan ${this.state.balls})`);
+    this.ui.battleLog(`Lanzaste un cubo… (quedan ${inventory.count("balls")})`);
     sfx.throw();
 
     const ball = buildCubeBall();
@@ -453,6 +458,10 @@ export class Battle {
               this.enemy = next;
               this.wild.setMonster(next);
               playCreatureIntro(this.wild.group);
+              const art = getCreatureArt(next.speciesId);
+              this.camRadius = art?.battleCameraDistance ?? 7.5;
+              const visY = art?.battleVisualOffset ?? 0;
+              this.mid.y = Math.max(this.allyPos.y, this.enemyPos.y) + 1.2 + visY;
               this.refreshTrainerBanner();
               const owner = this.trainer?.name ?? this.boss?.name ?? "Rival";
               this.ui.battleLog(`¡${owner} saca a ${next.name} (Nv ${next.level})!`);
@@ -463,7 +472,7 @@ export class Battle {
             }
 
             if (!this.isRestrictedBattle) {
-              this.state.balls += 2;
+              inventory.add("balls", 2, "battle_win");
               this.ui.battleLog("Recuperaste 2 cubos del combate.");
             }
             await sleep(600);

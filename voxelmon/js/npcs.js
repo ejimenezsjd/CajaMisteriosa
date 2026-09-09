@@ -148,6 +148,15 @@ export const NPC_DEFS = {
     colors: { skin: "#c8b8d0", outfit: "#2a4060", accent: "#90e0ff" },
     quests: ["quest_storm_eyes"],
   },
+  gale_gym_guide: {
+    role: "gale_gym_guide",
+    name: "Aira",
+    dialogueId: "gale_gym_guide_intro",
+    dialogueCompletedId: "gale_gym_guide_done",
+    gymId: "gym_gale",
+    colors: { skin: "#e8d8c8", outfit: "#3a6088", accent: "#90e0ff" },
+    quests: [],
+  },
 };
 
 const ACTIVATION_RADIUS = 90; // los asentamientos a menos de esto tienen NPC activos
@@ -179,7 +188,7 @@ class NPCSystem {
       if (s.type === "settlement") {
         for (const a of npcAnchorsFor(s)) wanted.set(a.id, a);
         for (const a of trainerAnchorsFor(s)) wanted.set(a.id, a);
-      } else if (s.type === "gym" || s.type === "gym_mist" || s.type === "gym_crimson") {
+      } else if (s.type === "gym" || s.type === "gym_mist" || s.type === "gym_crimson" || s.type === "gym_gale") {
         for (const a of gymAnchorsFor(s)) wanted.set(a.id, a);
       } else if (s.type === "regional_gate" || s.type === "mist_settlement" || s.type === "mining_camp" || s.type === "cliff_outpost") {
         for (const a of npcAnchorsFor(s)) wanted.set(a.id, a);
@@ -264,7 +273,7 @@ class NPCSystem {
     let dialogueId = npc.def.dialogueId;
     if (npc.trainerId && trainers.isDefeated(npc.trainerId) && !npc.def.repeatable) {
       dialogueId = npc.def.dialogueDefeatedId ?? dialogueId;
-    } else if ((npc.role === "gym_guide" || npc.role === "mist_gym_guide" || npc.role === "crimson_gym_guide") && gyms.isCompleted(npc.def.gymId)) {
+    } else if ((npc.role === "gym_guide" || npc.role === "mist_gym_guide" || npc.role === "crimson_gym_guide" || npc.role === "gale_gym_guide") && gyms.isCompleted(npc.def.gymId)) {
       dialogueId = npc.def.dialogueCompletedId ?? dialogueId;
     } else if (npc.role === "gatekeeper") {
       if (regions.isGateOpened("region_2")) dialogueId = npc.def.dialogueOpenedId ?? dialogueId;
