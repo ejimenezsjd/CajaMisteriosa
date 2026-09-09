@@ -2930,10 +2930,12 @@ window.__vm = {
       progression.addBadge("crimson_badge");
       progression.unlock("third_gym_completed");
       progression.unlock("region_4_path_unlocked");
-      tryOpenRegion4Gate({ x: player.pos.x, z: player.pos.z });
-      const gym = nearestGymAnchor(player.pos.x, player.pos.z);
-      const g3 = findForgeGym(player.pos.x, player.pos.z)
-        || (gym ? world.structures.candidate("gym_crimson", gym.cellX, gym.cellZ) : null);
+      const home = regions.homeGym() || nearestGymAnchor(player.pos.x, player.pos.z);
+      const g3 = home
+        ? world.structures.candidate("gym_crimson", home.cellX, home.cellZ)
+        : findForgeGym(player.pos.x, player.pos.z);
+      if (g3) tryOpenRegion4Gate({ x: g3.x, z: g3.z });
+      else tryOpenRegion4Gate({ x: player.pos.x, z: player.pos.z });
       if (!g3) return null;
       const destZ = g3.z + REGION_GEOMETRY.r4EntranceDz;
       teleportPlayer(g3.x + 0.5, world.surfaceY(g3.x, destZ) + 1, destZ);

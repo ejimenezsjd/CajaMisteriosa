@@ -277,7 +277,7 @@ class RegionSystem {
     if (this.s.home?.cellX != null) {
       return this.homeGym();
     }
-    const gym = nearestGymPad(x, z, 1) || nearestGymPad(x, z, GYM_LOOKUP_PAD);
+    const gym = nearestGymPad(x, z, GYM_LOOKUP_PAD);
     if (!gym) return null;
     this.s.home = { x: gym.x, z: gym.z, cellX: gym.cellX, cellZ: gym.cellZ };
     return gym;
