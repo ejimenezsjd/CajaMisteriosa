@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { World, B, BLOCK_DROPS, BIOME_NAMES } from "./world.js";
 import { getBiomeName, getBiomeDefinition } from "./biomes.js";
 import { RESOURCES, resourceForBlock } from "./resources.js";
-import { STRUCTURE_TYPES, MIST_SETTLEMENT_LAYOUT, CRIMSON_RUIN_LAYOUT, STORM_OBSERVATORY_LAYOUT, TEMPEST_SPIRE_LAYOUT, HIGHLAND_EXIT_LAYOUT } from "./structures.js";
+import { STRUCTURE_TYPES, MIST_SETTLEMENT_LAYOUT, CRIMSON_RUIN_LAYOUT, STORM_OBSERVATORY_LAYOUT, TEMPEST_SPIRE_LAYOUT, HIGHLAND_EXIT_LAYOUT, SETTLEMENT_LAYOUT, CLIFF_OUTPOST_LAYOUT } from "./structures.js";
 import { buildCreatureVisual, disposeCreatureVisual, preloadCreatureArt, creatureArtDebugSnapshot, textureCacheSize, inspectTextureCache, animateCreatureVisual, simulatePngLoadFailure, inspectGeometryCache, inspectMaterialCache, resolveCreatureRenderer, creatureArtIcon } from "./creature-renderer.js";
 import { setPreferredRenderer, getPreferredRenderer, listPixelSpecies, getCreatureArt, listArtSpecies } from "./creature-art.js";
 import { bosses, BOSSES, STORM_SEAL_ID } from "./bosses.js";
@@ -17,7 +17,7 @@ import { Battle, TrainerOpponent } from "./battle.js";
 import { TRAINERS, trainers } from "./trainers.js";
 import { GYMS, GYM_LAYOUT, MIST_GYM_LAYOUT, FORGE_GYM_LAYOUT, GALE_GYM_LAYOUT, SWITCH_LABELS, BEACON_LABELS, CONDUIT_LABELS, CHANNEL_LABELS, gyms, gymIdForStructure } from "./gyms.js";
 import { UI } from "./ui.js";
-import { FAMILY_STARTERS, PERKS, SPECIES, activePerks, familyOf, createMonster, gainXp } from "./data.js?v=12";
+import { FAMILY_STARTERS, PERKS, SPECIES, TYPES, activePerks, familyOf, createMonster, gainXp } from "./data.js?v=13";
 import { sfx, toggleMute } from "./audio.js";
 import { events } from "./events.js";
 import {
@@ -33,6 +33,9 @@ import { quests, QUESTS } from "./quests.js";
 import { executeTrade } from "./trading.js";
 import { crafting, RECIPES } from "./crafting.js";
 import { getItemCount, grantItems } from "./items.js";
+import { inventory } from "./inventory.js";
+import { creatureStorage, PARTY_MAX } from "./pc.js";
+import { dex } from "./dex.js";
 import { economy, bindShopTabs, HEAL_COST, PRICE_CATALOG } from "./economy.js";
 import {
   regions, getRegionAt, getRegionName, nearestGymAnchor, region3BoundsFor, region4BoundsFor,
@@ -142,7 +145,7 @@ events.on("partyHealed", ({ source }) => {
 events.on("resourceCollected", ({ resourceId, amount }) => {
   const res = RESOURCES[resourceId];
   if (!res) return;
-  const total = state?.inventory[res.block] ?? 0;
+  const total = inventory.count(resourceId);
   ui.toast(`${res.icon} +${amount} ${res.name} (${total})`, "good");
 });
 events.on("badgeEarned", ({ id }) => {
@@ -298,6 +301,23 @@ events.on("itemUsed", ({ itemId }) => {
   }
   ui.refreshHud();
   if (crafting.open) crafting.render();
+  if (mode === "inventory") ui.renderInventory();
+});
+events.on("inventoryChanged", () => {
+  if (!state) return;
+  ui.refreshHud();
+  ui.refreshHotbar(HOTBAR, state.inventory, selectedSlot);
+  if (mode === "inventory") ui.renderInventory();
+  if (crafting.open) crafting.render();
+  if (economy.open) economy.render();
+});
+events.on("speciesCaught", () => {
+  ui.refreshHud();
+  if (mode === "dex") ui.renderDex();
+});
+events.on("speciesSeen", () => {
+  ui.refreshHud();
+  if (mode === "dex") ui.renderDex();
 });
 
 // ---------- Diálogos: acciones controladas, condiciones y modo de juego ----------
@@ -306,7 +326,7 @@ trainers.setRewardHandler((money) => addMoney(money));
 
 quests.setRewardHandler((rewards) => {
   if (rewards.money) addMoney(rewards.money);
-  if (rewards.balls) state.balls += rewards.balls;
+  if (rewards.balls) inventory.add("balls", rewards.balls, "quest");
   if (rewards.badge) progression.addBadge(rewards.badge);
   if (rewards.unlock) progression.unlock(rewards.unlock);
   const parts = [];
@@ -333,7 +353,7 @@ dialogue.registerAction("trade", (a) => {
     return false; // el diálogo permanece en el nodo actual
   }
   sfx.select();
-  ui.toast(`▣ +${r.trade.gives.balls} cubo (tienes ${state.balls})`, "good");
+  ui.toast(`▣ +${r.trade.gives.balls} cubo (tienes ${inventory.count("balls")})`, "good");
   ui.refreshHud();
   saveGame();
 });
@@ -494,6 +514,10 @@ async function bootWorld(saved) {
   stats.attach(state);
   economy.attach(state);
   crafting.attach(state);
+  inventory.attach(state);
+  creatureStorage.attach(state);
+  dex.attach(state);
+  ui.bindMgmtUi();
   interaction.clear();
   npcs.init(scene, world, interaction);
   trainers.attach(state);
@@ -532,6 +556,7 @@ async function bootWorld(saved) {
   ui.hideLoading();
   ui.show(ui.el.hud);
   ui.updateQuestTracker(quests.trackerInfo());
+  bindBattleEvolve();
   mode = "play";
   ui.setTargetPrompt("Haz clic para tomar el control");
 }
@@ -565,6 +590,7 @@ function beginNewGame() {
 document.addEventListener("keydown", (e) => {
   if (e.code === "Tab") {
     e.preventDefault();
+    if (mode === "inventory" || mode === "pc") return;
     if (mode === "play" || mode === "dex") toggleDex();
     return;
   }
@@ -589,10 +615,32 @@ document.addEventListener("keydown", (e) => {
     if (e.code === "Escape" || e.code === "KeyE") economy.close();
     return;
   }
+  if (mode === "inventory") {
+    if (e.code === "Escape" || e.code === "KeyI") toggleInventory();
+    return;
+  }
+  if (mode === "pc") {
+    if (e.code === "Escape" || e.code === "KeyE") closePc();
+    return;
+  }
+  if (mode === "dex") {
+    if (e.code === "Escape" || e.code === "KeyK") toggleDex();
+    return;
+  }
   if (mode !== "play") return;
   if (e.code === "KeyM") {
     e.preventDefault();
     toggleMap();
+    return;
+  }
+  if (e.code === "KeyI") {
+    e.preventDefault();
+    toggleInventory();
+    return;
+  }
+  if (e.code === "KeyK") {
+    e.preventDefault();
+    toggleDex();
     return;
   }
   if (e.code === "KeyB") {
@@ -726,11 +774,12 @@ function mineBlockAt(x, y, z) {
   sfx.break();
   spawnBreakParticles(x, y, z, block);
   const drop = BLOCK_DROPS[block];
+  const biomeId = world.biomeAt(x, z);
   let amount = 0;
   if (drop) {
     const bonus = Math.random() < perks.doubleDrop ? 1 : 0;
     amount = 1 + bonus;
-    state.inventory[drop] = (state.inventory[drop] ?? 0) + amount;
+    inventory.addMined(drop, amount, biomeId);
     if (bonus) ui.toast("🪨 ¡Manos de roca: bloque doble!");
     ui.refreshHotbar(HOTBAR, state.inventory, selectedSlot);
   }
@@ -738,7 +787,6 @@ function mineBlockAt(x, y, z) {
   // Evento específico de recurso: los sistemas futuros (misiones, crafting)
   // escuchan la identidad del recurso sin conocer ids de bloque.
   const res = resourceForBlock(block);
-  const biomeId = world.biomeAt(x, z);
   if (res && amount > 0) {
     const resourceId = (block === B.HERB && biomeId === "wind_highlands") ? "sky_herb" : res.id;
     events.emit("resourceCollected", {
@@ -1423,6 +1471,73 @@ function hoverBlockedZone(x, z) {
   return false;
 }
 
+function toggleInventory() {
+  const el = document.getElementById("inventory-ui");
+  if (mode === "inventory") {
+    el?.classList.add("hidden");
+    mode = "play";
+    canvas.requestPointerLock();
+    saveGame();
+    return;
+  }
+  if (mode !== "play") return;
+  mode = "inventory";
+  document.exitPointerLock();
+  keys.clear();
+  ui.setTargetPrompt(null);
+  ui.setInspectCard(null);
+  highlight.visible = false;
+  ui.renderInventory();
+  el?.classList.remove("hidden");
+}
+
+function openPc() {
+  if (mode !== "play") return;
+  mode = "pc";
+  document.exitPointerLock();
+  keys.clear();
+  ui.setTargetPrompt(null);
+  ui.setInspectCard(null);
+  highlight.visible = false;
+  ui.renderPc();
+  document.getElementById("pc-ui")?.classList.remove("hidden");
+}
+
+function closePc() {
+  if (mode !== "pc") return;
+  document.getElementById("pc-ui")?.classList.add("hidden");
+  mode = "play";
+  canvas.requestPointerLock();
+  saveGame();
+}
+
+function registerPcTerminal(s, local, wanted) {
+  const [dx, dz] = local;
+  const id = `pc:${s.id}`;
+  wanted.add(id);
+  const x = s.x + dx + 0.5;
+  const y = s.y + 1.6;
+  const z = s.z + dz + 0.5;
+  const onInteract = () => openPc();
+  const existing = interaction.items.get(id);
+  if (existing) {
+    existing.x = x; existing.y = y; existing.z = z;
+    existing.onInteract = onInteract;
+    return;
+  }
+  interaction.register({
+    id, type: "pc", x, y, z, range: 3.2, prompt: "Usar PC", data: s, onInteract, critical: true,
+  });
+}
+
+function bindBattleEvolve() {
+  ui.onEvolve = (m) => {
+    dex.markCaught(m.speciesId, { source: "evolution" });
+    events.emit("creatureEvolved", { speciesId: m.speciesId });
+    ui.refreshHud();
+  };
+}
+
 function toggleMap() {
   const el = document.getElementById("map-ui");
   if (mode === "map") {
@@ -1437,6 +1552,7 @@ function toggleMap() {
   document.exitPointerLock();
   keys.clear();
   ui.setTargetPrompt(null);
+  ui.setInspectCard(null);
   highlight.visible = false;
   worldMap.show();
   el?.classList.remove("hidden");
@@ -1886,7 +2002,7 @@ function refreshGymTracker(nearGym = null) {
 
 function onPlace() {
   const b = HOTBAR[selectedSlot];
-  if ((state.inventory[b] ?? 0) <= 0) {
+  if (inventory.countBlock(b) <= 0) {
     ui.toast("No tienes ese bloque. ¡Mina para conseguirlo!");
     return;
   }
@@ -1903,7 +2019,7 @@ function onPlace() {
     return;
   }
   world.setBlock(x, y, z, b);
-  state.inventory[b] -= 1;
+  inventory.remove(b, 1, "place");
   sfx.place();
   ui.refreshHotbar(HOTBAR, state.inventory, selectedSlot);
   events.emit("blockPlaced", { x, y, z, block: b });
@@ -1983,11 +2099,37 @@ function toggleDex() {
   } else if (mode === "play") {
     mode = "dex";
     document.exitPointerLock();
+    keys.clear();
+    ui.setTargetPrompt(null);
+    ui.setInspectCard(null);
     ui.renderDex();
     ui.show(ui.el.dex);
   }
 }
 document.getElementById("btn-dex-close").addEventListener("click", toggleDex);
+
+ui.onCloseInventory = () => { if (mode === "inventory") toggleInventory(); };
+ui.onClosePc = () => closePc();
+ui.onUseItem = (itemId) => {
+  useCraftedItem(itemId);
+  if (mode === "inventory") ui.renderInventory();
+};
+ui.onPcAction = (action, a, b) => {
+  let r = { ok: false };
+  if (action === "deposit") r = creatureStorage.deposit(a);
+  else if (action === "withdraw") r = creatureStorage.withdraw(a);
+  else if (action === "swap") r = creatureStorage.swap(a, b);
+  else if (action === "up") r = creatureStorage.moveParty(a, -1);
+  else if (action === "down") r = creatureStorage.moveParty(a, 1);
+  else if (action === "lead") r = creatureStorage.setLead(a);
+  if (!r.ok) {
+    if (r.error) ui.toast(r.error, "bad");
+    return;
+  }
+  ui.renderPc();
+  ui.refreshHud();
+  saveGame();
+};
 
 document.getElementById("btn-map-close")?.addEventListener("click", () => {
   if (mode === "map") toggleMap();
@@ -2070,18 +2212,13 @@ async function startBattle(wild) {
   mode = "battle";
   document.exitPointerLock();
   ui.setTargetPrompt(null);
+  ui.setInspectCard(null);
   const wildInfo = { speciesId: wild.monster.speciesId, level: wild.monster.level, type: "wild" };
-  if (!state.dex.seen[wildInfo.speciesId]) events.emit("creatureSeen", wildInfo);
-  state.dex.seen[wildInfo.speciesId] = true;
+  dex.markSeen(wildInfo.speciesId, { source: "wild", level: wildInfo.level });
   events.emit("battleStarted", wildInfo);
 
   battle = new Battle({ scene, camera, world, player, wild, team: state.team, state, ui });
-  ui.onEvolve = (m) => {
-    state.dex.caught[m.speciesId] = true;
-    state.dex.seen[m.speciesId] = true;
-    events.emit("creatureEvolved", { speciesId: m.speciesId });
-    ui.refreshHud();
-  };
+  bindBattleEvolve();
   const result = await battle.run();
   battle = null;
 
@@ -2097,19 +2234,23 @@ async function startBattle(wild) {
     const m = wild.monster;
     const fam = familyOf(m.speciesId);
     const famWasNew = fam && PERKS[fam] && !ui.familyCaught(fam);
-    state.dex.caught[m.speciesId] = true;
-    if (state.team.length < 6) {
-      state.team.push(m);
-      ui.toast(`${m.name} se unió a tu equipo.`, "good");
+    const first = dex.markCaught(m.speciesId, { source: "capture", level: m.level });
+    const { dest } = creatureStorage.receiveCapture(m);
+    if (dest === "party") {
+      ui.toast(`¡${m.name} fue capturado! Se unió al equipo.`, "good");
     } else {
-      ui.toast(`${m.name} fue enviado a la Caja (equipo lleno).`);
+      ui.toast(`¡${m.name} fue capturado!`, "good");
+      ui.toast(`Tu equipo está completo. ${m.name} fue enviado al PC.`);
     }
+    if (first) ui.toast("¡Nueva entrada registrada en la VoxelDex!", "good");
     if (famWasNew) {
       const p = PERKS[fam];
       refreshPerks();
       ui.toast(`${p.icon} Habilidad desbloqueada: ${p.name} — ${p.desc}`, "good");
     }
-    events.emit("creatureCaptured", wildInfo);
+    events.emit("creatureCaptured", {
+      ...wildInfo, uid: m.uid, dest, firstCaught: first,
+    });
     events.emit("battleWon", wildInfo);
     if (m.speciesId === "prismaton" && !state.victoryShown) {
       state.victoryShown = true;
@@ -2175,6 +2316,7 @@ async function startTrainerBattle(trainerId, npc = null) {
   }
   const opponent = new TrainerOpponent(scene, world, teamMonsters[0], ox, oz);
 
+  for (const m of teamMonsters) dex.markSeen(m.speciesId, { source: "trainer", trainerId });
   events.emit("trainerBattleStarted", { trainerId });
   events.emit("battleStarted", {
     type: "trainer", trainerId, speciesId: teamMonsters[0].speciesId, level: teamMonsters[0].level,
@@ -2184,6 +2326,7 @@ async function startTrainerBattle(trainerId, npc = null) {
     scene, camera, world, player, wild: opponent, team: state.team, state, ui,
     ctx: { type: "trainer", trainer: def, queue: teamMonsters.slice(1) },
   });
+  bindBattleEvolve();
   const result = await battle.run();
   battle = null;
   opponent.dispose();
@@ -2244,17 +2387,13 @@ async function startBossBattle(bossId) {
   events.emit("battleStarted", {
     type: "boss", bossId, speciesId: teamMonsters[0].speciesId, level: teamMonsters[0].level,
   });
+  for (const m of teamMonsters) dex.markSeen(m.speciesId, { source: "boss", bossId });
 
   battle = new Battle({
     scene, camera, world, player, wild: opponent, team: state.team, state, ui,
     ctx: { type: "boss", boss: def, queue: teamMonsters.slice(1) },
   });
-  ui.onEvolve = (m) => {
-    state.dex.caught[m.speciesId] = true;
-    state.dex.seen[m.speciesId] = true;
-    events.emit("creatureEvolved", { speciesId: m.speciesId });
-    ui.refreshHud();
-  };
+  bindBattleEvolve();
   const result = await battle.run();
   battle = null;
   opponent.dispose();
@@ -2447,6 +2586,7 @@ function loop(now) {
     const wantedMist = new Set();
     const wantedRuin = new Set();
     const wantedWind = new Set();
+    const wantedPc = new Set();
     let nearGym = null;
     fogMistGym = null;
     for (const s of world.structures.near(px, pz, 24)) {
@@ -2480,6 +2620,13 @@ function loop(now) {
       }
       if (s.type === "mist_settlement") {
         registerMistInteractables(s, wantedMist);
+        registerPcTerminal(s, MIST_SETTLEMENT_LAYOUT.pc, wantedPc);
+      }
+      if (s.type === "settlement") {
+        registerPcTerminal(s, SETTLEMENT_LAYOUT.pc, wantedPc);
+      }
+      if (s.type === "cliff_outpost") {
+        registerPcTerminal(s, CLIFF_OUTPOST_LAYOUT.pc, wantedPc);
       }
       if (s.type === "crimson_ruin") {
         registerRuinInteractables(s, wantedRuin);
@@ -2524,6 +2671,9 @@ function loop(now) {
     for (const id of interaction.ids("highland_exit")) {
       if (!wantedWind.has(id)) interaction.unregister(id);
     }
+    for (const id of interaction.ids("pc")) {
+      if (!wantedPc.has(id)) interaction.unregister(id);
+    }
     if (![...wantedRuin].some((id) => id.startsWith("crimson_boss:"))) disposeBossVisual();
     if (![...wantedWind].some((id) => id.startsWith("tempest_boss:"))) disposeTempestVisual();
     refreshGymTracker(nearGym);
@@ -2556,6 +2706,7 @@ function loop(now) {
   if (mode === "battle" && battle) {
     battle.update(dt, elapsed);
     highlight.visible = false;
+    ui.setInspectCard(null);
   } else {
     // Cámara en primera persona
     camera.position.copy(player.eyePos());
@@ -2581,8 +2732,22 @@ function loop(now) {
       } else {
         ui.setTargetPrompt(null);
       }
+      const hideInspect = buildAssist.mode || mode !== "play";
+      if (!hideInspect && c) {
+        const m = c.entity.monster;
+        dex.markSeen(m.speciesId, { source: "world", level: m.level });
+        ui.setInspectCard({
+          name: m.name,
+          level: m.level,
+          typeName: TYPES[m.type]?.name ?? m.type,
+          caught: dex.isCaught(m.speciesId),
+        });
+      } else {
+        ui.setInspectCard(null);
+      }
     } else {
       highlight.visible = false;
+      ui.setInspectCard(null);
     }
 
     // Regeneración fuera de combate (Fotosíntesis la duplica)
@@ -2674,6 +2839,8 @@ window.__vm = {
   get spawner() { return spawner; },
   get state() { return state; },
   get mode() { return mode; },
+  get locked() { return locked; },
+  setLocked(v) { locked = !!v; },
   get ui() { return ui; },
   creatureInSight,
   startBattle,
@@ -2697,6 +2864,14 @@ window.__vm = {
   mapSystem: worldMap,
   traversalSystem: traversal,
   buildAssist,
+  inventory,
+  creatureStorage,
+  dex,
+  PARTY_MAX,
+  toggleInventory,
+  toggleDex,
+  openPc,
+  closePc,
   /** Herramientas de inspección del mundo vivo (Fase 2) */
   debug: {
     pos() {
@@ -2888,6 +3063,24 @@ window.__vm = {
       return world && player
         ? world.structures.near(player.pos.x, player.pos.z, r).filter((s) => s.type === "settlement")
         : [];
+    },
+    gotoSettlement() {
+      const s = this.settlements(800)[0];
+      if (!s || !player) return null;
+      teleportPlayer(s.x + SETTLEMENT_LAYOUT.pc[0] + 0.5, s.y + 2, s.z + SETTLEMENT_LAYOUT.pc[1] + 1.5);
+      return s;
+    },
+    gotoMistPc() {
+      const s = findMistSettlement(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s || !player) return null;
+      teleportPlayer(s.x + MIST_SETTLEMENT_LAYOUT.pc[0] + 0.5, s.y + 2, s.z + MIST_SETTLEMENT_LAYOUT.pc[1] + 1.5);
+      return s;
+    },
+    gotoCliffPc() {
+      const s = findCliffOutpost(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s || !player) return null;
+      teleportPlayer(s.x + CLIFF_OUTPOST_LAYOUT.pc[0] + 0.5, s.y + 2, s.z + CLIFF_OUTPOST_LAYOUT.pc[1] + 1.5);
+      return s;
     },
     /** Interactuable válido más cercano ahora mismo */
     interaction() {
@@ -3545,11 +3738,111 @@ window.__vm = {
     },
     captureGrantor(id = "alazan") {
       if (!state) return null;
-      state.dex.caught[id] = true;
-      state.dex.seen[id] = true;
+      dex.markCaught(id, { source: "debug" });
       events.emit("creatureCaptured", { speciesId: id, level: 20 });
       ui.refreshHud();
       return this.aerialBuildAssist();
+    },
+    inventory() {
+      return inventory.snapshot();
+    },
+    dex() {
+      return dex.snapshot();
+    },
+    storage() {
+      return creatureStorage.snapshot();
+    },
+    markSeen(id) {
+      return dex.markSeen(id, { source: "debug" });
+    },
+    markCaught(id) {
+      return dex.markCaught(id, { source: "debug" });
+    },
+    giveCreature(id, level = 5) {
+      if (!state) return null;
+      const m = createMonster(id, level);
+      const first = dex.markCaught(id, { source: "debug" });
+      const { dest } = creatureStorage.receiveCapture(m);
+      events.emit("creatureCaptured", {
+        speciesId: id, uid: m.uid, dest, firstCaught: first, level, type: "wild",
+      });
+      ui.refreshHud();
+      return { dest, uid: m.uid, speciesId: m.speciesId, level: m.level, first, hp: m.hp, xp: m.xp, snapshot: creatureStorage.snapshot() };
+    },
+    forceEvolve(uid) {
+      const found = creatureStorage.find(uid) ?? { monster: state.team[0], where: "party" };
+      const m = found.monster;
+      if (!m) return null;
+      const evs = gainXp(m, 50000);
+      if (evs.some((e) => e.type === "evolve")) ui.onEvolve?.(m);
+      ui.refreshHud();
+      return { speciesId: m.speciesId, level: m.level, events: evs };
+    },
+    openInventory() { toggleInventory(); return mode; },
+    openDex() { toggleDex(); return mode; },
+    openPc() { openPc(); return mode; },
+    fillParty(n = 6) {
+      const ids = ["emberin", "gotita", "semilla", "chispin", "piedrita", "plumin"];
+      while (creatureStorage.partySize() < Math.min(PARTY_MAX, n)) {
+        this.giveCreature(ids[creatureStorage.partySize() % ids.length], 8);
+      }
+      return creatureStorage.snapshot();
+    },
+    seedPc(n, id = "brisin") {
+      const out = [];
+      for (let i = 0; i < n; i++) out.push(this.giveCreature(id, 10 + (i % 20)));
+      return { added: out.length, ...creatureStorage.snapshot() };
+    },
+    showInspect(info) {
+      ui.setInspectCard(info);
+      return !document.getElementById("inspect-card")?.classList.contains("hidden");
+    },
+    inspectNearest() {
+      const c = spawner?.creatures?.[0];
+      if (!c || c.dead) return { target: null };
+      const m = c.monster;
+      dex.markSeen(m.speciesId, { source: "world", level: m.level });
+      ui.setInspectCard({
+        name: m.name,
+        level: m.level,
+        typeName: TYPES[m.type]?.name ?? m.type,
+        caught: dex.isCaught(m.speciesId),
+      });
+      return {
+        speciesId: m.speciesId,
+        name: m.name,
+        level: m.level,
+        type: m.type,
+        typeName: TYPES[m.type]?.name ?? m.type,
+        caught: dex.isCaught(m.speciesId),
+      };
+    },
+    inspectAim() {
+      const c = creatureInSight();
+      if (!c) return { target: null, cardHidden: document.getElementById("inspect-card")?.classList.contains("hidden") };
+      const m = c.entity.monster;
+      dex.markSeen(m.speciesId, { source: "world", level: m.level });
+      ui.setInspectCard({
+        name: m.name,
+        level: m.level,
+        typeName: TYPES[m.type]?.name ?? m.type,
+        caught: dex.isCaught(m.speciesId),
+      });
+      return {
+        speciesId: m.speciesId,
+        name: m.name,
+        level: m.level,
+        type: m.type,
+        typeName: TYPES[m.type]?.name ?? m.type,
+        caught: dex.isCaught(m.speciesId),
+        dist: c.dist,
+      };
+    },
+    pcTerminals() {
+      return interaction.ids("pc").map((id) => {
+        const it = interaction.items.get(id);
+        return { id, x: it.x, y: it.y, z: it.z, prompt: it.prompt };
+      });
     },
   },
 };

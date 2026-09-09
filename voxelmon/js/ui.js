@@ -1,9 +1,13 @@
 /** Interfaz: HUD, menús, batalla, dex y notificaciones */
 
-import { SPECIES, TYPES, FAMILY_STARTERS, PERKS, movesFor, typeMultiplier } from "./data.js?v=12";
+import { SPECIES, TYPES, FAMILY_STARTERS, PERKS, movesFor, typeMultiplier } from "./data.js?v=13";
 import { creatureArtIcon } from "./creature-renderer.js";
 import { BLOCK_NAMES } from "./world.js";
 import { RESOURCES } from "./resources.js";
+import { ITEM_CATEGORIES, itemDef } from "./items.js";
+import { inventory } from "./inventory.js";
+import { dex } from "./dex.js";
+import { creatureStorage } from "./pc.js";
 import { sfx } from "./audio.js";
 import { mulberry32 } from "./noise.js";
 
@@ -71,6 +75,8 @@ export class UI {
       starter: $("screen-starter"),
       pause: $("screen-pause"),
       dex: $("screen-dex"),
+      inventory: $("inventory-ui"),
+      pc: $("pc-ui"),
       victory: $("screen-victory"),
       loading: $("screen-loading"),
       battle: $("battle-ui"),
@@ -87,6 +93,20 @@ export class UI {
     };
     this.state = null; // lo asigna main
     this.hotbarSlots = [];
+    this.invCategory = "all";
+    this.invSelected = null;
+    this.dexFilter = "all";
+    this.dexQuery = "";
+    this.dexSelected = null;
+    this.pcPartyUid = null;
+    this.pcBoxUid = null;
+    this.pcPage = 0;
+    this.pcPageSize = 30;
+    this.onUseItem = null;
+    this.onPcAction = null;
+    this.onCloseInventory = null;
+    this.onClosePc = null;
+    this._mgmtBound = false;
   }
 
   // ---------- Overlays básicos ----------
@@ -171,20 +191,26 @@ export class UI {
     });
   }
 
-  refreshHotbar(slotBlocks, inventory, selected) {
+  refreshHotbar(slotBlocks, bag, selected) {
     this.hotbarSlots.forEach((slot, i) => {
       slot.classList.toggle("selected", i === selected);
-      slot.querySelector(".hb-count").textContent = inventory[slotBlocks[i]] ?? 0;
+      const id = slotBlocks[i];
+      const n = inventory.state === this.state ? inventory.countBlock(id) : (bag?.[id] ?? 0);
+      slot.querySelector(".hb-count").textContent = n;
     });
   }
 
   refreshHud() {
     const s = this.state;
     if (!s) return;
-    this.el.infoBalls.textContent = `▣ Cubos: ${s.balls}`;
+    const cubes = inventory.state === s ? inventory.count("balls") : (s.balls ?? 0);
+    this.el.infoBalls.textContent = `▣ Cubos: ${cubes}`;
     $("info-money").textContent = `⌾ Monedas: ${s.money ?? 0}`;
-    const fams = FAMILY_STARTERS.filter((f) => this.familyCaught(f)).length;
-    this.el.infoDex.textContent = `◆ Dex: ${fams}/${FAMILY_STARTERS.length}${s.dex.caught.prismaton ? " ✦" : ""}`;
+    const seenN = dex.state === s ? dex.seenCount() : Object.keys(s.dex?.seen ?? {}).length;
+    const caughtN = dex.state === s ? dex.obtainableCaughtCount() : Object.keys(s.dex?.caught ?? {}).length;
+    const obt = dex.state === s ? dex.obtainableIds().length : 29;
+    const cat = dex.state === s ? dex.catalogSize() : 30;
+    this.el.infoDex.textContent = `◆ Dex: ${seenN}/${cat} · ${caughtN}/${obt}`;
 
     const strip = this.el.teamStrip;
     strip.innerHTML = "";
@@ -228,7 +254,12 @@ export class UI {
       ? `${(st.distanceTraveled / 1000).toFixed(1)} km`
       : `${Math.round(st.distanceTraveled)} m`;
     const resources = Object.values(RESOURCES)
-      .map((r) => ({ r, n: this.state.inventory?.[r.block] ?? 0 }))
+      .map((r) => {
+        const n = inventory.state === this.state
+          ? inventory.count(r.id)
+          : (this.state.inventory?.[r.id] ?? this.state.inventory?.[r.block] ?? 0);
+        return { r, n };
+      })
       .filter((e) => e.n > 0)
       .map((e) => `${e.r.icon} ${e.r.name}: <b>${e.n}</b>`)
       .join(" · ");
@@ -323,6 +354,7 @@ export class UI {
   }
 
   toast(msg, cls = "") {
+    if (!this.el.toasts) return;
     const div = document.createElement("div");
     div.className = `toast ${cls}`;
     div.textContent = msg;
@@ -333,33 +365,62 @@ export class UI {
 
   // ---------- Dex ----------
 
+  bindMgmtUi() {
+    if (this._mgmtBound) return;
+    this._mgmtBound = true;
+    $("btn-inv-close")?.addEventListener("click", () => this.onCloseInventory?.());
+    $("btn-pc-close")?.addEventListener("click", () => this.onClosePc?.());
+    $("dex-search")?.addEventListener("input", (e) => {
+      this.dexQuery = e.target.value;
+      this.renderDex();
+    });
+    $("dex-filters")?.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-filter]");
+      if (!btn) return;
+      this.dexFilter = btn.dataset.filter;
+      this.renderDex();
+    });
+  }
+
   renderDex() {
+    this.bindMgmtUi();
     const grid = $("dex-grid");
+    if (!grid) return;
     grid.innerHTML = "";
-    const order = [...FAMILY_STARTERS.flatMap((f) => {
-      const line = [];
-      let id = f;
-      while (id && SPECIES[id]) { line.push(id); id = SPECIES[id].evolvesTo; }
-      return line;
-    }), "cirrith", "nimbora", "prismaton"];
-    for (const id of order) {
-      const sp = SPECIES[id];
-      const caught = !!this.state.dex.caught[id];
-      const seen = !!this.state.dex.seen[id];
+    const list = dex.list({ filter: this.dexFilter, query: this.dexQuery });
+    const snap = dex.snapshot();
+    $("dex-progress").textContent =
+      `Vistas ${snap.seen}/${snap.catalog} · Capturadas ${snap.obtainableCaught}/${snap.obtainable}` +
+      (this.state?.dex?.caught?.prismaton ? " · ✦ Prismatón" : "");
+    for (const btn of document.querySelectorAll(".dex-filter")) {
+      btn.classList.toggle("selected", btn.dataset.filter === this.dexFilter);
+    }
+    for (const e of list) {
       const cell = document.createElement("div");
-      cell.className = "dex-cell" + (caught ? " caught" : seen ? " seen" : "");
+      const st = e.status;
+      cell.className = `dex-cell ${st}` + (this.dexSelected === e.id ? " selected" : "");
+      const sil = st !== "caught";
+      const shownImg = st === "unseen" ? pixelIcon(e.id, 5, true) : pixelIcon(e.id, 5, sil);
       cell.innerHTML = `
-        <img src="${pixelIcon(id, 5, !caught)}" alt="" />
-        <span class="dex-name">${caught || seen ? sp.name : "???"}</span>
-        ${caught ? `<span class="type-chip" style="--tc:${TYPES[sp.type].color}">${TYPES[sp.type].name}</span>` : ""}
-        ${sp.legendary ? '<span class="dex-leg">✦</span>' : ""}`;
+        <img src="${shownImg}" alt="" />
+        <span class="dex-name">${e.name}</span>
+        ${st === "caught" && e.type ? `<span class="type-chip" style="--tc:${TYPES[e.type].color}">${TYPES[e.type].name}</span>` : ""}
+        ${e.legendary && st !== "unseen" ? '<span class="dex-leg">✦</span>' : ""}`;
+      cell.title = st === "unseen" ? "???" : `${e.name} · ${st === "caught" ? "✓ Capturado" : "Visto"}`;
+      cell.addEventListener("mouseenter", () => {
+        if (st === "unseen") return;
+        cell.title = `${e.name}\n${TYPES[e.type]?.name ?? ""}\n${st === "caught" ? "✓ Capturado" : "○ Visto"}`;
+      });
+      cell.addEventListener("click", () => {
+        this.dexSelected = e.id;
+        this.renderDex();
+      });
       grid.appendChild(cell);
     }
-    const fams = FAMILY_STARTERS.filter((f) => this.familyCaught(f)).length;
-    $("dex-progress").textContent = `Familias capturadas: ${fams}/${FAMILY_STARTERS.length}` +
-      (this.state.dex.caught.prismaton ? " · ✦ Prismatón obtenido" : fams >= 8 ? " · ¡El legendario te espera!" : "");
+    this.renderDexDetail();
 
     const perkGrid = $("dex-perks");
+    if (!perkGrid) return;
     perkGrid.innerHTML = "";
     for (const fam of FAMILY_STARTERS) {
       const p = PERKS[fam];
@@ -375,6 +436,178 @@ export class UI {
         </div>`;
       perkGrid.appendChild(cell);
     }
+  }
+
+  renderDexDetail() {
+    const box = $("dex-detail");
+    if (!box) return;
+    const id = this.dexSelected;
+    if (!id) {
+      box.innerHTML = `<p class="lede">Elige una especie.</p>`;
+      return;
+    }
+    const e = dex.entry(id);
+    const chain = dex.chain(id);
+    if (e.status === "unseen") {
+      box.innerHTML = `
+        <img class="dex-portrait" src="${pixelIcon(id, 8, true)}" alt="" />
+        <h3>??? · Nº ${String(e.dexIndex).padStart(3, "0")}</h3>
+        <p>Aún no has encontrado a esta criatura.</p>`;
+      return;
+    }
+    const status = e.status === "caught"
+      ? `<span class="dex-status-caught">✓ CAPTURADO</span>`
+      : `<span class="dex-status-seen">○ AVISTADA</span>`;
+    const evo = chain.map((c) => c.known ? c.name : "???").join(" → ");
+    box.innerHTML = `
+      <img class="dex-portrait" src="${pixelIcon(id, 8, e.status !== "caught")}" alt="" />
+      <h3>${e.name} · Nº ${String(e.dexIndex).padStart(3, "0")}</h3>
+      <p>${status}</p>
+      <p><span class="type-chip" style="--tc:${TYPES[e.type].color}">${TYPES[e.type].name}</span>
+         · Etapa ${e.stage}${e.legendary ? " · Legendaria" : e.boss ? " · Guardián" : e.rare ? " · Rara" : ""}</p>
+      <p>${e.description}</p>
+      ${e.habitat ? `<p class="lede">Hábitat: ${e.habitat}</p>` : ""}
+      <div class="dex-evo">${evo}</div>`;
+  }
+
+  renderInventory() {
+    this.bindMgmtUi();
+    const tabs = $("inv-tabs");
+    const grid = $("inv-grid");
+    const detail = $("inv-detail");
+    if (!tabs || !grid) return;
+    const cats = ["all", "capture", "healing", "resource", "key", "utility", "block"];
+    tabs.innerHTML = "";
+    for (const id of cats) {
+      const b = document.createElement("button");
+      b.className = "btn ghost" + (this.invCategory === id ? " selected" : "");
+      b.textContent = ITEM_CATEGORIES[id]?.name ?? id;
+      b.addEventListener("click", () => { this.invCategory = id; this.renderInventory(); });
+      tabs.appendChild(b);
+    }
+    const items = inventory.getByCategory(this.invCategory);
+    grid.innerHTML = "";
+    if (!items.length) {
+      grid.innerHTML = `<p class="lede">Nada en esta categoría.</p>`;
+    }
+    for (const it of items) {
+      const cell = document.createElement("button");
+      cell.className = "inv-cell" + (String(this.invSelected) === String(it.id) ? " selected" : "");
+      cell.innerHTML = `<span class="inv-icon">${it.icon ?? "•"}</span>
+        <span class="inv-name">${it.name}</span>
+        <span class="inv-count">×${it.count}</span>`;
+      cell.title = `${it.name} ×${it.count}`;
+      cell.addEventListener("click", () => { this.invSelected = it.id; this.renderInventory(); });
+      grid.appendChild(cell);
+    }
+    const sel = items.find((it) => String(it.id) === String(this.invSelected)) ?? items[0];
+    if (!sel) {
+      detail.innerHTML = `<p class="lede">Selecciona un objeto.</p>`;
+      return;
+    }
+    this.invSelected = sel.id;
+    const useable = !!sel.usable;
+    const key = sel.category === "key";
+    detail.innerHTML = `
+      <h3>${sel.icon ?? ""} ${sel.name}</h3>
+      <p>${sel.description ?? ""}</p>
+      <p>Cantidad: <b>×${sel.count}</b> · ${ITEM_CATEGORIES[sel.category]?.name ?? sel.category}</p>
+      ${sel.buyPrice ? `<p>Compra: ${sel.buyPrice} ⌾</p>` : ""}
+      ${sel.sellPrice ? `<p>Venta: ${sel.sellPrice} ⌾</p>` : ""}
+      ${key ? `<p>Objeto clave: no se vende.</p>` : ""}
+      ${useable ? `<button id="btn-inv-use" class="btn primary">Usar</button>` : `<p class="lede">${useable ? "" : "No usable aquí."}</p>`}`;
+    $("btn-inv-use")?.addEventListener("click", () => this.onUseItem?.(sel.id));
+  }
+
+  renderPc() {
+    this.bindMgmtUi();
+    const partyEl = $("pc-party");
+    const boxEl = $("pc-box");
+    const pagesEl = $("pc-pages");
+    const detail = $("pc-detail");
+    const actions = $("pc-actions");
+    if (!partyEl || !boxEl) return;
+    const party = creatureStorage.party();
+    const box = creatureStorage.box();
+    $("pc-count").textContent = `(${box.length})`;
+    partyEl.innerHTML = "";
+    party.forEach((m, i) => {
+      const row = document.createElement("div");
+      row.className = "pc-row" + (m.uid === this.pcPartyUid ? " selected" : "") + (i === 0 ? " lead" : "");
+      row.innerHTML = `<img src="${pixelIcon(m.speciesId, 4)}" alt="" />
+        <div><div class="pc-name">${i + 1}. ${m.name}</div>
+        <small>Nv ${m.level} · ${TYPES[m.type]?.name ?? m.type} · ${m.hp}/${m.maxHp}</small></div>`;
+      row.title = `${m.name} Nv ${m.level}\n${TYPES[m.type]?.name}\n${m.hp}/${m.maxHp} PV`;
+      row.addEventListener("click", () => { this.pcPartyUid = m.uid; this.renderPc(); });
+      partyEl.appendChild(row);
+    });
+    const pages = Math.max(1, Math.ceil(box.length / this.pcPageSize));
+    if (this.pcPage >= pages) this.pcPage = pages - 1;
+    pagesEl.innerHTML = "";
+    if (pages > 1) {
+      for (let p = 0; p < pages; p++) {
+        const b = document.createElement("button");
+        b.className = "btn ghost" + (p === this.pcPage ? " selected" : "");
+        b.textContent = String(p + 1);
+        b.addEventListener("click", () => { this.pcPage = p; this.renderPc(); });
+        pagesEl.appendChild(b);
+      }
+    }
+    const slice = box.slice(this.pcPage * this.pcPageSize, (this.pcPage + 1) * this.pcPageSize);
+    boxEl.innerHTML = "";
+    if (!slice.length) boxEl.innerHTML = `<p class="lede">El PC está vacío.</p>`;
+    for (const m of slice) {
+      const cell = document.createElement("button");
+      cell.className = "pc-cell" + (m.uid === this.pcBoxUid ? " selected" : "");
+      cell.innerHTML = `<img src="${pixelIcon(m.speciesId, 4)}" alt="" />
+        <span class="inv-name">${m.name}</span>
+        <small>Nv ${m.level}</small>`;
+      cell.title = `${m.name}\nNv ${m.level} · ${TYPES[m.type]?.name}\n${m.hp}/${m.maxHp} PV · etapa ${m.stage}`;
+      cell.addEventListener("click", () => { this.pcBoxUid = m.uid; this.renderPc(); });
+      boxEl.appendChild(cell);
+    }
+    const sel = party.find((m) => m.uid === this.pcPartyUid) || box.find((m) => m.uid === this.pcBoxUid);
+    if (sel) {
+      detail.innerHTML = `<b>${sel.name}</b> · Nv ${sel.level} · ${TYPES[sel.type]?.name ?? sel.type}
+        · ${sel.hp}/${sel.maxHp} PV · etapa ${sel.stage}`;
+    } else {
+      detail.innerHTML = `<p class="lede">Selecciona una criatura del equipo o del PC.</p>`;
+    }
+    actions.innerHTML = "";
+    const mk = (label, fn, disabled) => {
+      const b = document.createElement("button");
+      b.className = "btn ghost";
+      b.textContent = label;
+      b.disabled = !!disabled;
+      b.addEventListener("click", fn);
+      actions.appendChild(b);
+    };
+    mk("Depositar → PC", () => this.onPcAction?.("deposit", this.pcPartyUid), !this.pcPartyUid || party.length <= 1);
+    mk("Retirar → equipo", () => this.onPcAction?.("withdraw", this.pcBoxUid), !this.pcBoxUid || party.length >= 6);
+    mk("Intercambiar", () => this.onPcAction?.("swap", this.pcPartyUid, this.pcBoxUid), !this.pcPartyUid || !this.pcBoxUid);
+    mk("Subir en equipo", () => this.onPcAction?.("up", this.pcPartyUid), !this.pcPartyUid);
+    mk("Bajar en equipo", () => this.onPcAction?.("down", this.pcPartyUid), !this.pcPartyUid);
+    mk("Poner de primero", () => this.onPcAction?.("lead", this.pcPartyUid), !this.pcPartyUid);
+  }
+
+  setInspectCard(info) {
+    const el = $("inspect-card");
+    if (!el) return;
+    if (!info) {
+      el.classList.add("hidden");
+      return;
+    }
+    $("inspect-name").textContent = `${info.name}    Nv ${info.level}`;
+    $("inspect-meta").textContent = info.typeName ?? "";
+    const st = $("inspect-status");
+    if (info.caught) {
+      st.textContent = "✓ CAPTURADO";
+      st.className = "caught";
+    } else {
+      st.textContent = "○ NO CAPTURADO";
+      st.className = "uncaught";
+    }
+    el.classList.remove("hidden");
   }
 
   // ---------- Batalla ----------
@@ -448,6 +681,8 @@ export class UI {
     $("b-ally-hp").classList.toggle("low", ally.hp / ally.maxHp < 0.25);
     $("b-ally-xp").style.width = `${(ally.xp / ally.xpToNext) * 100}%`;
     this.refreshHud();
+    if (this.el.inventory && !this.el.inventory.classList.contains("hidden")) this.renderInventory();
+    if (this.el.pc && !this.el.pc.classList.contains("hidden")) this.renderPc();
   }
 
   /** Devuelve una promesa con la acción elegida */
@@ -469,7 +704,7 @@ export class UI {
           ?? (battle.ctx?.type === "trainer" || battle.ctx?.type === "boss");
         mk("⚔ Atacar", "attack", movesMenu);
         mk(
-          restricted ? "▣ Cubo <small>bloqueado</small>" : `▣ Cubo <small>×${battle.state.balls}</small>`,
+          restricted ? "▣ Cubo <small>bloqueado</small>" : `▣ Cubo <small>×${inventory.count("balls")}</small>`,
           "ball",
           () => { actions.innerHTML = ""; resolve({ kind: "ball" }); },
           restricted

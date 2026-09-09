@@ -71,11 +71,76 @@ export const SPECIES = {
   cirrith: { id: "cirrith", name: "Cirrith", type: "electrico", stage: 2, rare: true, aerial: true, base: { hp: 70, atk: 28, def: 18, spd: 30 }, evolvesTo: null, evolveLevel: null, color: "#c8f0ff", color2: "#ffe98a" },
 
   // Guardián de tormenta (Fase 12): standalone de encuentro, no familia, no legendario, no salvaje.
-  nimbora: { id: "nimbora", name: "Nímbora", type: "volador", stage: 3, rare: true, boss: true, base: { hp: 108, atk: 36, def: 26, spd: 31 }, evolvesTo: null, evolveLevel: null, color: "#6a88c8", color2: "#e8f0ff" },
+  nimbora: { id: "nimbora", name: "Nímbora", type: "volador", stage: 3, rare: true, boss: true, obtainable: false, base: { hp: 108, atk: 36, def: 26, spd: 31 }, evolvesTo: null, evolveLevel: null, color: "#6a88c8", color2: "#e8f0ff" },
 
   // Legendario exclusivo de VoxelMon: aparece al capturar las 8 familias originales.
   prismaton: { id: "prismaton", name: "Prismatón", type: "luz", stage: 3, legendary: true, base: { hp: 140, atk: 42, def: 34, spd: 32 }, evolvesTo: null, evolveLevel: null, color: "#c9f0ff", color2: "#ffd6f8" },
 };
+
+/** Orden estable de la VoxelDex: familias juntas, luego raras/especiales. */
+export const DEX_ORDER = [
+  "emberin", "brasor", "infernak",
+  "gotita", "riazor", "tsunark",
+  "semilla", "arbusto", "silvax",
+  "chispin", "voltajo", "truena",
+  "piedrita", "rocal", "titanor",
+  "plumin", "alazan", "celestor",
+  "umbra", "sombrio", "nocrix",
+  "lucier", "clarion", "aureon",
+  "brisin", "vendal", "cefiron",
+  "cirrith", "nimbora", "prismaton",
+];
+
+export const DEX_ENTRIES = {
+  emberin: { rarity: "común", habitat: "praderas soleadas", description: "Un rescoldo con patas que colecciona chispas de hogueras abandonadas. Si se asusta, se enrosca y huele a pan tostado. Los pastores lo usan para encender la lumbre sin yesca." },
+  brasor: { rarity: "poco común", habitat: "laderas secas", description: "Ya no huye del viento: lo usa. Corre en círculos hasta levantar una corona de brasas y luego carga. Los carboneros dicen que su aliento cura la humedad de la leña." },
+  infernak: { rarity: "rara", habitat: "canteras calientes", description: "Forja su propio caparazón con escoria y orgullo. Cuando se planta, el suelo cruje como un horno. No busca pelea, pero tampoco da un paso atrás." },
+  gotita: { rarity: "común", habitat: "charcas y riberas", description: "Cabeza de rocío y cuerpo de burbuja. Rebota entre juncos imitando la lluvia. Si la recoges con las manos, se ríe en gorgoteos y te deja los dedos fríos." },
+  riazor: { rarity: "poco común", habitat: "corrientes rápidas", description: "Afila el lomo contra las piedras del cauce. Nada de lado para cortar la corriente y cazar insectos. Los pescadores lo respetan: les enseña dónde no hay que echar la red." },
+  tsunark: { rarity: "rara", habitat: "lagos profundos", description: "Cuando emerge, el agua se queda un segundo en silencio. Su cresta es una ola detenida. Prefiere vigilar orillas a hundir barcas; el mar, dice la gente, le queda grande a propósito." },
+  semilla: { rarity: "común", habitat: "huertos y claros", description: "Se entierra hasta el cuello a mediodía y sueña con raíces. Si la riegas, florece una sonrisa. Los niños la confunden con un nabo rebelde." },
+  arbusto: { rarity: "poco común", habitat: "setos y linderos", description: "Camina como un seto que decidió irse de casa. Esconde bayas en el pecho para regalarlas a quien no las arranque. En otoño su follaje se vuelve testarudo." },
+  silvax: { rarity: "rara", habitat: "bosques viejos", description: "Un árbol que aprendió a dar pasos. Los pájaros anidan en su espalda y él finge no notarlos. Cuando se enfada, las hojas caen todas a la vez." },
+  chispin: { rarity: "común", habitat: "prados tormentosos", description: "Estática con orejas. Corre hacia cualquier metal brillante y se queda dormido encima. Un estornudo suyo enciende faroles a diez bloques." },
+  voltajo: { rarity: "poco común", habitat: "crestas ventosas", description: "Acumula nubes pequeñas entre los cuernos. Las suelta como pelotas cuando se aburre. Los pastores de altura lo usan de pararrayos ambulante, con permiso." },
+  truena: { rarity: "rara", habitat: "cumbres eléctricas", description: "Camina y el aire huele a lluvia que aún no cae. Cada pisada deja un eco blanco. No grita: espera a que el cielo lo haga por él." },
+  piedrita: { rarity: "común", habitat: "canteras y caminos", description: "Una piedra que decidió tener opiniones. Se hace la inerte si la miras, y rueda cuesta abajo si no. Los mineros la pisan y luego se disculpan." },
+  rocal: { rarity: "poco común", habitat: "escarpes", description: "Colecciona gravilla en los huecos del lomo. Cuando carga, suena a derrumbe educado. Le gustan las siestas al sol sobre losas planas." },
+  titanor: { rarity: "rara", habitat: "ruinas de piedra", description: "Montaña breve con voluntad. Las vetas de su cuerpo recuerdan mapas antiguos. En las Cumbres un ejemplar custodia sellos; otros, más humildes, vigilan canteras." },
+  plumin: { rarity: "común", habitat: "praderas abiertas", description: "Más aire que carne. Se deja llevar por cualquier corriente y aterriza donde hay migas. Si le tiras hierba, te devuelve una pluma como factura." },
+  alazan: { rarity: "poco común", habitat: "acantilados", description: "Ha aprendido a leer el viento como un mapa. Planea con las alas tensas y mira al suelo buscando destellos. Quien lo captura entiende mejor las alturas." },
+  celestor: { rarity: "rara", habitat: "cielos despejados", description: "Una cometa que eligió no tener cuerda. Su silueta corta nubes sin mojarse. Los exploradores lo siguen cuando se pierden las mesetas." },
+  umbra: { rarity: "común", habitat: "sotos al anochecer", description: "Sombra de bolsillo. Se pega a los talones y copia tu paso medio segundo tarde. De día es un ovillo tímido; de noche, un farol al revés." },
+  sombrio: { rarity: "poco común", habitat: "bosques umbríos", description: "Camina por el lado fresco de los troncos. Sus ojos no brillan: absorben. Si te pierde de vista, silba como una rama que se parte lejos." },
+  nocrix: { rarity: "rara", habitat: "noches sin luna", description: "La oscuridad le queda justa. Abre un hueco en el aire y se esconde dentro. Los viajeros cuentan que guía a quien admite tener miedo." },
+  lucier: { rarity: "común", habitat: "prados de día", description: "Un farolito con patas de insecto. Se posa en las palmas y las calienta. Odia los sótanos: allí su luz se pone seria." },
+  clarion: { rarity: "poco común", habitat: "claros radiantes", description: "Cuando corre, deja tiras de mediodía. Los pintores lo persiguen y nunca aciertan el color. Su canto parece vidrio tocado con el dedo." },
+  aureon: { rarity: "rara", habitat: "cumbres al amanecer", description: "Lleva un amanecer doblado bajo el pecho. No deslumbra por vanidad: avisa. Donde se planta, las sombras se acortan un palmo." },
+  brisin: { rarity: "común", habitat: "mesetas de viento", description: "Mamífero planeador del tamaño de una mochila. Estira membranas entre los dedos y se ríe del vacío. Duerme colgado de cornisa, hocico al vendaval." },
+  vendal: { rarity: "poco común", habitat: "cortes de acantilado", description: "Las membranas se le han vuelto velas. Cambia de pasillo de aire como quien cambia de calle. Quien lo sigue acaba entendiendo los lifts de piedra." },
+  cefiron: { rarity: "rara", habitat: "corrientes altas", description: "Bestia del vendaval. El pelaje se le peina solo y las placas del lomo silban. No fuerza el viento: lo lee y se pone donde ya iba a estar." },
+  cirrith: { rarity: "rara", habitat: "observatorios y crestas", description: "Cometa de cristal eléctrico, no un pájaro. El núcleo le late en amarillo cuando se acerca una tormenta. Rara, esquiva, y del todo capturable si das con ella." },
+  nimbora: { rarity: "guardián", habitat: "pináculo del vendaval", description: "Centinela de la tormenta: veleta viva, placas de viento y corona de cristal. No es un dragón ni un legendario. Custodia el umbral del gimnasio; no se deja llevar en cubo." },
+  prismaton: { rarity: "legendaria", habitat: "umbral del mundo", description: "Cuando las ocho familias originales se reúnen en la Dex, el aire se quiebra en colores que no existían. Prismatón no llega: se revela, como si el mundo hubiera estado incompleto." },
+};
+
+export function speciesDexMeta(id) {
+  const sp = SPECIES[id];
+  const e = DEX_ENTRIES[id] ?? {};
+  return {
+    description: e.description ?? "",
+    habitat: e.habitat ?? "",
+    rarity: e.rarity ?? (sp?.legendary ? "legendaria" : sp?.boss ? "guardián" : sp?.rare ? "rara" : "común"),
+  };
+}
+
+export function isSpeciesObtainable(id) {
+  const sp = SPECIES[id];
+  if (!sp) return false;
+  if (sp.obtainable === false) return false;
+  if (sp.boss && sp.obtainable !== true) return false;
+  return true;
+}
 
 export const FAMILY_STARTERS = ["emberin", "gotita", "semilla", "chispin", "piedrita", "plumin", "umbra", "lucier", "brisin"];
 

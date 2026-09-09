@@ -12,7 +12,7 @@
 
 import { events } from "./events.js";
 import { RESOURCES } from "./resources.js";
-import { executeTransaction, getItemCount } from "./items.js";
+import { executeTransaction, getItemCount, itemDef } from "./items.js";
 
 export const HEAL_COST = 60;
 
@@ -45,8 +45,7 @@ export const SHOP_BUYS = [
 const NO_SELL = new Set(["ancient_core", "crimson_resonator"]);
 
 export function itemLabel(itemId) {
-  if (itemId === "balls") return "Cubo de captura";
-  return RESOURCES[itemId]?.name ?? itemId;
+  return itemDef(itemId)?.name ?? RESOURCES[itemId]?.name ?? itemId;
 }
 
 const $ = (id) => document.getElementById(id);
@@ -278,7 +277,7 @@ class EconomySystem {
     const sellP = this.getPrice(id)?.sell;
     detail.innerHTML = `
       <p class="craft-result">${itemLabel(id)}</p>
-      <div class="craft-ing">Posees: <b>${have}</b></div>
+      <div class="craft-ing">En mochila: <b>${have}</b></div>
       ${buyP != null ? `<div class="craft-ing ${this.money() >= buyP ? "ok" : "missing"}">Comprar: <b>${buyP}</b> ⌾</div>` : ""}
       ${sellP != null ? `<div class="craft-ing ${have >= 1 ? "ok" : "missing"}">Vender: <b>${sellP}</b> ⌾</div>` : "<div class=\"craft-ing missing\">El mercader no compra esto.</div>"}`;
 

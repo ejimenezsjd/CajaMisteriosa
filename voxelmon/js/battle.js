@@ -4,13 +4,14 @@
  */
 
 import * as THREE from "three";
-import { SPECIES, movesFor, typeMultiplier, gainXp, activePerks } from "./data.js?v=12";
+import { SPECIES, movesFor, typeMultiplier, gainXp, activePerks } from "./data.js?v=13";
 import { buildCreatureVisual, animateCreatureVisual, disposeCreatureVisual, setCreatureAnimation, playCreatureIntro } from "./creature-renderer.js";
 import { getCreatureArt } from "./creature-art.js";
 import { buildCubeBall } from "./models.js";
 import { makeLabel } from "./creatures.js";
 import { TRAINER_CLASSES } from "./trainers.js";
 import { sfx } from "./audio.js";
+import { inventory } from "./inventory.js";
 
 /**
  * Adaptador de oponente para combates contra entrenadores (Fase 4): imita
@@ -270,14 +271,14 @@ export class Battle {
       await sleep(600);
       return null;
     }
-    if (this.state.balls <= 0) {
+    if (inventory.count("balls") <= 0) {
       this.ui.battleLog("¡No te quedan cubos! Consíguelos ganando combates.");
       await sleep(700);
       return null;
     }
-    this.state.balls -= 1;
+    inventory.remove("balls", 1, "capture");
     this.ui.refreshHud();
-    this.ui.battleLog(`Lanzaste un cubo… (quedan ${this.state.balls})`);
+    this.ui.battleLog(`Lanzaste un cubo… (quedan ${inventory.count("balls")})`);
     sfx.throw();
 
     const ball = buildCubeBall();
@@ -471,7 +472,7 @@ export class Battle {
             }
 
             if (!this.isRestrictedBattle) {
-              this.state.balls += 2;
+              inventory.add("balls", 2, "battle_win");
               this.ui.battleLog("Recuperaste 2 cubos del combate.");
             }
             await sleep(600);
