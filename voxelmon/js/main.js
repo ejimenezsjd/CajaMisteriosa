@@ -20,7 +20,10 @@ import { UI } from "./ui.js";
 import { FAMILY_STARTERS, PERKS, SPECIES, activePerks, familyOf, createMonster, gainXp } from "./data.js";
 import { sfx, toggleMute } from "./audio.js";
 import { events } from "./events.js";
-import { SAVE_KEY, defaultState, loadSave, persistSave } from "./state.js";
+import {
+  SAVE_KEY, defaultState, loadSave, persistSave, hasPersistedSave,
+  hasRecoverableBackup, snapshotSaveToBackup, restoreBackupSave,
+} from "./state.js";
 import { progression } from "./progression.js";
 import { stats } from "./stats.js";
 import { interaction } from "./interaction.js";
@@ -45,7 +48,22 @@ const HOTBAR = [B.DIRT, B.STONE, B.SAND, B.WOOD, B.LEAVES, B.SNOW];
 // ---------- Escena ----------
 
 const canvas = document.getElementById("game-canvas");
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, failIfMajorPerformanceCaveat: false });
+} catch (err) {
+  console.error(err);
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: false, failIfMajorPerformanceCaveat: false });
+  } catch (err2) {
+    const el = document.getElementById("title-error");
+    if (el) {
+      el.textContent = "No se pudo iniciar el gráfico 3D. Cierra otras pestañas de VoxelMon y recarga.";
+      el.classList.remove("hidden");
+    }
+    throw err2;
+  }
+}
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 
@@ -403,8 +421,33 @@ function saveGame() {
 
 // ---------- Arranque de mundo ----------
 
+function abortBoot(message) {
+  console.error(message);
+  ui.hideLoading();
+  ui.hide(ui.el.hud);
+  ui.hide(ui.el.starter);
+  if (world || player) {
+    // Mundo a medias: recargar es más seguro que reutilizar chunks a medias.
+    location.reload();
+    return;
+  }
+  mode = "title";
+  ui.setTitleError(message || "No se pudo arrancar el mundo. Tu partida sigue guardada.");
+  ui.showTitle(hasPersistedSave(), hasRecoverableBackup());
+}
+
 async function startWorld(saved) {
   ui.showLoading("Generando el mundo vóxel…");
+  ui.setTitleError("");
+  try {
+    await bootWorld(saved);
+    persistSave(state);
+  } catch (err) {
+    abortBoot(err?.message ? `No se pudo arrancar el mundo: ${err.message}` : "No se pudo arrancar el mundo. Tu partida sigue guardada.");
+  }
+}
+
+async function bootWorld(saved) {
   await nextFrame();
 
   state = saved ?? state;
@@ -474,18 +517,28 @@ async function startWorld(saved) {
   ui.setTargetPrompt("Haz clic para tomar el control");
 }
 
-function newGame() {
+function beginNewGame() {
+  snapshotSaveToBackup();
+  sfx.select();
   const seed = (Math.random() * 0xffffffff) >>> 0;
   state = defaultState(seed);
   ui.state = state;
   ui.hide(ui.el.title);
-  ui.showStarters(["emberin", "gotita", "semilla"], (id) => {
-    const starter = createMonster(id, 3);
-    state.team.push(starter);
-    state.dex.caught[id] = true;
-    state.dex.seen[id] = true;
-    startWorld(null);
-  });
+  try {
+    ui.showStarters(["emberin", "gotita", "semilla"], (id) => {
+      try {
+        const starter = createMonster(id, 3);
+        state.team.push(starter);
+        state.dex.caught[id] = true;
+        state.dex.seen[id] = true;
+        startWorld(state);
+      } catch (err) {
+        abortBoot(err?.message || "No se pudo crear el inicial.");
+      }
+    });
+  } catch (err) {
+    abortBoot(err?.message || "No se pudo mostrar la elección de inicial.");
+  }
 }
 
 // ---------- Entrada ----------
@@ -1123,7 +1176,7 @@ function findStormObservatory(x, z) {
   if (!world) return null;
   const near = world.structures.near(x, z, 140).find((s) => s.type === "storm_observatory");
   if (near) return near;
-  const gym = nearestGymAnchor(x, z);
+  const gym = regions.homeGym() || nearestGymAnchor(x, z);
   if (!gym) return null;
   return world.structures.candidate("storm_observatory", gym.cellX, gym.cellZ);
 }
@@ -1132,7 +1185,7 @@ function findCliffOutpost(x, z) {
   if (!world) return null;
   const near = world.structures.near(x, z, 140).find((s) => s.type === "cliff_outpost");
   if (near) return near;
-  const gym = nearestGymAnchor(x, z);
+  const gym = regions.homeGym() || nearestGymAnchor(x, z);
   if (!gym) return null;
   return world.structures.candidate("cliff_outpost", gym.cellX, gym.cellZ);
 }
@@ -1141,7 +1194,7 @@ function findWindShrine(x, z) {
   if (!world) return null;
   const near = world.structures.near(x, z, 140).find((s) => s.type === "wind_shrine");
   if (near) return near;
-  const gym = nearestGymAnchor(x, z);
+  const gym = regions.homeGym() || nearestGymAnchor(x, z);
   if (!gym) return null;
   return world.structures.candidate("wind_shrine", gym.cellX, gym.cellZ);
 }
@@ -1592,8 +1645,9 @@ document.getElementById("btn-mute").addEventListener("click", (e) => {
 });
 
 document.getElementById("btn-reset").addEventListener("click", () => {
-  if (confirm("¿Borrar la partida guardada y empezar de cero?")) {
-    localStorage.removeItem(SAVE_KEY);
+  if (confirm("¿Borrar la partida guardada y empezar de cero? Se conservará una copia de seguridad.")) {
+    snapshotSaveToBackup();
+    try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
     location.reload();
   }
 });
@@ -1633,17 +1687,47 @@ if (mapCanvasEl) {
 }
 
 document.getElementById("btn-new").addEventListener("click", () => {
-  const existing = loadSave();
-  if (existing && !confirm("Hay una partida guardada. ¿Empezar de cero y borrarla?")) return;
-  localStorage.removeItem(SAVE_KEY);
-  sfx.select();
-  newGame();
+  ui.setTitleError("");
+  if (!hasPersistedSave()) {
+    beginNewGame();
+    return;
+  }
+  ui.showNewGameConfirm();
+});
+
+document.getElementById("btn-confirm-new")?.addEventListener("click", () => {
+  ui.hideNewGameConfirm();
+  beginNewGame();
+});
+
+document.getElementById("btn-cancel-new")?.addEventListener("click", () => {
+  ui.hideNewGameConfirm();
 });
 
 document.getElementById("btn-continue").addEventListener("click", () => {
   sfx.select();
+  ui.setTitleError("");
+  const saved = loadSave();
+  if (!saved) {
+    ui.setTitleError("No hay una partida válida. Si ves Recuperar, usa esa copia.");
+    ui.showTitle(hasPersistedSave(), hasRecoverableBackup());
+    return;
+  }
   ui.hide(ui.el.title);
-  startWorld(loadSave());
+  startWorld(saved);
+});
+
+document.getElementById("btn-recover")?.addEventListener("click", () => {
+  sfx.select();
+  ui.setTitleError("");
+  const saved = restoreBackupSave();
+  if (!saved) {
+    ui.setTitleError("No hay una copia de seguridad que recuperar.");
+    ui.showTitle(hasPersistedSave(), hasRecoverableBackup());
+    return;
+  }
+  ui.hide(ui.el.title);
+  startWorld(saved);
 });
 
 document.getElementById("btn-help-title").addEventListener("click", () => {
@@ -2223,7 +2307,7 @@ window.addEventListener("beforeunload", saveGame);
 
 // ---------- Inicio ----------
 
-ui.showTitle(!!loadSave());
+ui.showTitle(hasPersistedSave(), hasRecoverableBackup());
 requestAnimationFrame(loop);
 
 // Ganchos de depuración/pruebas (no afectan al juego)

@@ -62,9 +62,19 @@
       <p class="title-kicker">Un mundo de bloques infinito</p>
       <h1 class="game-title">VOXEL<span>MON</span></h1>
       <p class="title-lede">Explora, mina y construye… y captura las criaturas salvajes de las 8 familias para despertar al legendario <strong>Prismatón</strong>.</p>
-      <div class="title-buttons">
+      <p id="title-error" class="title-error hidden" role="alert"></p>
+      <div id="title-confirm" class="title-confirm hidden">
+        <p>Hay una partida guardada. ¿Empezar de cero?</p>
+        <p class="title-confirm-note">La partida actual no se borra hasta que la nueva arranque. Quedará una copia en Recuperar.</p>
+        <div class="title-buttons">
+          <button id="btn-confirm-new" class="btn danger">Empezar de cero</button>
+          <button id="btn-cancel-new" class="btn ghost">Cancelar</button>
+        </div>
+      </div>
+      <div id="title-actions" class="title-buttons">
         <button id="btn-continue" class="btn primary hidden">Continuar partida</button>
         <button id="btn-new" class="btn primary">Nueva aventura</button>
+        <button id="btn-recover" class="btn ghost hidden">Recuperar partida anterior</button>
         <button id="btn-help-title" class="btn ghost">Cómo se juega</button>
       </div>
       <p class="title-foot">Del universo de <a href="../index.html">Caja Misteriosa</a> · se juega con ratón y teclado</p>
@@ -160,8 +170,6 @@
     </div>
   </div>
 
-  </div>
-
   <!-- Mapa fullscreen (Fase 11) -->
   <div id="map-ui" class="hidden">
     <div class="map-box">
@@ -226,6 +234,27 @@
     </div>
   </div>
 
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem("voxelmon.save.v1") || localStorage.getItem("voxelmon.save.v1.bak")) {
+          var cont = document.getElementById("btn-continue");
+          if (cont) cont.classList.remove("hidden");
+        }
+      } catch (e) { /* localStorage bloqueado */ }
+      function showErr(msg) {
+        var el = document.getElementById("title-error");
+        if (!el) return;
+        el.textContent = msg;
+        el.classList.remove("hidden");
+      }
+      setTimeout(function () {
+        if (!window.__vm) {
+          showErr("El juego no terminó de cargar. Comprueba la conexión y recarga.");
+        }
+      }, 12000);
+    })();
+  </script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
