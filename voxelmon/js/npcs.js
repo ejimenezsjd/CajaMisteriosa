@@ -157,6 +157,69 @@ export const NPC_DEFS = {
     colors: { skin: "#e8d8c8", outfit: "#3a6088", accent: "#90e0ff" },
     quests: [],
   },
+  azure_guide: {
+    role: "azure_guide",
+    name: "Maris",
+    dialogueId: "azure_guide_intro",
+    colors: { skin: "#e8d0b8", outfit: "#2a6a78", accent: "#7ee8d8" },
+    quests: ["quest_azure_port"],
+  },
+  azure_healer: {
+    role: "azure_healer",
+    name: "Calla",
+    dialogueId: "azure_healer_intro",
+    colors: { skin: "#f0d8c8", outfit: "#3dba9a", accent: "#b8fff0" },
+    quests: [],
+  },
+  azure_merchant: {
+    role: "azure_merchant",
+    name: "Marea",
+    dialogueId: "azure_merchant_intro",
+    colors: { skin: "#d9a06a", outfit: "#3a5a70", accent: "#e0c060" },
+    quests: [],
+  },
+  azure_researcher: {
+    role: "azure_researcher",
+    name: "Quill",
+    dialogueId: "azure_researcher_intro",
+    colors: { skin: "#c8b8d0", outfit: "#2a5060", accent: "#90e0ff" },
+    quests: ["quest_ruin_echoes"],
+  },
+  sailor: {
+    role: "sailor",
+    name: "Bram",
+    dialogueId: "azure_sailor_intro",
+    colors: { skin: "#c89068", outfit: "#2a4060", accent: "#d0a040" },
+    quests: [],
+  },
+  child_observer: {
+    role: "child_observer",
+    name: "Peb",
+    dialogueId: "azure_child_intro",
+    colors: { skin: "#e8c49a", outfit: "#4a8a78", accent: "#f0e080" },
+    quests: [],
+  },
+  fisher: {
+    role: "fisher",
+    name: "Osa",
+    dialogueId: "azure_fisher_intro",
+    colors: { skin: "#d4a074", outfit: "#3a4a40", accent: "#8fdc9a" },
+    quests: [],
+  },
+  traveler: {
+    role: "traveler",
+    name: "Kess",
+    dialogueId: "azure_traveler_intro",
+    colors: { skin: "#c9b090", outfit: "#5a3a48", accent: "#c8a060" },
+    quests: [],
+  },
+  creature_keeper: {
+    role: "creature_keeper",
+    name: "Ryn",
+    dialogueId: "azure_keeper_intro",
+    colors: { skin: "#e0c098", outfit: "#3d7a68", accent: "#aef0c8" },
+    quests: [],
+  },
 };
 
 const ACTIVATION_RADIUS = 90; // los asentamientos a menos de esto tienen NPC activos
@@ -192,6 +255,10 @@ class NPCSystem {
         for (const a of gymAnchorsFor(s)) wanted.set(a.id, a);
       } else if (s.type === "regional_gate" || s.type === "mist_settlement" || s.type === "mining_camp" || s.type === "cliff_outpost") {
         for (const a of npcAnchorsFor(s)) wanted.set(a.id, a);
+      } else if (s.type === "azure_port" || s.type === "tidal_ruins" || s.type === "coastal_gate" ||
+                 s.type === "azure_bridge" || s.type === "azure_lighthouse") {
+        for (const a of npcAnchorsFor(s)) wanted.set(a.id, a);
+        for (const a of trainerAnchorsFor(s)) wanted.set(a.id, a);
       }
     }
     for (const id of [...this.active.keys()]) {
@@ -235,7 +302,7 @@ class NPCSystem {
       y: y + 1,
       z: group.position.z,
       range: 3.5,
-      prompt: (anchor.role === "regional_merchant" || anchor.role === "highland_merchant")
+      prompt: (anchor.role === "regional_merchant" || anchor.role === "highland_merchant" || anchor.role === "azure_merchant")
         ? "Comerciar"
         : (anchor.trainerId ? `Hablar con ${def.name} (entrenador)` : `Hablar con ${def.name}`),
       data: npc,

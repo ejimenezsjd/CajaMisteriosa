@@ -41,6 +41,10 @@ export const B = {
   WINDSTONE: 26,
   SKY_GRASS: 27,
   WIND_CRYSTAL: 28,
+  // Costa / Archipiélago Azur (Fase 13)
+  PACKED_SAND: 29,
+  CORAL_ROCK: 30,
+  TIDAL_PEARL: 31,
 };
 
 export const BLOCK_NAMES = {
@@ -70,6 +74,9 @@ export const BLOCK_NAMES = {
   [B.WINDSTONE]: "Piedra del viento",
   [B.SKY_GRASS]: "Hierba de altura",
   [B.WIND_CRYSTAL]: "Cristal de viento",
+  [B.PACKED_SAND]: "Arena apelmazada",
+  [B.CORAL_ROCK]: "Roca de coral",
+  [B.TIDAL_PEARL]: "Perla de marea",
 };
 
 /** Qué suelta cada bloque al minarlo */
@@ -101,6 +108,9 @@ export const BLOCK_DROPS = {
   [B.WINDSTONE]: B.STONE,
   [B.SKY_GRASS]: B.DIRT,
   [B.WIND_CRYSTAL]: B.WIND_CRYSTAL,
+  [B.PACKED_SAND]: B.SAND,
+  [B.CORAL_ROCK]: B.CORAL_ROCK,
+  [B.TIDAL_PEARL]: B.TIDAL_PEARL,
 };
 
 /** Colores por cara (top/side/bottom) para el meshing con vertex colors */
@@ -133,4 +143,7 @@ export const COLORS = {
   [B.WINDSTONE]: { top: [0.72, 0.78, 0.86], side: [0.58, 0.66, 0.76], bottom: [0.46, 0.52, 0.62] },
   [B.SKY_GRASS]: { top: [0.62, 0.7, 0.42], side: [0.52, 0.48, 0.32], bottom: [0.44, 0.38, 0.26] },
   [B.WIND_CRYSTAL]: { top: [0.72, 0.92, 1], side: [0.42, 0.78, 0.94], bottom: [0.28, 0.58, 0.82] },
+  [B.PACKED_SAND]: { top: [0.82, 0.72, 0.52], side: [0.74, 0.64, 0.44], bottom: [0.66, 0.56, 0.38] },
+  [B.CORAL_ROCK]: { top: [0.86, 0.48, 0.52], side: [0.42, 0.62, 0.58], bottom: [0.32, 0.48, 0.46] },
+  [B.TIDAL_PEARL]: { top: [0.78, 0.92, 0.94], side: [0.42, 0.78, 0.82], bottom: [0.28, 0.58, 0.66] },
 };

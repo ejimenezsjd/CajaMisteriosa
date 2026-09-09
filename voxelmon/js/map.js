@@ -28,6 +28,7 @@ export const MAP_PALETTE = {
   mist_forest: "#4a6a62",
   crimson_highlands: "#8a3028",
   wind_highlands: "#7aa0c8",
+  azure_archipelago: "#3a9aaa",
   unknown: "#1a1c24",
 };
 
@@ -49,11 +50,15 @@ export const MAP_MARKERS = {
   gym_gale: { icon: "🌬", color: "#90d8f8", label: "Gimnasio del Vendaval", z: 3 },
   tempest_spire: { icon: "⚡", color: "#c8e8ff", label: "Pináculo del Vendaval", z: 2 },
   highland_exit: { icon: "↕", color: "#a0c0e0", label: "Arco de las alturas", z: 2 },
+  azure_port: { icon: "🏘", color: "#7ee8d8", label: "Puerto Azur", z: 3 },
+  tidal_ruins: { icon: "🏛", color: "#5aa0a8", label: "Ruinas de Marea", z: 2 },
+  azure_lighthouse: { icon: "🗼", color: "#ffe58a", label: "Faro Azur", z: 3 },
 };
 
 const REVEAL_RADIUS = {
   watchtower: 4,
   storm_observatory: 6,
+  azure_lighthouse: 2,
 };
 
 export function cellKey(cx, cz) {

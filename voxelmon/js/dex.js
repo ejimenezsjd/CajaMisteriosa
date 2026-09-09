@@ -10,7 +10,7 @@
  */
 
 import { events } from "./events.js";
-import { SPECIES, DEX_ORDER, familyOf, isSpeciesObtainable, speciesDexMeta } from "./data.js?v=13";
+import { SPECIES, DEX_ORDER, familyOf, isSpeciesObtainable, speciesDexMeta } from "./data.js?v=14";
 
 class DexSystem {
   constructor() {

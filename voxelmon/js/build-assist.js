@@ -12,9 +12,9 @@
 
 import { events } from "./events.js";
 import { progression } from "./progression.js";
-import { SPECIES } from "./data.js?v=13";
+import { SPECIES } from "./data.js?v=14";
 import {
-  getRegionAt, gateIdForRegion, REGION_1, REGION_2, REGION_3, REGION_4, regions,
+  getRegionAt, gateIdForRegion, REGION_1, REGION_2, REGION_3, REGION_4, REGION_5, regions,
 } from "./regions.js";
 
 export const AERIAL_UNLOCK = "aerial_build_assist_unlocked";
@@ -25,7 +25,7 @@ const SAFE_EXIT_VERT = 12;
 const CRITICAL_TYPES = new Set([
   "npc", "trainer", "gym", "gate", "boss", "seal",
   "ancient_path", "crimson_seal", "crimson_path", "storm_seal", "wind_seal",
-  "tempest_boss", "highland_exit", "gale_channel", "pc",
+  "tempest_boss", "highland_exit", "gale_channel", "pc", "lighthouse_lens", "sign", "pickup",
 ]);
 
 function speciesHasAbility(speciesId, ability) {
@@ -120,7 +120,10 @@ class BuildAssist {
     const toR = getRegionAt(toX, toZ);
     if (toR !== fromR) {
       const gate = gateIdForRegion(toR);
-      if (gate && !regions.isGateOpened(gate) && toR !== REGION_1) {
+      if (toR === REGION_5 && !progression.isUnlocked("region_5_path_unlocked")) {
+        return { ok: false, reason: "gate", regionId: REGION_5 };
+      }
+      if (gate && toR !== REGION_5 && !regions.isGateOpened(gate) && toR !== REGION_1) {
         return { ok: false, reason: "gate", regionId: toR };
       }
       // Salir hacia una región previa siempre está permitido.

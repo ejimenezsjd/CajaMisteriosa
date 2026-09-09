@@ -993,7 +993,7 @@ export const DIALOGUES = {
     npcName: "Aira",
     nodes: {
       start: {
-        text: "La Insignia Vendaval te sienta como una vela tensa. Al sur del gimnasio un arco se ha abierto. El mundo continúa por ahí… cuando esté listo.",
+        text: "La Insignia Vendaval te sienta como una vela tensa. Al sur del gimnasio el arco de las alturas se ha abierto. Baja: el mar ya se ve.",
         options: [{ text: "Gracias, Aira.", end: true }],
       },
     },
@@ -1071,8 +1071,239 @@ export const DIALOGUES = {
     npcName: "Zephra",
     nodes: {
       start: {
-        text: "Esta insignia es tuya. El arco del sur responde ahora. Más allá el cielo se abre… el mundo todavía no ha puesto tierra ahí, pero ya no está ciego.",
+        text: "Esta insignia es tuya. El arco del sur responde ahora. Más allá el cielo se abre sobre el mar: el Archipiélago Azur espera.",
         options: [{ text: "Honor, Zephra.", end: true }],
+      },
+    },
+  },
+
+  azure_guide_intro: {
+    npcName: "Maris",
+    nodes: {
+      start: {
+        text: "Bienvenido a Puerto Azur. Plaza, clínica, mercado y muelle: si te pierdes, mira la fuente. El faro al este y las ruinas al oeste marcan el resto de la costa.",
+        options: [
+          { text: "¿Dónde me curo?", next: "clinic" },
+          { text: "¿Y el PC?", next: "pc" },
+          { text: "¿Qué hay más allá?", next: "beyond" },
+          { text: "Gracias, Maris.", end: true },
+        ],
+      },
+      clinic: {
+        text: "Calla atiende en el Centro de Recuperación, al oeste de la plaza. No cobra a quien llega con criaturas cansadas. Hay un PC junto a ella.",
+        options: [{ text: "Entendido.", next: "start" }],
+      },
+      pc: {
+        text: "El terminal está dentro de la clínica. Mismo PC de siempre: no hay almacén regional. Si el equipo está lleno, las capturas van allí.",
+        options: [{ text: "Perfecto.", next: "start" }],
+      },
+      beyond: {
+        text: "El Sendero de las Mareas sale hacia el puente y las Ruinas de Marea. El Camino del Faro sigue hasta el Faro Azur. Hay corrientes en los canales: no te arrastran del todo.",
+        options: [{ text: "Saldré a verlo.", end: true }],
+      },
+    },
+  },
+
+  azure_healer_intro: {
+    npcName: "Calla",
+    nodes: {
+      start: {
+        text: "Centro de Recuperación. Trae a tus criaturas: las dejo como nuevas. El PC está a tu izquierda. No cobro, igual que Sena en el valle.",
+        options: [
+          {
+            text: "¿Puedes curar a mi equipo?",
+            actions: [{ type: "heal", source: "azure_healer" }],
+            next: "healed",
+          },
+          { text: "¿El PC?", next: "pc" },
+          { text: "Otro rato.", end: true },
+        ],
+      },
+      healed: {
+        text: "Listo. Vuelve cuando la costa os recuerde que sois de carne.",
+        options: [{ text: "Gracias, Calla.", end: true }],
+      },
+      pc: {
+        text: "El terminal no muerde. Deposita, retira, cambia el líder. Las instancias siguen siendo las mismas.",
+        options: [{ text: "Lo usaré.", next: "start" }],
+      },
+    },
+  },
+
+  azure_merchant_intro: {
+    npcName: "Marea",
+    nodes: {
+      start: {
+        text: "Mercado de Marea. Vendo cubos, tónicos, hierbas y kits. Te compro fragmento de coral y perla de marea. Mira la mochila: lo que tienes, lo ves.",
+        options: [
+          { text: "A comerciar.", actions: [{ type: "openShop", title: "Mercado de Marea" }], end: true },
+          { text: "¿Qué buscas?", next: "buys" },
+          { text: "Otro día.", end: true },
+        ],
+      },
+      buys: {
+        text: "El coral se desprende en playas y ruinas. La perla es más rara: canales, santuarios viejos, rincones bajo el puente. Precios fijos.",
+        options: [{ text: "A comerciar.", actions: [{ type: "openShop", title: "Mercado de Marea" }], end: true }],
+      },
+    },
+  },
+
+  azure_researcher_intro: {
+    npcName: "Quill",
+    nodes: {
+      start: {
+        text: "Estas ruinas no son un gimnasio. Son un recuerdo de marea: tres cámaras, agua baja, placas de coral. Si hallas fragmento o perla, tráemelos… o quédate con ellos. Yo mido, no cobro peaje.",
+        options: [
+          { text: "¿Qué buscas aquí?", next: "work" },
+          { text: "¿Hay peligro?", next: "danger" },
+          { text: "Sigo explorando.", end: true },
+        ],
+      },
+      work: {
+        text: "El coral vive en las paredes. Hay una criatura de arrecife —no pez, no tortuga— y a veces un destello de noche. Fosmar, si le pones nombre.",
+        options: [{ text: "Lo tendré en cuenta.", end: true }],
+      },
+      danger: {
+        text: "No hay jefe. Hay charcos y un par de recodos. Si te cansas, Calla está en el puerto. El faro, más al este, apunta a lo que viene.",
+        options: [{ text: "Iré al faro después.", end: true }],
+      },
+    },
+  },
+
+  azure_sailor_intro: {
+    npcName: "Bram",
+    nodes: {
+      start: {
+        text: "Las barcas están amarradas. No hay travesía todavía: el mar se mira, no se monta. Si quieres isla, usa el puente o la corriente.",
+        options: [{ text: "Entendido.", end: true }],
+      },
+    },
+  },
+
+  azure_child_intro: {
+    npcName: "Peb",
+    nodes: {
+      start: {
+        text: "¡La fuente es un pez de piedra que no es pez! Maris dice que si cuento las placas del coral me mareo. Ya voy por siete.",
+        options: [{ text: "Sigue contando.", end: true }],
+      },
+    },
+  },
+
+  azure_fisher_intro: {
+    npcName: "Osa",
+    nodes: {
+      start: {
+        text: "No lanzo caña: espero a que el canal traiga algas. El recolector del puente pelea si le pides sitio. Yo no peleo. Yo miro.",
+        options: [{ text: "Buen ojo.", end: true }],
+      },
+    },
+  },
+
+  azure_traveler_intro: {
+    npcName: "Kess",
+    nodes: {
+      start: {
+        text: "Bajé del vendaval con las rodillas temblando. El cartel no miente: Puerto Azur está aquí. Si buscas faro, no entres al mercado primero… o sí. El pan también orienta.",
+        options: [{ text: "Gracias por el aviso.", end: true }],
+      },
+    },
+  },
+
+  azure_keeper_intro: {
+    npcName: "Ryn",
+    nodes: {
+      start: {
+        text: "Calla cura. Yo cuento. Las criaturas del puerto no entran en la plaza: hay un acuerdo viejo, o un olor a piedra. Fuera, en la playa, sí hay Riflines.",
+        options: [{ text: "Lo respetaré.", end: true }],
+      },
+    },
+  },
+
+  azure_trainer_nerea: {
+    npcName: "Nerea",
+    nodes: {
+      start: {
+        text: "Exploro la costa desde que el arco se abrió. Un Riflín me sigue los talones. ¿Comprobamos el paso?",
+        options: [
+          {
+            text: "¡Acepto el desafío!",
+            actions: [{ type: "startTrainerBattle", trainerId: "azure_route_trainer_1" }],
+            end: true,
+          },
+          { text: "Ahora no.", end: true },
+        ],
+      },
+    },
+  },
+  azure_trainer_nerea_done: {
+    npcName: "Nerea",
+    nodes: {
+      start: {
+        text: "Bien. El puerto te espera abajo. Ciro, en el puente, es más terco que una boya.",
+        options: [{ text: "Gracias, Nerea.", end: true }],
+      },
+    },
+  },
+
+  azure_trainer_ciro: {
+    npcName: "Ciro",
+    nodes: {
+      start: {
+        text: "Recolecto placas y no las vendo todas. Agua y mineral, como el canal. Si cruzas, pelea.",
+        options: [
+          {
+            text: "¡Adelante!",
+            actions: [{ type: "startTrainerBattle", trainerId: "azure_route_trainer_2" }],
+            end: true,
+          },
+          { text: "Paso de largo.", end: true },
+        ],
+      },
+    },
+  },
+  azure_trainer_ciro_done: {
+    npcName: "Ciro",
+    nodes: {
+      start: {
+        text: "Quédate el coral si lo hallas. Las ruinas están al oeste. El faro, si te queda aliento, al este.",
+        options: [{ text: "Seguiré.", end: true }],
+      },
+    },
+  },
+
+  azure_trainer_solen: {
+    npcName: "Solen",
+    nodes: {
+      start: {
+        text: "El faro no es un gimnasio. Yo tampoco. Pero la lente agradece que alguien llegue con equipo vivo.",
+        options: [
+          {
+            text: "Combatir",
+            actions: [{ type: "startTrainerBattle", trainerId: "azure_route_trainer_3" }],
+            end: true,
+          },
+          { text: "Solo miro el mar.", end: true },
+        ],
+      },
+    },
+  },
+  azure_trainer_solen_done: {
+    npcName: "Solen",
+    nodes: {
+      start: {
+        text: "Sube. La lente espera una mano, no un título. Cuando despierte, el horizonte dirá hacia dónde sigue el agua.",
+        options: [{ text: "Subo.", end: true }],
+      },
+    },
+  },
+
+  azure_sign: {
+    npcName: "Señal",
+    nodes: {
+      start: {
+        text: "…",
+        options: [{ text: "Seguir.", end: true }],
       },
     },
   },

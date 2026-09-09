@@ -238,6 +238,33 @@ export const BIOMES = {
     ambience: { wind: true, fogFar: true },
   },
 
+  azure_archipelago: {
+    id: "azure_archipelago",
+    name: "Archipiélago Azur",
+    climate: { temperature: 0.68, humidity: 0.85 },
+    terrain: { surfaceBlock: B.SAND, subsurfaceBlock: B.SAND },
+    vegetation: { treeDensity: 0.012 },
+    difficulty: 5,
+    creatures: [
+      { family: "riflin", weight: 5, time: "any", regions: ["region_5"] },
+      { family: "gotita", weight: 2, time: "any", regions: ["region_5"] },
+      { family: "plumin", weight: 2, time: "day", regions: ["region_5"] },
+      { family: "lucier", weight: 2, time: "day", regions: ["region_5"] },
+      { family: "umbra", weight: 2, time: "night", regions: ["region_5"] },
+      { family: "fosmar", weight: 1, time: "night", regions: ["region_5"] },
+    ],
+    resources: [
+      { id: "coral_fragment", chance: 0.014 },
+      { id: "tidal_pearl", chance: 0.003 },
+      { id: "medicinal_herb", chance: 0.006 },
+      { id: "copper", chance: 0.025 },
+      { id: "iron", chance: 0.02 },
+      { id: "coal", chance: 0.03 },
+    ],
+    structures: ["azure_port", "tidal_ruins", "azure_lighthouse", "healing_shrine"],
+    ambience: { coast: true },
+  },
+
   ocean: {
     id: "ocean",
     name: "Océano",

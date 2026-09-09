@@ -70,6 +70,14 @@ export const SPECIES = {
   // Rara regional (no legendaria): cristal-viento eléctrico.
   cirrith: { id: "cirrith", name: "Cirrith", type: "electrico", stage: 2, rare: true, aerial: true, base: { hp: 70, atk: 28, def: 18, spd: 30 }, evolvesTo: null, evolveLevel: null, color: "#c8f0ff", color2: "#ffe98a" },
 
+  // Familia arrecife (Fase 13): criatura coralina anfibia, no pez ni tortuga, no línea Gotita.
+  riflin: { id: "riflin", name: "Riflín", type: "agua", stage: 1, base: { hp: 48, atk: 13, def: 12, spd: 12 }, evolvesTo: "marecal", evolveLevel: 18, color: "#3ec8b4", color2: "#f2c2a8" },
+  marecal: { id: "marecal", name: "Marecal", type: "agua", stage: 2, base: { hp: 74, atk: 24, def: 22, spd: 16 }, evolvesTo: "arrecanto", evolveLevel: 34, color: "#2aa898", color2: "#e89880" },
+  arrecanto: { id: "arrecanto", name: "Arrecanto", type: "agua", stage: 3, base: { hp: 108, atk: 34, def: 32, spd: 20 }, evolvesTo: null, evolveLevel: null, color: "#1a7a78", color2: "#ffb090" },
+
+  // Rara bioluminiscente de ruinas y canales (no legendaria).
+  fosmar: { id: "fosmar", name: "Fosmar", type: "luz", stage: 2, rare: true, aerial: true, base: { hp: 72, atk: 26, def: 18, spd: 28 }, evolvesTo: null, evolveLevel: null, color: "#b8fff0", color2: "#ffe58a" },
+
   // Guardián de tormenta (Fase 12): standalone de encuentro, no familia, no legendario, no salvaje.
   nimbora: { id: "nimbora", name: "Nímbora", type: "volador", stage: 3, rare: true, boss: true, obtainable: false, base: { hp: 108, atk: 36, def: 26, spd: 31 }, evolvesTo: null, evolveLevel: null, color: "#6a88c8", color2: "#e8f0ff" },
 
@@ -88,7 +96,8 @@ export const DEX_ORDER = [
   "umbra", "sombrio", "nocrix",
   "lucier", "clarion", "aureon",
   "brisin", "vendal", "cefiron",
-  "cirrith", "nimbora", "prismaton",
+  "riflin", "marecal", "arrecanto",
+  "cirrith", "fosmar", "nimbora", "prismaton",
 ];
 
 export const DEX_ENTRIES = {
@@ -119,7 +128,11 @@ export const DEX_ENTRIES = {
   brisin: { rarity: "común", habitat: "mesetas de viento", description: "Mamífero planeador del tamaño de una mochila. Estira membranas entre los dedos y se ríe del vacío. Duerme colgado de cornisa, hocico al vendaval." },
   vendal: { rarity: "poco común", habitat: "cortes de acantilado", description: "Las membranas se le han vuelto velas. Cambia de pasillo de aire como quien cambia de calle. Quien lo sigue acaba entendiendo los lifts de piedra." },
   cefiron: { rarity: "rara", habitat: "corrientes altas", description: "Bestia del vendaval. El pelaje se le peina solo y las placas del lomo silban. No fuerza el viento: lo lee y se pone donde ya iba a estar." },
+  riflin: { rarity: "común", habitat: "playas y pozas de marea", description: "Un nudito de arrecife con caperuza de placas vivas. Corre entre charcos olfateando sal. Si le das la espalda, colecciona conchas del tamaño de uñas." },
+  marecal: { rarity: "poco común", habitat: "costas y canales", description: "Ya no cabe en un charco. Las placas le cubren hombros y lomo, y camina tan bien en arena como en agua baja. Los pescadores lo siguen para hallar canales seguros." },
+  arrecanto: { rarity: "rara", habitat: "arrecifes y ruinas de marea", description: "Guardián del arrecife, no un mito. El coral le crece como armadura y el pecho le late con la marea. Prefiere vigilar pasos a hundir barcas." },
   cirrith: { rarity: "rara", habitat: "observatorios y crestas", description: "Cometa de cristal eléctrico, no un pájaro. El núcleo le late en amarillo cuando se acerca una tormenta. Rara, esquiva, y del todo capturable si das con ella." },
+  fosmar: { rarity: "rara", habitat: "ruinas inundadas y canales de noche", description: "Un destello con voluntad. Flota sobre aguas bajas y deja un rastro de fosforescencia. No es un faro: es quien recuerda dónde estuvo la luz." },
   nimbora: { rarity: "guardián", habitat: "pináculo del vendaval", description: "Centinela de la tormenta: veleta viva, placas de viento y corona de cristal. No es un dragón ni un legendario. Custodia el umbral del gimnasio; no se deja llevar en cubo." },
   prismaton: { rarity: "legendaria", habitat: "umbral del mundo", description: "Cuando las ocho familias originales se reúnen en la Dex, el aire se quiebra en colores que no existían. Prismatón no llega: se revela, como si el mundo hubiera estado incompleto." },
 };
@@ -142,7 +155,7 @@ export function isSpeciesObtainable(id) {
   return true;
 }
 
-export const FAMILY_STARTERS = ["emberin", "gotita", "semilla", "chispin", "piedrita", "plumin", "umbra", "lucier", "brisin"];
+export const FAMILY_STARTERS = ["emberin", "gotita", "semilla", "chispin", "piedrita", "plumin", "umbra", "lucier", "brisin", "riflin"];
 
 /** Habilidad pasiva permanente que otorga cada familia al capturarla */
 export const PERKS = {
@@ -189,6 +202,7 @@ export function familyOf(speciesId) {
   }
   if (speciesId === "prismaton") return "prismaton";
   if (speciesId === "cirrith") return "cirrith";
+  if (speciesId === "fosmar") return "fosmar";
   if (speciesId === "nimbora") return "nimbora";
   return null;
 }

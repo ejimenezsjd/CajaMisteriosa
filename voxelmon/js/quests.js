@@ -537,6 +537,69 @@ export const QUESTS = {
       { type: "earnBadge", badgeId: "gale_badge", amount: 1, label: "Consigue la Insignia Vendaval" },
     ],
     rewards: { money: 100 },
+    next: "quest_beyond_heights",
+  },
+  quest_beyond_heights: {
+    id: "quest_beyond_heights",
+    title: "Más allá de las alturas",
+    description: "El arco de las alturas se ha abierto. Baja hacia el mar.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "useTraversal", traversalType: "highland_exit", amount: 1, label: "Usa el Arco de las alturas" },
+      { type: "discoverRegion", regionId: "region_5", amount: 1, label: "Entra en el Archipiélago Azur" },
+    ],
+    rewards: { money: 80 },
+    next: "quest_azure_port",
+  },
+  quest_azure_port: {
+    id: "quest_azure_port",
+    title: "Puerto Azur",
+    description: "Sigue el Camino del Acantilado hasta el puerto y habla con Maris.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "discoverRegion", regionId: "region_5", amount: 1, label: "Descubre el Archipiélago Azur" },
+      { type: "discoverStructure", structureType: "azure_port", amount: 1, label: "Descubre Puerto Azur" },
+      { type: "talkToNPC", role: "azure_guide", amount: 1, label: "Habla con Maris" },
+    ],
+    rewards: { money: 90 },
+    next: "quest_tide_paths",
+  },
+  quest_tide_paths: {
+    id: "quest_tide_paths",
+    title: "Caminos de marea",
+    description: "Prueba una corriente, encuentra un hito de ruta y cruza el puente.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "useTraversal", traversalType: "water_current", amount: 1, label: "Usa una corriente de agua" },
+      { type: "discoverStructure", structureType: "azure_bridge", amount: 1, label: "Descubre el Puente de las mareas" },
+      { type: "discoverStructure", structureType: "coastal_gate", amount: 1, label: "Pasa el Arco de la costa" },
+    ],
+    rewards: { money: 90 },
+    next: "quest_ruin_echoes",
+  },
+  quest_ruin_echoes: {
+    id: "quest_ruin_echoes",
+    title: "Ecos de las ruinas",
+    description: "Explora las Ruinas de Marea, recoge un tesoro de arrecife y habla con Quill.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "discoverStructure", structureType: "tidal_ruins", amount: 1, label: "Descubre las Ruinas de Marea" },
+      { type: "collectResource", resourceIds: ["coral_fragment", "tidal_pearl"], amount: 1, label: "Recoge fragmento de coral o perla de marea" },
+      { type: "talkToNPC", role: "azure_researcher", amount: 1, label: "Habla con Quill" },
+    ],
+    rewards: { money: 110 },
+    next: "quest_horizon_light",
+  },
+  quest_horizon_light: {
+    id: "quest_horizon_light",
+    title: "La luz del horizonte",
+    description: "El Faro Azur espera una mano en la lente.",
+    startOnAvailable: true,
+    objectives: [
+      { type: "discoverStructure", structureType: "azure_lighthouse", amount: 1, label: "Descubre el Faro Azur" },
+      { type: "setFlag", flagId: "lighthouse_activated", amount: 1, label: "Activa el faro" },
+    ],
+    rewards: { money: 140, unlock: "gym_5_clue_unlocked" },
   },
 };
 
@@ -552,11 +615,15 @@ export const QUEST_ORDER = [
   "quest_crimson_seal", "quest_ruin_guardian", "quest_the_forge", "quest_forge_trial", "quest_forge_badge",
   "quest_crimson_pass", "quest_wind_highlands", "quest_against_wind", "quest_cliff_outpost", "quest_storm_eyes",
   "quest_storm_seal", "quest_storm_eye", "quest_gale_gym", "quest_master_wind", "quest_gale_badge",
+  "quest_beyond_heights", "quest_azure_port", "quest_tide_paths", "quest_ruin_echoes", "quest_horizon_light",
 ];
 
 /** eventName → [tipo de objetivo, función de filtro, cantidad del payload] */
 const EVENT_OBJECTIVES = {
-  resourceCollected: ["collectResource", (o, p) => !o.resourceId || o.resourceId === p.resourceId, (p) => p.amount ?? 1],
+  resourceCollected: ["collectResource", (o, p) => {
+    if (o.resourceIds) return o.resourceIds.includes(p.resourceId);
+    return !o.resourceId || o.resourceId === p.resourceId;
+  }, (p) => p.amount ?? 1],
   creatureCaptured: ["captureCreature", (o, p) => !o.speciesId || o.speciesId === p.speciesId, () => 1],
   structureDiscovered: ["discoverStructure", (o, p) => !o.structureType || o.structureType === p.structureType, () => 1],
   biomeDiscovered: ["discoverBiome", (o, p) => !o.biomeId || o.biomeId === (p.biomeId ?? p.biome), () => 1],
@@ -644,6 +711,11 @@ class QuestSystem {
       this.makeAvailable("quest_storm_seal");
       this.start("quest_storm_seal");
     }
+    if (progression.isUnlocked("region_5_path_unlocked") &&
+        !this.isCompleted("quest_beyond_heights") && !this.isActive("quest_beyond_heights")) {
+      this.makeAvailable("quest_beyond_heights");
+      this.start("quest_beyond_heights");
+    }
   }
 
   setRewardHandler(fn) {
@@ -685,6 +757,11 @@ class QuestSystem {
         if (this.isCompleted("quest_storm_seal") || this.isActive("quest_storm_seal")) return;
         this.makeAvailable("quest_storm_seal");
         this.start("quest_storm_seal");
+      }
+      if (id === "region_5_path_unlocked") {
+        if (this.isCompleted("quest_beyond_heights") || this.isActive("quest_beyond_heights")) return;
+        this.makeAvailable("quest_beyond_heights");
+        this.start("quest_beyond_heights");
       }
     });
   }
@@ -734,8 +811,9 @@ class QuestSystem {
         st.progress[i] = obj.amount;
       } else if (obj.type === "openRegionGate" && obj.regionId && regions.isGateOpened(obj.regionId)) {
         st.progress[i] = obj.amount;
-      } else if (obj.type === "collectResource" && obj.resourceId && this.state) {
-        const n = getItemCount(this.state, obj.resourceId);
+      } else if (obj.type === "collectResource" && this.state) {
+        const ids = obj.resourceIds ?? (obj.resourceId ? [obj.resourceId] : []);
+        const n = ids.reduce((acc, id) => acc + getItemCount(this.state, id), 0);
         if (n >= (obj.amount ?? 1)) st.progress[i] = obj.amount;
       } else if (obj.type === "craftRecipe" && obj.recipeId === "recipe_crimson_resonator") {
         if (getItemCount(this.state, "crimson_resonator") >= 1 ||

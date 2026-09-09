@@ -101,6 +101,14 @@ class TraversalSystem {
       });
     }
     this.inside = now;
+    if (lift.type === "water_current") {
+      return {
+        x: lift.fx ?? 0,
+        y: 0,
+        z: lift.fz ?? 0,
+        lift,
+      };
+    }
     const cx = (lift.x - player.pos.x) * 0.35;
     const cz = (lift.z - player.pos.z) * 0.35;
     const top = lift.y + lift.height - 1.2;

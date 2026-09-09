@@ -51,6 +51,8 @@ export function defaultStats() {
     itemsSold: 0,
     // Fase 10
     bossesDefeated: 0,
+    itemsFound: 0,
+    routeTrainersDefeated: 0,
   };
 }
 
@@ -125,6 +127,7 @@ export function defaultState(seed) {
         region_2: { opened: false },
         region_3: { opened: false },
         region_4: { opened: false },
+        region_5: { opened: false },
       },
       home: null,
     },
@@ -137,6 +140,7 @@ export function defaultState(seed) {
       markers: {},
       waypoint: null,
     },
+    worldPickups: { collected: {} },
   };
 }
 

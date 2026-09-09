@@ -77,6 +77,12 @@ ITEM_DEFS.ancient_core.description = "Núcleo que responde al arco del Refugio B
 ITEM_DEFS.crimson_resonator.description = "Pieza de forja que despierta el sello de la Ruina Carmesí. Objeto de progresión.";
 ITEM_DEFS.medicinal_herb.description = "Hoja amarga de valle. Se usa en tónicos; no cura por sí sola.";
 ITEM_DEFS.sky_herb.description = "Hierba de las mesetas. El viento la cura más dura; se vende bien en el puesto.";
+ITEM_DEFS.coral_fragment.description = "Placa viva de arrecife. Los mercaderes de Puerto Azur la pagan; sirve para misiones y un farol futuro.";
+ITEM_DEFS.tidal_pearl.description = "Perla de canales someros. Rara, valiosa, y la lente del faro parece reconocerla.";
+ITEM_DEFS.coral_fragment.icon = "🪸";
+ITEM_DEFS.tidal_pearl.icon = "⚪";
+ITEM_DEFS.coral_fragment.sellPrice = 22;
+ITEM_DEFS.tidal_pearl.sellPrice = 70;
 ITEM_DEFS.apricorn.description = "Fruto naranja de caparazón duro. Tres unidades y un poco de cobre dan un cubo.";
 ITEM_DEFS.wind_crystal.description = "Cristal que vibra con las corrientes. Se usa en misiones de altura y se vende.";
 ITEM_DEFS.coal.description = "Carbón de veta. Combustible del kit de exploración.";
@@ -102,6 +108,8 @@ const ITEM_PRICES = {
   red_crystal: { sell: 55 },
   wind_crystal: { sell: 40 },
   sky_herb: { sell: 14 },
+  coral_fragment: { sell: 22 },
+  tidal_pearl: { sell: 70 },
 };
 for (const [id, p] of Object.entries(ITEM_PRICES)) {
   if (!ITEM_DEFS[id]) continue;

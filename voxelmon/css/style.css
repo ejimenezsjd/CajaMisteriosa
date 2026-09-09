@@ -464,6 +464,27 @@ html, body {
 }
 .toast.out { opacity: 0; }
 
+#location-banner {
+  position: absolute;
+  top: 22%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #e8fff8;
+  text-shadow: 0 2px 18px rgba(20, 40, 50, 0.8);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+#location-banner.show { opacity: 1; }
+
+#water-overlay.current {
+  background: linear-gradient(180deg, rgba(80, 180, 200, 0.12), rgba(40, 120, 160, 0.28));
+}
+
 @keyframes toast-in {
   from { transform: translateY(-10px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }

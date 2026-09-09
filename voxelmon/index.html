@@ -59,6 +59,7 @@
       <div id="inspect-status"></div>
     </div>
     <div id="toasts"></div>
+    <div id="location-banner" class="hidden"></div>
   </div>
 
   <!-- Pantalla de título -->
@@ -327,7 +328,7 @@
     })();
   </script>
   <script type="module">
-    import("./js/main.js?v=boot3").then(function () {
+    import("./js/main.js?v=boot4").then(function () {
       if (window.__vmBoot) window.__vmBoot.hideStatus();
     }).catch(function (err) {
       console.error(err);

@@ -4,10 +4,10 @@
  */
 
 import * as THREE from "three";
-import { World, B, BLOCK_DROPS, BIOME_NAMES } from "./world.js";
+import { World, B, BLOCK_DROPS, BIOME_NAMES, WATER_Y } from "./world.js";
 import { getBiomeName, getBiomeDefinition } from "./biomes.js";
 import { RESOURCES, resourceForBlock } from "./resources.js";
-import { STRUCTURE_TYPES, MIST_SETTLEMENT_LAYOUT, CRIMSON_RUIN_LAYOUT, STORM_OBSERVATORY_LAYOUT, TEMPEST_SPIRE_LAYOUT, HIGHLAND_EXIT_LAYOUT, SETTLEMENT_LAYOUT, CLIFF_OUTPOST_LAYOUT } from "./structures.js";
+import { STRUCTURE_TYPES, MIST_SETTLEMENT_LAYOUT, CRIMSON_RUIN_LAYOUT, STORM_OBSERVATORY_LAYOUT, TEMPEST_SPIRE_LAYOUT, HIGHLAND_EXIT_LAYOUT, SETTLEMENT_LAYOUT, CLIFF_OUTPOST_LAYOUT, AZURE_PORT_LAYOUT, AZURE_LIGHTHOUSE_LAYOUT } from "./structures.js";
 import { buildCreatureVisual, disposeCreatureVisual, preloadCreatureArt, creatureArtDebugSnapshot, textureCacheSize, inspectTextureCache, animateCreatureVisual, simulatePngLoadFailure, inspectGeometryCache, inspectMaterialCache, resolveCreatureRenderer, creatureArtIcon } from "./creature-renderer.js";
 import { setPreferredRenderer, getPreferredRenderer, listPixelSpecies, getCreatureArt, listArtSpecies } from "./creature-art.js";
 import { bosses, BOSSES, STORM_SEAL_ID } from "./bosses.js";
@@ -17,7 +17,7 @@ import { Battle, TrainerOpponent } from "./battle.js";
 import { TRAINERS, trainers } from "./trainers.js";
 import { GYMS, GYM_LAYOUT, MIST_GYM_LAYOUT, FORGE_GYM_LAYOUT, GALE_GYM_LAYOUT, SWITCH_LABELS, BEACON_LABELS, CONDUIT_LABELS, CHANNEL_LABELS, gyms, gymIdForStructure } from "./gyms.js";
 import { UI } from "./ui.js";
-import { FAMILY_STARTERS, PERKS, SPECIES, TYPES, activePerks, familyOf, createMonster, gainXp } from "./data.js?v=13";
+import { FAMILY_STARTERS, PERKS, SPECIES, TYPES, activePerks, familyOf, createMonster, gainXp } from "./data.js?v=14";
 import { sfx, toggleMute } from "./audio.js";
 import { events } from "./events.js";
 import {
@@ -28,7 +28,7 @@ import { progression } from "./progression.js";
 import { stats } from "./stats.js";
 import { interaction } from "./interaction.js";
 import { npcs } from "./npcs.js";
-import { dialogue } from "./dialogue.js";
+import { dialogue, DIALOGUES } from "./dialogue.js";
 import { quests, QUESTS } from "./quests.js";
 import { executeTrade } from "./trading.js";
 import { crafting, RECIPES } from "./crafting.js";
@@ -38,12 +38,14 @@ import { creatureStorage, PARTY_MAX } from "./pc.js";
 import { dex } from "./dex.js";
 import { economy, bindShopTabs, HEAL_COST, PRICE_CATALOG } from "./economy.js";
 import {
-  regions, getRegionAt, getRegionName, nearestGymAnchor, region3BoundsFor, region4BoundsFor,
-  REGION_1, REGION_2, REGION_3, REGION_4, REGION_GEOMETRY,
+  regions, getRegionAt, getRegionName, nearestGymAnchor, region3BoundsFor, region4BoundsFor, region5BoundsFor,
+  REGION_1, REGION_2, REGION_3, REGION_4, REGION_5, REGION_GEOMETRY,
 } from "./regions.js";
 import { worldMap } from "./map.js";
 import { traversal } from "./traversal.js";
 import { buildAssist, AERIAL_UNLOCK } from "./build-assist.js";
+import { pickups } from "./pickups.js";
+import { ROUTE_SIGNS, routeSnapshot } from "./routes.js";
 
 const DAY_LENGTH = 600; // segundos por ciclo completo
 const HOTBAR = [B.DIRT, B.STONE, B.SAND, B.WOOD, B.LEAVES, B.SNOW];
@@ -136,11 +138,26 @@ events.on("structureDiscovered", ({ structureType }) => {
   ui.toast(`${def?.icon ?? "🏛"} Has descubierto: ${def?.name ?? structureType}`, "good");
   if (structureType === "healing_shrine") progression.setFlag("discovered_healing_shrine");
   if (structureType === "settlement") progression.unlock("first_settlement_discovered");
+  if (structureType === "azure_port" || structureType === "tidal_ruins" || structureType === "azure_lighthouse") {
+    showLocationBanner(def?.name ?? structureType);
+  }
 });
 events.on("partyHealed", ({ source }) => {
-  ui.toast(source === "healer"
-    ? "💚 Sena cura por completo a tu equipo."
-    : "✨ El santuario restaura por completo a tu equipo.", "good");
+  ui.toast(source === "healing_shrine"
+    ? "✨ El santuario restaura por completo a tu equipo."
+    : "💚 Tu equipo está como nuevo.", "good");
+});
+events.on("itemPickedUp", ({ itemId, amount }) => {
+  if (itemId === "coins") {
+    ui.toast(`⌾ +${amount} monedas`, "good");
+    return;
+  }
+  if (RESOURCES[itemId]) return;
+  const total = inventory.count(itemId);
+  ui.toast(`+${amount} (${total})`, "good");
+});
+events.on("regionDiscovered", ({ regionId, regionName }) => {
+  if (regionId === REGION_5) showLocationBanner(regionName);
 });
 events.on("resourceCollected", ({ resourceId, amount }) => {
   const res = RESOURCES[resourceId];
@@ -230,9 +247,14 @@ events.on("progressUnlocked", ({ id }) => {
     if (gym4) applyGaleGymOpening(gym4);
   }
   if (id === "region_5_path_unlocked") {
-    ui.toast("🌄 La Insignia Vendaval abre un arco al sur. El mundo continúa.", "legendary");
+    ui.toast("🌄 La Insignia Vendaval abre el Arco de las alturas. El mar espera al sur.", "legendary");
     const hook = findHighlandExit(player?.pos.x ?? 0, player?.pos.z ?? 0);
     if (hook) applyHighlandExitOpening(hook);
+  }
+  if (id === "gym_5_clue_unlocked") {
+    ui.toast("🗼 La lente del faro apunta más allá del horizonte.", "legendary");
+    const lh = findAzure("azure_lighthouse", player?.pos.x ?? 0, player?.pos.z ?? 0);
+    if (lh) applyLighthouseBeam(lh);
   }
   if (id === AERIAL_UNLOCK) {
     ui.toast("🪶 Asistencia aérea de construcción desbloqueada. Pulsa B y luego Espacio.", "good");
@@ -527,6 +549,7 @@ async function bootWorld(saved) {
   bosses.setRewardHandler((money) => addMoney(money));
   quests.attach(state);
   worldMap.attach(state, world);
+  pickups.attach(state, world);
   traversal.attach(world);
   buildAssist.attach(state);
   buildAssist.onToast = (msg, cls) => ui.toast(msg, cls);
@@ -1423,6 +1446,26 @@ function refreshGaleLifts(px, pz) {
     add("gale:exit", gym.x + g.highlandExit.dx, gym.z + g.highlandExit.dz,
       world.surfaceY(gym.x + g.highlandExit.dx, gym.z + g.highlandExit.dz), 2.4, 12);
   }
+  const addCurrent = (id, dx, dz, fx, fz) => {
+    const wx = gym.x + dx;
+    const wz = gym.z + dz;
+    if (Math.hypot(wx - px, wz - pz) > 90) return;
+    extras.push({
+      id,
+      type: "water_current",
+      x: wx + 0.5,
+      y: WATER_Y - 1,
+      z: wz + 0.5,
+      radius: 4.2,
+      height: 5,
+      fx,
+      fz,
+      regionId: REGION_5,
+    });
+  };
+  addCurrent("azure:current_a", g.currentA.dx, g.currentA.dz, -2.8, 1.6);
+  addCurrent("azure:current_b", g.currentB.dx, g.currentB.dz, -1.4, 3.2);
+  addCurrent("azure:current_c", g.currentC.dx, g.currentC.dz, 3.0, 1.2);
   traversal.setExtras(extras);
 }
 
@@ -1825,6 +1868,157 @@ function registerSpireInteractables(s, wanted) {
   }
 }
 
+function showLocationBanner(name) {
+  const el = document.getElementById("location-banner");
+  if (!el || !name) {
+    ui.toast(name, "good");
+    return;
+  }
+  el.textContent = name;
+  el.classList.remove("hidden");
+  el.classList.add("show");
+  clearTimeout(showLocationBanner._t);
+  showLocationBanner._t = setTimeout(() => {
+    el.classList.remove("show");
+    el.classList.add("hidden");
+  }, 2800);
+}
+
+function findAzure(type, x, z) {
+  if (!world) return null;
+  const near = world.structures.near(x, z, 180).find((s) => s.type === type);
+  if (near) return near;
+  const gym = regions.homeGym() || nearestGymAnchor(x, z);
+  if (!gym) return null;
+  return world.structures.candidate(type, gym.cellX, gym.cellZ);
+}
+
+function applyLighthouseBeam(s) {
+  if (!s || !world) return;
+  const on = progression.hasFlag("lighthouse_activated") || progression.isUnlocked("gym_5_clue_unlocked");
+  const [dx, dz] = AZURE_LIGHTHOUSE_LAYOUT.lens;
+  if (on) {
+    stampLighthouseCrystal(s, dx, dz, true);
+    worldMap.revealRadius(s.x, s.z, 6, "azure_lighthouse");
+  } else {
+    stampLighthouseCrystal(s, dx, dz, false);
+  }
+}
+
+function stampLighthouseCrystal(s, dx, dz, on) {
+  world.setBlock(s.x + dx, s.y + 15, s.z + dz, B.CRYSTAL);
+  world.setBlock(s.x + dx, s.y + 16, s.z + dz, on ? B.WIND_CRYSTAL : B.CRYSTAL);
+  world.setBlock(s.x + dx, s.y + 17, s.z + dz, on ? B.WIND_CRYSTAL : B.AIR);
+  if (on) {
+    for (let i = 1; i <= 6; i++) {
+      world.setBlock(s.x + dx + i, s.y + 16, s.z + dz + 1, B.CRYSTAL);
+    }
+  }
+}
+
+function registerAzurePortInteractables(s, wanted) {
+  registerPcTerminal(s, AZURE_PORT_LAYOUT.pc, wanted);
+}
+
+function registerLighthouseInteractables(s, wanted) {
+  applyLighthouseBeam(s);
+  const id = `lighthouse_lens:${s.id}`;
+  wanted.add(id);
+  const [dx, dz] = AZURE_LIGHTHOUSE_LAYOUT.lens;
+  const x = s.x + dx + 0.5;
+  const y = s.y + 15.6;
+  const z = s.z + dz + 0.5;
+  const on = progression.hasFlag("lighthouse_activated");
+  const prompt = on ? "La lente ya mira al horizonte." : "Activar lente del faro";
+  const onInteract = () => {
+    if (!on) {
+      progression.setFlag("lighthouse_activated");
+      applyLighthouseBeam(s);
+      ui.toast("La lente despierta. El horizonte señala más allá del mar.", "legendary");
+      showLocationBanner("FARO AZUR");
+    } else {
+      applyLighthouseBeam(s);
+      ui.toast("El haz sigue el agua hacia el este. Todavía no hay gimnasio allí.", "good");
+    }
+  };
+  const existing = interaction.items.get(id);
+  if (existing) {
+    existing.prompt = prompt;
+    existing.x = x; existing.y = y; existing.z = z;
+    existing.onInteract = onInteract;
+  } else {
+    interaction.register({
+      id, type: "lighthouse_lens", x, y, z, range: 3.4, prompt, data: s, onInteract, critical: true,
+    });
+  }
+}
+
+function registerSigns(px, pz, wanted) {
+  const gym = regions.homeGym();
+  if (!gym || !world) return;
+  const structOf = {
+    coastal_gate: findAzure("coastal_gate", px, pz),
+    azure_port: findAzure("azure_port", px, pz),
+    azure_bridge: findAzure("azure_bridge", px, pz),
+    tidal_ruins: findAzure("tidal_ruins", px, pz),
+    azure_lighthouse: findAzure("azure_lighthouse", px, pz),
+  };
+  for (const sign of ROUTE_SIGNS) {
+    const s = structOf[sign.localFrom];
+    if (!s) continue;
+    const x = s.x + (sign.offset?.[0] ?? 0);
+    const z = s.z + (sign.offset?.[1] ?? 0);
+    if (Math.hypot(x - px, z - pz) > 28) continue;
+    const id = `sign:${sign.id}`;
+    wanted.add(id);
+    const y = world.surfaceY(x, z) + 1.4;
+    const onInteract = () => {
+      if (DIALOGUES.azure_sign) DIALOGUES.azure_sign.nodes.start.text = sign.text;
+      dialogue.start("azure_sign");
+    };
+    const existing = interaction.items.get(id);
+    if (existing) {
+      existing.x = x + 0.5; existing.y = y; existing.z = z + 0.5;
+      existing.onInteract = onInteract;
+    } else {
+      interaction.register({
+        id, type: "sign", x: x + 0.5, y, z: z + 0.5, range: 3.2,
+        prompt: "Leer señal", data: sign, onInteract,
+      });
+    }
+  }
+}
+
+function registerPickups(px, pz, wanted) {
+  if (!pickups.data) return;
+  for (const p of pickups.nearby(px, pz, 26)) {
+    const id = `pickup:${p.id}`;
+    wanted.add(id);
+    const onInteract = () => {
+      const r = pickups.collect(p.id);
+      if (!r.ok) {
+        ui.toast(r.error ?? "Nada que recoger.", "bad");
+        return;
+      }
+      interaction.unregister(id);
+      ui.refreshHud();
+      saveGame();
+    };
+    const existing = interaction.items.get(id);
+    const y = (p.y ?? 12) + 0.6;
+    if (existing) {
+      existing.x = p.x + 0.5; existing.y = y; existing.z = p.z + 0.5;
+      existing.onInteract = onInteract;
+    } else {
+      interaction.register({
+        id, type: "pickup", x: p.x + 0.5, y, z: p.z + 0.5, range: 2.8,
+        prompt: p.hidden ? "Recoger (escondido)" : "Recoger",
+        data: p, onInteract,
+      });
+    }
+  }
+}
+
 function registerHighlandInteractables(s, wanted) {
   applyHighlandExitOpening(s);
   const id = `highland_exit:${s.id}`;
@@ -1843,7 +2037,16 @@ function registerHighlandInteractables(s, wanted) {
       return;
     }
     applyHighlandExitOpening(s);
-    ui.toast("Más allá del vendaval el cielo se abre. Aún no es hora.", "good");
+    events.emit("traversalUsed", {
+      traversalId: "highland_exit",
+      traversalType: "highland_exit",
+      regionId: REGION_5,
+      x: player?.pos.x ?? s.x,
+      y: player?.pos.y ?? s.y,
+      z: player?.pos.z ?? s.z,
+    });
+    regions.openGate(REGION_5, { x: s.x, z: s.z });
+    ui.toast("El arco se abre al sur: descenso, acantilado, mar.", "good");
   };
   const existing = interaction.items.get(id);
   if (existing) {
@@ -2494,6 +2697,7 @@ function loop(now) {
     const lift = traversal.sample(player);
     if (lift) player.envForce.set(lift.x, lift.y, lift.z);
     else player.envForce.set(0, 0, 0);
+    document.getElementById("water-overlay")?.classList.toggle("current", lift?.lift?.type === "water_current");
 
     if (buildAssist.canHover() && !buildAssist.hovering && keys.has("Space") && !lift) {
       buildAssist.beginHover();
@@ -2587,9 +2791,11 @@ function loop(now) {
     const wantedRuin = new Set();
     const wantedWind = new Set();
     const wantedPc = new Set();
+    const wantedSign = new Set();
+    const wantedPickup = new Set();
     let nearGym = null;
     fogMistGym = null;
-    for (const s of world.structures.near(px, pz, 24)) {
+    for (const s of world.structures.near(px, pz, 32)) {
       if (!state.stats.structuresDiscovered[s.id]) {
         events.emit("structureDiscovered", {
           structureId: s.id, structureType: s.type, biomeId: s.biome, x: s.x, y: s.y, z: s.z,
@@ -2640,6 +2846,18 @@ function loop(now) {
       if (s.type === "highland_exit") {
         registerHighlandInteractables(s, wantedWind);
       }
+      if (s.type === "azure_port") {
+        registerAzurePortInteractables(s, wantedPc);
+      }
+      if (s.type === "azure_lighthouse") {
+        registerLighthouseInteractables(s, wantedWind);
+      }
+      if (s.type === "azure_port") {
+        registerAzurePortInteractables(s, wantedPc);
+      }
+      if (s.type === "azure_lighthouse") {
+        registerLighthouseInteractables(s, wantedWind);
+      }
     }
     for (const id of interaction.ids("shrine")) {
       if (!wantedShrines.has(id)) interaction.unregister(id);
@@ -2673,6 +2891,17 @@ function loop(now) {
     }
     for (const id of interaction.ids("pc")) {
       if (!wantedPc.has(id)) interaction.unregister(id);
+    }
+    registerSigns(px, pz, wantedSign);
+    registerPickups(px, pz, wantedPickup);
+    for (const id of interaction.ids("sign")) {
+      if (!wantedSign.has(id)) interaction.unregister(id);
+    }
+    for (const id of interaction.ids("pickup")) {
+      if (!wantedPickup.has(id)) interaction.unregister(id);
+    }
+    for (const id of interaction.ids("lighthouse_lens")) {
+      if (!wantedWind.has(id)) interaction.unregister(id);
     }
     if (![...wantedRuin].some((id) => id.startsWith("crimson_boss:"))) disposeBossVisual();
     if (![...wantedWind].some((id) => id.startsWith("tempest_boss:"))) disposeTempestVisual();
@@ -2867,6 +3096,7 @@ window.__vm = {
   inventory,
   creatureStorage,
   dex,
+  pickups,
   PARTY_MAX,
   toggleInventory,
   toggleDex,
@@ -3699,6 +3929,78 @@ window.__vm = {
       if (!s) return null;
       teleportPlayer(s.x + 0.5, s.y + 1.4, s.z - 3.5);
       return s;
+    },
+    region5() {
+      if (!world || !player) return null;
+      const gym = regions.homeGym() || nearestGymAnchor(player.pos.x, player.pos.z);
+      const b = gym ? region5BoundsFor(gym) : null;
+      return {
+        name: getRegionName(REGION_5),
+        at: getRegionAt(player.pos.x, player.pos.z),
+        biome: world.biomeAt(player.pos.x, player.pos.z),
+        bounds: b,
+        pathUnlock: progression.isUnlocked("region_5_path_unlocked"),
+        gate: regions.isGateOpened(REGION_5),
+        clue: progression.isUnlocked("gym_5_clue_unlocked"),
+        lighthouse: progression.hasFlag("lighthouse_activated"),
+        routes: routeSnapshot(),
+        port: findAzure("azure_port", player.pos.x, player.pos.z),
+        ruins: findAzure("tidal_ruins", player.pos.x, player.pos.z),
+        lighthouseS: findAzure("azure_lighthouse", player.pos.x, player.pos.z),
+        pickups: pickups.snapshot(),
+      };
+    },
+    gotoAzurePort() {
+      const s = findAzure("azure_port", player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s) return null;
+      teleportPlayer(s.x + 0.5, s.y + 1.4, s.z - 8.5);
+      return s;
+    },
+    gotoTidalRuins() {
+      const s = findAzure("tidal_ruins", player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s) return null;
+      teleportPlayer(s.x + 0.5, s.y + 1.4, s.z - 11);
+      return s;
+    },
+    gotoLighthouse() {
+      const s = findAzure("azure_lighthouse", player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s) return null;
+      teleportPlayer(s.x + 0.5, s.y + 1.4, s.z - 6);
+      applyLighthouseBeam(s);
+      return s;
+    },
+    gotoLighthouseTop() {
+      const s = findAzure("azure_lighthouse", player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (!s) return null;
+      teleportPlayer(s.x + 0.5, s.y + 15.2, s.z + 0.5);
+      return s;
+    },
+    activateLighthouse() {
+      const s = findAzure("azure_lighthouse", player?.pos.x ?? 0, player?.pos.z ?? 0);
+      progression.setFlag("lighthouse_activated");
+      if (s) applyLighthouseBeam(s);
+      return { flag: progression.hasFlag("lighthouse_activated"), clue: progression.isUnlocked("gym_5_clue_unlocked") };
+    },
+    unlockRegion5() {
+      progression.addBadge("gale_badge");
+      progression.unlock("fourth_gym_completed");
+      progression.unlock("region_5_path_unlocked");
+      const s = findHighlandExit(player?.pos.x ?? 0, player?.pos.z ?? 0);
+      if (s) applyHighlandExitOpening(s);
+      regions.openGate(REGION_5, { x: s?.x ?? 0, z: s?.z ?? 0 });
+      return this.region5();
+    },
+    collectPickup(id) {
+      return pickups.collect(id);
+    },
+    giveCoastGoods() {
+      grantItems(state, [
+        { itemId: "coral_fragment", amount: 3 },
+        { itemId: "tidal_pearl", amount: 1 },
+        { itemId: "balls", amount: 5 },
+      ]);
+      ui.refreshHud();
+      return { coral: inventory.count("coral_fragment"), pearl: inventory.count("tidal_pearl") };
     },
     hoverBlockedAt(x, z) {
       return hoverBlockedZone(x, z);

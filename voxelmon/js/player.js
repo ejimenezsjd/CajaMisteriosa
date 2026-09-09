@@ -82,10 +82,15 @@ export class Player {
     }
 
     const lift = this.envForce.y > 0.2;
+    const current = !lift && Math.hypot(this.envForce.x, this.envForce.z) > 0.15;
     if (this.inWater && !lift) {
       this.vel.y += (GRAVITY * 0.18) * dt;
       this.vel.y *= 1 - Math.min(1, 3.2 * dt);
       if (keys.has("Space")) this.vel.y = Math.min(this.vel.y + 24 * dt, 3.4);
+      if (current) {
+        this.vel.x += this.envForce.x * dt;
+        this.vel.z += this.envForce.z * dt;
+      }
     } else if (lift) {
       this.vel.y += (this.envForce.y - this.vel.y) * Math.min(1, 8 * dt);
       this.vel.x += this.envForce.x * dt;
