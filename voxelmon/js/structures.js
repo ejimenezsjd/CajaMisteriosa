@@ -22,7 +22,7 @@ import { B } from "./blocks.js";
 import { columnHash, mulberry32 } from "./noise.js";
 import { getBiomeDefinition } from "./biomes.js";
 import { WATER_Y } from "./world.js";
-import { REGION_GEOMETRY } from "./regions.js";
+import { REGION_GEOMETRY, regions } from "./regions.js";
 import {
   stampBuilding, stampRoadSegment, stampProps, stampBoardwalk,
   stampRouteArch, stampMooredBoat,
@@ -1931,6 +1931,12 @@ export class StructureIndex {
 
   /** Candidato (o null) de un tipo en una celda concreta. Cacheado. */
   candidate(type, cellX, cellZ) {
+    // Check before the cache: a secondary procedural gym must never supply
+    // campaign structures, even if queried before attach/ensureHome.
+    if (REGIONAL_TYPES.has(type)) {
+      const home = regions.homeGym() || regions.ensureHome();
+      if (!home || cellX !== home.cellX || cellZ !== home.cellZ) return null;
+    }
     const key = `${type}:${cellX},${cellZ}`;
     if (this.cache.has(key)) return this.cache.get(key);
 
@@ -1990,10 +1996,12 @@ export class StructureIndex {
   }
 
   /**
-   * Gate / atalaya / puesto: anclados al gimnasio de la misma celda.
-   * Existen si y solo si existe el gimnasio (sin chance extra).
+   * Contenido de campaña: solo en la celda del gimnasio de origen guardado.
+   * Los gimnasios procedurales secundarios no crean copias regionales.
    */
   regionalCandidate(type, cellX, cellZ) {
+    const home = regions.homeGym() || regions.ensureHome();
+    if (!home || cellX !== home.cellX || cellZ !== home.cellZ) return null;
     const gym = this.candidate("gym", cellX, cellZ);
     if (!gym) return null;
     const def = STRUCTURE_TYPES[type];
@@ -2110,10 +2118,14 @@ export class StructureIndex {
     for (const type in STRUCTURE_TYPES) {
       const def = STRUCTURE_TYPES[type];
       const r = def.radius;
-      // Estructuras regionales se indexan en la celda del gimnasio, pero su
-      // (x,z) real puede caer varias celdas al sur (gate +52 … faro +928).
-      // pad=4 cubre ~1040 bloques a cell=260: R5 extendida (z1 1040) incluida.
-      const pad = REGIONAL_TYPES.has(type) ? 4 : 0;
+      if (REGIONAL_TYPES.has(type)) {
+        const home = regions.homeGym() || regions.ensureHome();
+        const s = home && this.candidate(type, home.cellX, home.cellZ);
+        if (s && s.x + r >= xMin && s.x - r <= xMax && s.z + r >= zMin && s.z - r <= zMax) out.push(s);
+        continue;
+      }
+      // Tipos procedurales clásicos: solo las celdas que intersectan.
+      const pad = 0;
       const c0x = Math.floor((xMin - r) / def.cell) - pad;
       const c1x = Math.floor((xMax + r) / def.cell) + pad;
       const c0z = Math.floor((zMin - r) / def.cell) - pad;

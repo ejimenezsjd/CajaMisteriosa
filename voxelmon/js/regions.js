@@ -271,7 +271,7 @@ function nearestGymPad(x, z, pad) {
   return best;
 }
 
-/** Gimnasios en la vecindad 7×7 (pad 3). Lookups cacheados. */
+/** Gimnasios procedurales en la vecindad 9×9. No son anclas de campaña. */
 export function nearbyGymAnchors(x, z) {
   if (!_gymCandidate) return [];
   const cs = REGION_GEOMETRY.gymCell;
@@ -297,11 +297,11 @@ function regionOfGym(gym, x, z) {
 }
 
 /**
- * Gimnasio de progresión (home) si existe; si no, el más cercano en pad 3.
- * Usado para el corredor R4. R2/R3 siguen el gym 3×3 original (Fases 6–10).
+ * Gimnasio de progresión persistido; saves antiguos lo resuelven desde spawn.
+ * Todos los corredores de campaña usan el mismo origen persistido.
  */
 export function progressionGym(x = 8.5, z = 8.5) {
-  return regions.homeGym() || nearestGymPad(x, z, GYM_LOOKUP_PAD);
+  return regions.homeGym() || regions.ensureHome();
 }
 
 /** Gimnasio más cercano en pad 3 (edificios, NPCs, debug). */
@@ -313,14 +313,10 @@ export function nearestGymAnchor(x, z) {
  * Región lógica.
  *   R4 → solo el gimnasio de origen (el corredor largo no debe ser
  *        robado por un gym procedural 260 bloques al sur).
- *   R2/R3 → gym más cercano en pad 1, igual que Fases 6–10.
+ *   R2/R3 → el mismo gimnasio de origen, sin corredores secundarios.
  */
 export function getRegionAt(x, z) {
-  const home = regions.homeGym();
-  if (home && inRect(x, z, region5BoundsFor(home))) return REGION_5;
-  if (home && inRect(x, z, region4BoundsFor(home))) return REGION_4;
-  const gym = nearestGymPad(x, z, 1) || home;
-  return regionOfGym(gym, x, z);
+  return regionOfGym(regions.homeGym(), x, z);
 }
 
 export function isInRegion2(x, z) {
@@ -359,10 +355,15 @@ class RegionSystem {
   /** Fija el gimnasio de progresión (spawn). Idempotente. Llamar ANTES de generar chunks. */
   ensureHome(x = 8.5, z = 8.5) {
     if (!this.s) return null;
-    if (this.s.home?.cellX != null) {
+    if (Number.isInteger(this.s.home?.cellX) && Number.isInteger(this.s.home?.cellZ)) {
       return this.homeGym();
     }
-    const gym = nearestGymPad(x, z, GYM_LOOKUP_PAD);
+    // Historical saves without home use the original spawn, never current
+    // player position. Expand deterministically only when the usual pad is empty.
+    let gym = nearestGymPad(8.5, 8.5, GYM_LOOKUP_PAD);
+    for (let pad = GYM_LOOKUP_PAD + 1; !gym && pad <= 32; pad++) {
+      gym = nearestGymPad(8.5, 8.5, pad);
+    }
     if (!gym) return null;
     this.s.home = { x: gym.x, z: gym.z, cellX: gym.cellX, cellZ: gym.cellZ };
     return gym;
