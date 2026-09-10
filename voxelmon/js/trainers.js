@@ -450,6 +450,7 @@ class TrainerSystem {
 
   attach(state) {
     this.t = state.trainers;
+    this.leaderAuthorization = null; // Don't retain a previous world's authority.
   }
 
   setRewardHandler(fn) {

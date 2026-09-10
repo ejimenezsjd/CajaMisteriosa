@@ -2,13 +2,13 @@
  * RegionSystem mínimo (Fases 6, 9 y 11).
  *
  * BIOMA  → tipo de entorno local (plains, forest, mist_forest, crimson_highlands, wind_highlands…)
- * REGIÓN → macrozona de progresión (region_1 … region_4)
+ * REGIÓN → macrozona de progresión (region_1 … region_5)
  *
  * Estrategia geométrica O(1):
- *   Las macrozonas de progresión (R2–R4) se anclan al gimnasio de origen
+ *   Las macrozonas de progresión (R2–R5) se anclan al gimnasio de origen
  *   (`regions.home`, el más cercano a (8.5, 8.5) al empezar). Así un gym
  *   procedural vecino no pinta su R3/R4 encima del corredor del jugador.
- *   nearestGymAnchor sigue buscando en pad 3 para edificios locales.
+ *   nearestGymAnchor solo consulta gimnasios procedurales, no campaña.
  *
  *   Región 2: rectángulo al sur (+Z) de ese gimnasio (z +58 … +220).
  *   Región 3: continuación al sur del Gimnasio de las Brumas, empezando
@@ -16,14 +16,14 @@
  *   Región 4: continuación al sur de crimson_pass / Gym 3, empezando
  *             DESPUÉS de Región 3 (z +443 … +693, anclada a gym3).
  *             No solapa R3: el paso (gym3.z+15 = gym1.z+427) sigue en R3.
- *   Región 5: continuación al sur de highland_exit (z +694 … +980),
+ *   Región 5: continuación al sur de highland_exit (z +694 … +1040),
  *             centrada en el arco. No solapa R4. Acceso = highland_exit.
  *   El resto del mundo es region_1.
  *
- * No se altera terrainAt ni la clasificación base de R1–R3: los overlays
+ * No se altera terrainAt: los overlays
  * de bioma solo se aplican dentro de su rectángulo. La altura extra de R4
  * es un bonus de columna (region4HeightBonus) usado en generateChunkData,
- * no un cambio de terrainAt, así R1/R2/R3 permanecen bit-idénticos.
+ * no un cambio de terrainAt. F14.5 elimina overlays de anclas secundarias.
  *
  * El lookup del gimnasio se inyecta con bindGymLookup para no crear un
  * ciclo regions ↔ structures ↔ world.

@@ -434,6 +434,10 @@ dialogue.registerAction("paidHeal", () => {
   saveGame();
 });
 dialogue.registerAction("startTrainerBattle", (a, ctx) => {
+  if (buildAssist.blocksCombat()) {
+    ui.toast("Sal del modo construcción para combatir.", "bad");
+    return false;
+  }
   const check = trainers.canBattle(a.trainerId);
   if (!check.ok) {
     ui.toast(check.reason, "bad");
@@ -2874,6 +2878,7 @@ async function startBattle(wild) {
  */
 async function startTrainerBattle(trainerId, npc = null) {
   if (mode !== "play" || battle) return;
+  if (buildAssist.blocksCombat()) return;
   const check = trainers.canBattle(trainerId);
   if (!check.ok) {
     ui.toast(check.reason, "bad");
@@ -2945,6 +2950,7 @@ async function startTrainerBattle(trainerId, npc = null) {
  */
 async function startBossBattle(bossId) {
   if (mode !== "play" || battle) return;
+  if (buildAssist.blocksCombat()) return;
   const check = bosses.canBattle(bossId);
   if (!check.ok) {
     ui.toast(check.reason, "bad");
