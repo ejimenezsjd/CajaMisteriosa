@@ -153,4 +153,3 @@ export async function runRuntime(browser, origin) {
   } catch(error) {check('runtime completion',false,error.stack??String(error));}
   return {checks,metrics,harnessWarnings};
 }
-
