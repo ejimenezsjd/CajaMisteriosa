@@ -34,6 +34,14 @@ export async function run() {
     check(`${g.id}: reward once`, first===TRAINERS[g.leader].rewardMoney && second===0 && money===first);
     check(`${g.id}: badge and hook`, progression.hasBadge(g.badgeId) && g.rewards.unlocks.every(u=>progression.isUnlocked(u)));
     check(`${g.id}: no repeat battle`, !trainers.canBattle(g.leader).ok);
+    setup(defaultState(1));
+    for(const u of g.requirements.progression) progression.unlock(u);
+    if(g.id==='gym_verdant')for(const key of g.puzzle.sequence)gyms.activateSwitch(g.id,key);
+    if(g.id==='gym_mist')for(const key of g.puzzle.beacons)gyms.activateBeacon(g.id,key);
+    if(g.id==='gym_crimson'){gyms.assignEnergy(g.id,'core');gyms.assignEnergy(g.id,'core');}
+    if(g.id==='gym_gale')for(const key of g.puzzle.channels)gyms.activateChannel(g.id,key);
+    if(g.id==='gym_tide'){gyms.cycleBasin(g.id,'a');gyms.cycleBasin(g.id,'a');gyms.cycleBasin(g.id,'c');}
+    check(`${g.id}: real puzzle actions solve`,gyms.isPuzzleSolved(g.id));
   }
   const regional = Object.keys(STRUCTURE_TYPES).filter(t=>!['gym','settlement','camp','ruin','healing_shrine'].includes(t));
   for(const seed of [170753942,12345,987654321]) {
@@ -57,6 +65,10 @@ export async function run() {
     const target=before.find(s=>s.type==='gym_tide');
     const cx=Math.floor(target.x/CHUNK),cz=Math.floor(target.z/CHUNK);
     const t0=performance.now(); const data=w.generateChunkData(cx,cz); const generationMs=performance.now()-t0;
+    // Golden hashes measured from the canonical post-F14 commit, not generated
+    // from this implementation. H2 must not alter the actual Gym5 chunk.
+    const golden={170753942:1325024300,12345:4094248118,987654321:2901560282};
+    check(`${seed}: post-F14 canonical chunk unchanged`,hash(data)===golden[seed]);
     const stamp0=performance.now(); let stampCalls=0; w.structures.stampChunk(cx*CHUNK,cz*CHUNK,CHUNK,()=>stampCalls++); const stampingMs=performance.now()-stamp0;
     snapshots.push({seed,home:s.regions.home,structures:before,chunk:[cx,cz],hash:hash(data)});
     let dirty=0; const original=w.markDirty.bind(w); w.markDirty=(...args)=>{dirty++;original(...args);};
@@ -64,7 +76,9 @@ export async function run() {
     const old=w.getBlock(x,y,z); for(const c of w.chunks.values())c.dirty=false;
     const start=performance.now(); for(let i=0;i<1000;i++)w.setBlock(x,y,z,old);
     const writeMs=performance.now()-start;
+    const unchangedDirtyCalls=dirty;
     check(`${seed}: unchanged writes do not dirty`,dirty===0,{dirty});
+    check(`${seed}: same-value explicit edit retained`,w.edits[`${x},${y},${z}`]===old);
     w.setBlock(x,y,z,B.WOOD); w.setBlock(x+1,y,z,B.AIR);
     s.edits=w.edits; persistSave(s); const loaded=loadSave();
     check(`${seed}: save version unchanged`,loaded.version===SAVE_VERSION&&SAVE_VERSION===2);
@@ -78,7 +92,7 @@ export async function run() {
     check(`${seed}: actual far update unloads chunk`,!w.chunks.has(`${cx},${cz}`));
     check(`${seed}: chunk reload hash`,hash(w.ensureChunkData(cx,cz).data)===editedHash);
     check(`${seed}: travel preserves home`,equal(h,regions.homeGym()));
-    metrics.push({seed,generationMs,stampingMs,stampCalls,unchangedWrites:1000,dirtyCalls:dirty,writeMs,updateMs});
+    metrics.push({seed,generationMs,stampingMs,stampCalls,unchangedWrites:1000,unchangedDirtyCalls,writeMs,updateMs});
   }
   for(const raw of [{seed:12345},{seed:12345,version:1},{seed:12345,version:2},{seed:12345,version:2,gyms:{gym_tide:{puzzleSolved:true,tides:{a:2,b:0,c:1}}}}]) {
     const s=migrateSave(structuredClone(raw)); const once=JSON.stringify(s); migrateSave(s);
