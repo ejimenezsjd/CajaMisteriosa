@@ -445,6 +445,7 @@ class TrainerSystem {
   constructor() {
     this.t = null; // state.trainers
     this.rewardHandler = null; // inyectado por main (addMoney)
+    this.leaderAuthorization = null; // GymSystem owns the requirements.
   }
 
   attach(state) {
@@ -453,6 +454,10 @@ class TrainerSystem {
 
   setRewardHandler(fn) {
     this.rewardHandler = fn;
+  }
+
+  setLeaderAuthorization(fn) {
+    this.leaderAuthorization = fn;
   }
 
   isDefeated(id) {
@@ -466,6 +471,10 @@ class TrainerSystem {
     if (!this.t) return { ok: false, reason: "Partida no iniciada." };
     if (this.isDefeated(id) && !def.repeatable) {
       return { ok: false, reason: `Ya has derrotado a ${def.name}.` };
+    }
+    // Fail closed, including callers outside the NPC/dialogue UI.
+    if (def.leader && !this.leaderAuthorization?.(def.gymId)) {
+      return { ok: false, reason: "Completa el acceso, los entrenadores y la prueba del gimnasio antes de desafiar al líder." };
     }
     return { ok: true };
   }
