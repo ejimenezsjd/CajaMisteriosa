@@ -2,13 +2,13 @@
  * RegionSystem mínimo (Fases 6, 9 y 11).
  *
  * BIOMA  → tipo de entorno local (plains, forest, mist_forest, crimson_highlands, wind_highlands…)
- * REGIÓN → macrozona de progresión (region_1 … region_4)
+ * REGIÓN → macrozona de progresión (region_1 … region_5)
  *
  * Estrategia geométrica O(1):
- *   Las macrozonas de progresión (R2–R4) se anclan al gimnasio de origen
+ *   Las macrozonas de progresión (R2–R5) se anclan al gimnasio de origen
  *   (`regions.home`, el más cercano a (8.5, 8.5) al empezar). Así un gym
  *   procedural vecino no pinta su R3/R4 encima del corredor del jugador.
- *   nearestGymAnchor sigue buscando en pad 3 para edificios locales.
+ *   nearestGymAnchor solo consulta gimnasios procedurales, no campaña.
  *
  *   Región 2: rectángulo al sur (+Z) de ese gimnasio (z +58 … +220).
  *   Región 3: continuación al sur del Gimnasio de las Brumas, empezando
@@ -16,14 +16,14 @@
  *   Región 4: continuación al sur de crimson_pass / Gym 3, empezando
  *             DESPUÉS de Región 3 (z +443 … +693, anclada a gym3).
  *             No solapa R3: el paso (gym3.z+15 = gym1.z+427) sigue en R3.
- *   Región 5: continuación al sur de highland_exit (z +694 … +980),
+ *   Región 5: continuación al sur de highland_exit (z +694 … +1040),
  *             centrada en el arco. No solapa R4. Acceso = highland_exit.
  *   El resto del mundo es region_1.
  *
- * No se altera terrainAt ni la clasificación base de R1–R3: los overlays
+ * No se altera terrainAt: los overlays
  * de bioma solo se aplican dentro de su rectángulo. La altura extra de R4
  * es un bonus de columna (region4HeightBonus) usado en generateChunkData,
- * no un cambio de terrainAt, así R1/R2/R3 permanecen bit-idénticos.
+ * no un cambio de terrainAt. F14.5 elimina overlays de anclas secundarias.
  *
  * El lookup del gimnasio se inyecta con bindGymLookup para no crear un
  * ciclo regions ↔ structures ↔ world.
@@ -271,7 +271,7 @@ function nearestGymPad(x, z, pad) {
   return best;
 }
 
-/** Gimnasios en la vecindad 7×7 (pad 3). Lookups cacheados. */
+/** Gimnasios procedurales en la vecindad 9×9. No son anclas de campaña. */
 export function nearbyGymAnchors(x, z) {
   if (!_gymCandidate) return [];
   const cs = REGION_GEOMETRY.gymCell;
@@ -297,11 +297,11 @@ function regionOfGym(gym, x, z) {
 }
 
 /**
- * Gimnasio de progresión (home) si existe; si no, el más cercano en pad 3.
- * Usado para el corredor R4. R2/R3 siguen el gym 3×3 original (Fases 6–10).
+ * Gimnasio de progresión persistido; saves antiguos lo resuelven desde spawn.
+ * Todos los corredores de campaña usan el mismo origen persistido.
  */
 export function progressionGym(x = 8.5, z = 8.5) {
-  return regions.homeGym() || nearestGymPad(x, z, GYM_LOOKUP_PAD);
+  return regions.homeGym() || regions.ensureHome();
 }
 
 /** Gimnasio más cercano en pad 3 (edificios, NPCs, debug). */
@@ -313,14 +313,10 @@ export function nearestGymAnchor(x, z) {
  * Región lógica.
  *   R4 → solo el gimnasio de origen (el corredor largo no debe ser
  *        robado por un gym procedural 260 bloques al sur).
- *   R2/R3 → gym más cercano en pad 1, igual que Fases 6–10.
+ *   R2/R3 → el mismo gimnasio de origen, sin corredores secundarios.
  */
 export function getRegionAt(x, z) {
-  const home = regions.homeGym();
-  if (home && inRect(x, z, region5BoundsFor(home))) return REGION_5;
-  if (home && inRect(x, z, region4BoundsFor(home))) return REGION_4;
-  const gym = nearestGymPad(x, z, 1) || home;
-  return regionOfGym(gym, x, z);
+  return regionOfGym(regions.homeGym(), x, z);
 }
 
 export function isInRegion2(x, z) {
@@ -359,10 +355,15 @@ class RegionSystem {
   /** Fija el gimnasio de progresión (spawn). Idempotente. Llamar ANTES de generar chunks. */
   ensureHome(x = 8.5, z = 8.5) {
     if (!this.s) return null;
-    if (this.s.home?.cellX != null) {
+    if (Number.isInteger(this.s.home?.cellX) && Number.isInteger(this.s.home?.cellZ)) {
       return this.homeGym();
     }
-    const gym = nearestGymPad(x, z, GYM_LOOKUP_PAD);
+    // Historical saves without home use the original spawn, never current
+    // player position. Expand deterministically only when the usual pad is empty.
+    let gym = nearestGymPad(8.5, 8.5, GYM_LOOKUP_PAD);
+    for (let pad = GYM_LOOKUP_PAD + 1; !gym && pad <= 32; pad++) {
+      gym = nearestGymPad(8.5, 8.5, pad);
+    }
     if (!gym) return null;
     this.s.home = { x: gym.x, z: gym.z, cellX: gym.cellX, cellZ: gym.cellZ };
     return gym;

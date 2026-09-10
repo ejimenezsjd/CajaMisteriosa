@@ -1,5 +1,13 @@
 {
   "name": "voxelmon",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "test": "node tests/run.mjs --runtime",
+    "test:core": "node tests/run.mjs",
+    "test:perf": "node tests/run.mjs --perf"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
 }

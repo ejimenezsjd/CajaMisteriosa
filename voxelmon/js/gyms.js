@@ -307,6 +307,7 @@ class GymSystem {
 
   attach(state) {
     this.g = state.gyms;
+    trainers.setLeaderAuthorization((id) => this.canEnterLeader(id));
     if (this.g && !this.g.gym_verdant) this.g.gym_verdant = defaultGymState("gym_verdant");
     if (this.g && !this.g.gym_mist) this.g.gym_mist = defaultGymState("gym_mist");
     if (this.g && !this.g.gym_crimson) this.g.gym_crimson = defaultGymState("gym_crimson");
@@ -378,7 +379,7 @@ class GymSystem {
 
   canEnterLeader(id = "gym_verdant") {
     const gym = GYMS[id];
-    if (!this.isPuzzleSolved(id)) return false;
+    if (!gym || !this.g || !this.canEnter(id) || !this.isPuzzleSolved(id)) return false;
     return gym.trainers.every((t) => trainers.isDefeated(t));
   }
 

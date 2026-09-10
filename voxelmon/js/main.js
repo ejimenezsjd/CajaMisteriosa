@@ -38,7 +38,7 @@ import { creatureStorage, PARTY_MAX } from "./pc.js";
 import { dex } from "./dex.js";
 import { economy, bindShopTabs, HEAL_COST, PRICE_CATALOG } from "./economy.js";
 import {
-  regions, getRegionAt, getRegionName, nearestGymAnchor, region3BoundsFor, region4BoundsFor, region5BoundsFor,
+  regions, getRegionAt, getRegionName, region3BoundsFor, region4BoundsFor, region5BoundsFor,
   REGION_1, REGION_2, REGION_3, REGION_4, REGION_5, REGION_GEOMETRY,
 } from "./regions.js";
 import { worldMap } from "./map.js";
@@ -434,6 +434,10 @@ dialogue.registerAction("paidHeal", () => {
   saveGame();
 });
 dialogue.registerAction("startTrainerBattle", (a, ctx) => {
+  if (buildAssist.blocksCombat()) {
+    ui.toast("Sal del modo construcción para combatir.", "bad");
+    return false;
+  }
   const check = trainers.canBattle(a.trainerId);
   if (!check.ok) {
     ui.toast(check.reason, "bad");
@@ -1130,9 +1134,7 @@ function registerGymInteractables(s, wanted) {
 
 function findRegionalGate(x, z) {
   if (!world) return null;
-  const near = world.structures.near(x, z, 90).find((s) => s.type === "regional_gate");
-  if (near) return near;
-  const gym = nearestGymAnchor(x, z);
+  const gym = regions.homeGym() || regions.ensureHome();
   if (!gym) return null;
   return world.structures.candidate("regional_gate", gym.cellX, gym.cellZ);
 }
@@ -1216,9 +1218,7 @@ function registerGateInteractables(s, wanted) {
 
 function findMistSettlement(x, z) {
   if (!world) return null;
-  const near = world.structures.near(x, z, 90).find((s) => s.type === "mist_settlement");
-  if (near) return near;
-  const gym = nearestGymAnchor(x, z);
+  const gym = regions.homeGym() || regions.ensureHome();
   if (!gym) return null;
   return world.structures.candidate("mist_settlement", gym.cellX, gym.cellZ);
 }
@@ -1235,9 +1235,7 @@ function applyAncientPathOpening(s) {
 
 function findMistGym(x, z) {
   if (!world) return null;
-  const near = world.structures.near(x, z, 90).find((s) => s.type === "gym_mist");
-  if (near) return near;
-  const gym = nearestGymAnchor(x, z);
+  const gym = regions.homeGym() || regions.ensureHome();
   if (!gym) return null;
   return world.structures.candidate("gym_mist", gym.cellX, gym.cellZ);
 }
@@ -1254,18 +1252,14 @@ function applyMistExitOpening(s) {
 
 function findCrimsonRuin(x, z) {
   if (!world) return null;
-  const near = world.structures.near(x, z, 120).find((s) => s.type === "crimson_ruin");
-  if (near) return near;
-  const gym = nearestGymAnchor(x, z);
+  const gym = regions.homeGym() || regions.ensureHome();
   if (!gym) return null;
   return world.structures.candidate("crimson_ruin", gym.cellX, gym.cellZ);
 }
 
 function findMiningCamp(x, z) {
   if (!world) return null;
-  const near = world.structures.near(x, z, 120).find((s) => s.type === "mining_camp");
-  if (near) return near;
-  const gym = nearestGymAnchor(x, z);
+  const gym = regions.homeGym() || regions.ensureHome();
   if (!gym) return null;
   return world.structures.candidate("mining_camp", gym.cellX, gym.cellZ);
 }
@@ -1340,63 +1334,49 @@ function isCrimsonPassOpen() {
 
 function findForgeGym(x, z) {
   if (!world) return null;
-  const near = world.structures.near(x, z, 120).find((s) => s.type === "gym_crimson");
-  if (near) return near;
-  const gym = nearestGymAnchor(x, z);
+  const gym = regions.homeGym() || regions.ensureHome();
   if (!gym) return null;
   return world.structures.candidate("gym_crimson", gym.cellX, gym.cellZ);
 }
 
 function findStormObservatory(x, z) {
   if (!world) return null;
-  const near = world.structures.near(x, z, 140).find((s) => s.type === "storm_observatory");
-  if (near) return near;
-  const gym = regions.homeGym() || nearestGymAnchor(x, z);
+  const gym = regions.homeGym() || regions.ensureHome();
   if (!gym) return null;
   return world.structures.candidate("storm_observatory", gym.cellX, gym.cellZ);
 }
 
 function findCliffOutpost(x, z) {
   if (!world) return null;
-  const near = world.structures.near(x, z, 140).find((s) => s.type === "cliff_outpost");
-  if (near) return near;
-  const gym = regions.homeGym() || nearestGymAnchor(x, z);
+  const gym = regions.homeGym() || regions.ensureHome();
   if (!gym) return null;
   return world.structures.candidate("cliff_outpost", gym.cellX, gym.cellZ);
 }
 
 function findWindShrine(x, z) {
   if (!world) return null;
-  const near = world.structures.near(x, z, 140).find((s) => s.type === "wind_shrine");
-  if (near) return near;
-  const gym = regions.homeGym() || nearestGymAnchor(x, z);
+  const gym = regions.homeGym() || regions.ensureHome();
   if (!gym) return null;
   return world.structures.candidate("wind_shrine", gym.cellX, gym.cellZ);
 }
 
 function findTempestSpire(x, z) {
   if (!world) return null;
-  const near = world.structures.near(x, z, 140).find((s) => s.type === "tempest_spire");
-  if (near) return near;
-  const gym = regions.homeGym() || nearestGymAnchor(x, z);
+  const gym = regions.homeGym() || regions.ensureHome();
   if (!gym) return null;
   return world.structures.candidate("tempest_spire", gym.cellX, gym.cellZ);
 }
 
 function findGaleGym(x, z) {
   if (!world) return null;
-  const near = world.structures.near(x, z, 160).find((s) => s.type === "gym_gale");
-  if (near) return near;
-  const gym = regions.homeGym() || nearestGymAnchor(x, z);
+  const gym = regions.homeGym() || regions.ensureHome();
   if (!gym) return null;
   return world.structures.candidate("gym_gale", gym.cellX, gym.cellZ);
 }
 
 function findHighlandExit(x, z) {
   if (!world) return null;
-  const near = world.structures.near(x, z, 160).find((s) => s.type === "highland_exit");
-  if (near) return near;
-  const gym = regions.homeGym() || nearestGymAnchor(x, z);
+  const gym = regions.homeGym() || regions.ensureHome();
   if (!gym) return null;
   return world.structures.candidate("highland_exit", gym.cellX, gym.cellZ);
 }
@@ -1532,7 +1512,7 @@ function applyReefSeal(s) {
 }
 
 function refreshGaleLifts(px, pz) {
-  const gym = regions.homeGym() || nearestGymAnchor(px, pz);
+  const gym = regions.homeGym() || regions.ensureHome();
   if (!gym || !world) {
     traversal.setExtras([]);
     return;
@@ -2261,9 +2241,7 @@ function showLocationBanner(name) {
 
 function findAzure(type, x, z) {
   if (!world) return null;
-  const near = world.structures.near(x, z, 180).find((s) => s.type === type);
-  if (near) return near;
-  const gym = regions.homeGym() || nearestGymAnchor(x, z);
+  const gym = regions.homeGym() || regions.ensureHome();
   if (!gym) return null;
   return world.structures.candidate(type, gym.cellX, gym.cellZ);
 }
@@ -2900,6 +2878,7 @@ async function startBattle(wild) {
  */
 async function startTrainerBattle(trainerId, npc = null) {
   if (mode !== "play" || battle) return;
+  if (buildAssist.blocksCombat()) return;
   const check = trainers.canBattle(trainerId);
   if (!check.ok) {
     ui.toast(check.reason, "bad");
@@ -2971,6 +2950,7 @@ async function startTrainerBattle(trainerId, npc = null) {
  */
 async function startBossBattle(bossId) {
   if (mode !== "play" || battle) return;
+  if (buildAssist.blocksCombat()) return;
   const check = bosses.canBattle(bossId);
   if (!check.ok) {
     ui.toast(check.reason, "bad");
@@ -4004,7 +3984,7 @@ window.__vm = {
     },
     region3() {
       if (!world || !player) return null;
-      const gym = nearestGymAnchor(player.pos.x, player.pos.z);
+      const gym = regions.homeGym() || regions.ensureHome();
       const b = gym ? region3BoundsFor(gym) : null;
       const camp = findMiningCamp(player.pos.x, player.pos.z);
       const ruin = findCrimsonRuin(player.pos.x, player.pos.z);
@@ -4223,7 +4203,7 @@ window.__vm = {
     },
     region4() {
       if (!world || !player) return null;
-      const gym = regions.homeGym() || nearestGymAnchor(player.pos.x, player.pos.z);
+      const gym = regions.homeGym() || regions.ensureHome();
       const b = gym ? region4BoundsFor(gym) : null;
       const pass = this.gym3()?.pass;
       return {
@@ -4251,7 +4231,7 @@ window.__vm = {
       progression.addBadge("crimson_badge");
       progression.unlock("third_gym_completed");
       progression.unlock("region_4_path_unlocked");
-      const home = regions.homeGym() || nearestGymAnchor(player.pos.x, player.pos.z);
+      const home = regions.homeGym() || regions.ensureHome();
       const g3 = home
         ? world.structures.candidate("gym_crimson", home.cellX, home.cellZ)
         : findForgeGym(player.pos.x, player.pos.z);
@@ -4386,7 +4366,7 @@ window.__vm = {
     },
     region5() {
       if (!world || !player) return null;
-      const gym = regions.homeGym() || nearestGymAnchor(player.pos.x, player.pos.z);
+      const gym = regions.homeGym() || regions.ensureHome();
       const b = gym ? region5BoundsFor(gym) : null;
       return {
         name: getRegionName(REGION_5),

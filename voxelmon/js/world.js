@@ -407,13 +407,19 @@ export class World {
     const c = this.ensureChunkData(cx, cz);
     const lx = x - cx * CHUNK;
     const lz = z - cz * CHUNK;
-    c.data[idx(lx, y, lz)] = b;
-    this.edits[`${x},${y},${z}`] = b;
+    const i = idx(lx, y, lz);
+    const key = `${x},${y},${z}`;
+    // An explicit write is still an edit, even when generated terrain already
+    // matches it. Keep that override on reload, but don't remesh unchanged data.
+    if (this.edits[key] !== b) this.edits[key] = b;
+    if (c.data[i] === b) return false;
+    c.data[i] = b;
     this.markDirty(cx, cz);
     if (lx === 0) this.markDirty(cx - 1, cz);
     if (lx === CHUNK - 1) this.markDirty(cx + 1, cz);
     if (lz === 0) this.markDirty(cx, cz - 1);
     if (lz === CHUNK - 1) this.markDirty(cx, cz + 1);
+    return true;
   }
 
   markDirty(cx, cz) {
