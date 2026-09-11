@@ -1,444 +1,267 @@
-/**
- * MapSystem (Fase 11): exploración, fog of war y mapa fullscreen 2D.
- *
- * Celdas de 16×16 (alineadas con CHUNK). Almacén sparse:
- *   state.map.discoveredCells["cx,cz"] = biomeId
- *   (saves antiguos pueden traer { biomeId, regionId })
- *   state.map.markers[structureId] = { type, x, z, ... }
- *
- * No recalcula terrain al pintar: usa la metadata guardada al revelar.
- */
-
-import { events } from "./events.js";
-import { getRegionName, regions, REGION_1 } from "./regions.js";
-import { getBiomeName } from "./biomes.js";
-import { progression } from "./progression.js";
-import { gyms } from "./gyms.js";
-
+/** Map V2 foundation. Save-compatible exploration; all camera/index state is UI only. */
+import { events } from './events.js';
+import { getRegionName, getRegionAt, regions } from './regions.js';
+import { gyms } from './gyms.js';
+import { progression } from './progression.js';
+import { MAP_MARKERS, MAP_LEGEND, mapServices, semanticLevel, mapHeading, mapScale, drawMapSymbol } from './map-symbols.js';
+export { MAP_MARKERS, mapHeading, semanticLevel, mapScale } from './map-symbols.js';
 export const MAP_CELL = 16;
-
 export const MAP_PALETTE = {
-  plains: "#6db84a",
-  forest: "#2f7a3a",
-  desert: "#d4c078",
-  snow: "#d8e4f0",
-  mountain: "#8a8a94",
-  beach: "#e2d08f",
-  ocean: "#3a6fb0",
-  mist_forest: "#4a6a62",
-  crimson_highlands: "#8a3028",
-  wind_highlands: "#7aa0c8",
-  azure_archipelago: "#3a9aaa",
-  unknown: "#1a1c24",
+  plains:'#6db84a', forest:'#2f7a3a', desert:'#d4c078', snow:'#d8e4f0', mountain:'#8a8a94',
+  beach:'#e2d08f', ocean:'#3a6fb0', mist_forest:'#4a6a62', crimson_highlands:'#8a3028',
+  wind_highlands:'#7aa0c8', azure_archipelago:'#3a9aaa', unknown:'#1a1c24',
 };
+const REVEAL_RADIUS = { watchtower:4, storm_observatory:6, azure_lighthouse:2 };
+const SECTOR = 256, MAX_ZOOM = 14;
+export const cellKey = (cx,cz) => `${cx},${cz}`;
+export const worldToCell = (x,z) => ({cx:Math.floor(x/MAP_CELL),cz:Math.floor(z/MAP_CELL)});
+const sectorKey = (x,z) => cellKey(Math.floor(x/SECTOR),Math.floor(z/SECTOR));
+const include = (b,x,z,size=0) => b ? {x0:Math.min(b.x0,x),z0:Math.min(b.z0,z),x1:Math.max(b.x1,x+size),z1:Math.max(b.z1,z+size)} : {x0:x,z0:z,x1:x+size,z1:z+size};
+const overlaps = (a,b) => a.x1>=b.x0 && a.x0<=b.x1 && a.z1>=b.z0 && a.z0<=b.z1;
+const finite = m => m && Number.isFinite(m.x) && Number.isFinite(m.z);
 
-export const MAP_MARKERS = {
-  settlement: { icon: "🏘", color: "#e0c060", label: "Asentamiento", z: 2 },
-  mist_settlement: { icon: "🏘", color: "#8fdcff", label: "Refugio Brumoso", z: 2 },
-  gym: { icon: "🌿", color: "#6ee86e", label: "Gimnasio Verde", z: 3 },
-  gym_mist: { icon: "🌫", color: "#9ad4e8", label: "Gimnasio de las Brumas", z: 3 },
-  gym_crimson: { icon: "🔥", color: "#ff7040", label: "Gimnasio de la Forja", z: 3 },
-  regional_gate: { icon: "🚪", color: "#c4a646", label: "Paso fronterizo", z: 2 },
-  watchtower: { icon: "🗼", color: "#d0d8e8", label: "Atalaya", z: 2 },
-  ancient_outpost: { icon: "🏛", color: "#b090d0", label: "Puesto ancestral", z: 2 },
-  healing_shrine: { icon: "✨", color: "#f0e6a8", label: "Santuario", z: 1 },
-  mining_camp: { icon: "⛏", color: "#e0a040", label: "Puesto minero", z: 2 },
-  crimson_ruin: { icon: "🏛", color: "#e04048", label: "Ruina Carmesí", z: 2 },
-  cliff_outpost: { icon: "🏕", color: "#a8c8e8", label: "Puesto del acantilado", z: 2 },
-  wind_shrine: { icon: "🌬", color: "#90d8f8", label: "Santuario del viento", z: 2 },
-  storm_observatory: { icon: "🔭", color: "#c0e8ff", label: "Observatorio de la Tormenta", z: 3 },
-  gym_gale: { icon: "🌬", color: "#90d8f8", label: "Gimnasio del Vendaval", z: 3 },
-  tempest_spire: { icon: "⚡", color: "#c8e8ff", label: "Pináculo del Vendaval", z: 2 },
-  highland_exit: { icon: "↕", color: "#a0c0e0", label: "Arco de las alturas", z: 2 },
-  azure_port: { icon: "🏘", color: "#7ee8d8", label: "Puerto Azur", z: 3 },
-  tidal_ruins: { icon: "🏛", color: "#5aa0a8", label: "Ruinas de Marea", z: 2 },
-  azure_lighthouse: { icon: "🗼", color: "#ffe58a", label: "Faro Azur", z: 3 },
-  gym_tide: { icon: "🌊", color: "#3ec8b4", label: "Gimnasio de las Mareas", z: 3 },
-  reef_atoll: { icon: "🐚", color: "#e8c878", label: "Atolón del Arrecife", z: 2 },
-  tidal_bridge: { icon: "🌉", color: "#7ee8d8", label: "Puente de Marea", z: 2 },
-  open_sea_gate: { icon: "↕", color: "#90d8f8", label: "Arco del mar abierto", z: 2 },
-};
-
-const REVEAL_RADIUS = {
-  watchtower: 4,
-  storm_observatory: 6,
-  azure_lighthouse: 2,
-};
-
-export function cellKey(cx, cz) {
-  return `${cx},${cz}`;
+// Query occupied sectors rather than scanning the world or every saved marker.
+function visitBuckets(index,bounds,visit) {
+  const x0=Math.floor(bounds.x0/SECTOR),x1=Math.floor(bounds.x1/SECTOR),z0=Math.floor(bounds.z0/SECTOR),z1=Math.floor(bounds.z1/SECTOR);
+  if ((x1-x0+1)*(z1-z0+1)>index.size) {
+    for(const bucket of index.values()) if(overlaps(bucket.bounds,bounds)) visit(bucket.items);
+  } else for(let z=z0;z<=z1;z++) for(let x=x0;x<=x1;x++) {const bucket=index.get(cellKey(x,z));if(bucket)visit(bucket.items);}
 }
-
-export function worldToCell(x, z) {
-  return { cx: Math.floor(x / MAP_CELL), cz: Math.floor(z / MAP_CELL) };
+function indexItem(index,m) {
+  const key=sectorKey(m.x,m.z);let bucket=index.get(key);
+  if(!bucket){const x=Math.floor(m.x/SECTOR)*SECTOR,z=Math.floor(m.z/SECTOR)*SECTOR;bucket={bounds:{x0:x,z0:z,x1:x+SECTOR,z1:z+SECTOR},items:[]};index.set(key,bucket);}
+  bucket.items.push(m);
 }
 
 class MapSystem {
   constructor() {
-    this.data = null;
-    this.world = null;
-    this.open = false;
-    this.panX = 0;
-    this.panZ = 0;
-    this.zoom = 4; // px per world block
-    this.drag = null;
-    this.canvas = null;
-    this.ctx = null;
-    this.player = null;
-    this.bound = false;
-    this.lastCell = null;
+    this.data=null;this.world=null;this.state=null;this.open=false;this.panX=0;this.panZ=0;this.zoom=4;
+    this.canvas=null;this.ctx=null;this.player=null;this.bound=false;this.drag=null;this.lastCell=null;
+    this.width=0;this.height=0;this.dpr=1;this.dirty=true;this.icons=new Map();this.legendKey='';
+    this.cellIndex=new Map();this.markerIndex=new Map();this.knownRegions=new Map();this.knownMarkers=new Set();
+    this.exploredBounds=null;this.cellCount=0;this.markerDirty=true;this.visibleMarkers=[];this.legend=[];
+    this.frameMode='player';this.placingWaypoint=false;this.drawCount=0;this.labelWidths=new Map();
   }
-
-  attach(state, world) {
-    this.data = state.map;
-    if (!this.data.discoveredCells) this.data.discoveredCells = {};
-    if (!this.data.markers) this.data.markers = {};
-    this.world = world;
-    if (!this.bound) {
-      this.bindEvents();
-      this.bound = true;
+  invalidate(){this.dirty=true;}
+  attach(state,world) {
+    this.state=state;this.data=state.map;this.world=world;
+    this.data.discoveredCells??={};this.data.markers??={};
+    this.cellIndex.clear();this.knownRegions.clear();this.exploredBounds=null;this.cellCount=0;
+    this.knownMarkers=new Set(Object.keys(state.stats?.structuresDiscovered??{}).filter(id=>state.stats.structuresDiscovered[id]));
+    this.lastCell=null;this.player=null;this.drag=null;this.placingWaypoint=false;this.zoom=4;this.panX=0;this.panZ=0;
+    this.legendKey='';this.markerDirty=true;this.open=false;
+    for(const [key,value] of Object.entries(this.data.discoveredCells)) {
+      const [cx,cz]=key.split(',').map(Number);if(Number.isFinite(cx)&&Number.isFinite(cz))this.indexCell(cx,cz,value);
     }
+    // Restore only proven discoveries omitted by the old map registry. Never scan candidate world content.
+    for(const id of this.knownMarkers) {
+      if(this.data.markers[id])continue;
+      const match=/^([^:]+):(-?\d+),(-?\d+)$/.exec(id);if(!match||!MAP_MARKERS[match[1]])continue;
+      const s=world.structures?.candidate(match[1],Number(match[2]),Number(match[3]));
+      if(s?.id===id)this.addMarker({structureId:id,structureType:s.type,x:s.x,y:s.y,z:s.z});
+    }
+    if(!this.bound){this.bindEvents();this.bound=true;}
+    this.invalidate();
   }
-
   bindEvents() {
-    events.on("structureDiscovered", (p) => {
-      this.addMarker(p);
-      const extra = REVEAL_RADIUS[p.structureType];
-      if (extra && p.x != null) this.revealRadius(p.x, p.z, extra, p.structureType);
+    events.on('structureDiscovered',p=>{this.addMarker(p);const r=REVEAL_RADIUS[p.structureType];if(r&&finite(p))this.revealRadius(p.x,p.z,r,p.structureType);});
+    events.on('regionDiscovered',p=>{if(finite(p))this.revealAt(p.x,p.z);this.invalidate();});
+    events.on('regionGateOpened',p=>{
+      if(!this.data)return;
+      for(const m of Object.values(this.data.markers))if((p.regionId==='region_2'&&m.type==='regional_gate')||(p.regionId==='region_4'&&m.type==='gym_crimson'))m.opened=true;
+      this.invalidate();
     });
-    events.on("regionDiscovered", (p) => {
-      if (p.x == null) return;
-      this.revealAt(p.x, p.z);
-    });
-    events.on("regionGateOpened", (p) => {
-      if (!this.data) return;
-      for (const m of Object.values(this.data.markers)) {
-        if (m.type === "regional_gate" || (p.regionId === "region_4" && m.type === "gym_crimson")) {
-          m.opened = true;
-        }
-      }
-    });
+    for(const event of ['gymCompleted','badgeEarned','bossDefeated'])events.on(event,()=>this.invalidate());
   }
-
   bindCanvas(canvas) {
-    this.canvas = canvas;
-    this.ctx = canvas.getContext("2d");
+    this.resizeObserver?.disconnect();this.canvas=canvas;this.ctx=canvas.getContext('2d');
+    this.resizeObserver=new ResizeObserver(()=>{if(this.open){this.resize();this.draw();}});
+    this.resizeObserver.observe(canvas.parentElement);this.resize();
   }
-
-  discoveredCount() {
-    return this.data ? Object.keys(this.data.discoveredCells).length : 0;
+  indexCell(cx,cz,value) {
+    const x=cx*MAP_CELL,z=cz*MAP_CELL,biome=typeof value==='string'?value:value?.biomeId;
+    const regionId=getRegionAt(x+8,z+8);
+    indexItem(this.cellIndex,{x,z,biome,regionId});this.cellCount++;
+    this.exploredBounds=include(this.exploredBounds,x,z,MAP_CELL);
+    const r=this.knownRegions.get(regionId)??{bounds:null,anchor:{x:x+8,z:z+8}};
+    r.bounds=include(r.bounds,x,z,MAP_CELL);this.knownRegions.set(regionId,r);
   }
-
-  approxSaveBytes() {
-    if (!this.data) return 0;
-    try { return JSON.stringify(this.data).length; } catch { return 0; }
+  discoveredCount(){return this.cellCount;}
+  approxSaveBytes(){try{return JSON.stringify(this.data).length;}catch{return 0;}}
+  _revealCell(cx,cz) {
+    const key=cellKey(cx,cz);if(this.data.discoveredCells[key])return 0;
+    const biome=this.world.biomeAt(cx*MAP_CELL+8,cz*MAP_CELL+8);
+    this.data.discoveredCells[key]=biome;this.indexCell(cx,cz,biome);this.invalidate();return 1;
   }
-
-  revealAt(x, z, neighbors = true) {
-    if (!this.data || !this.world) return 0;
-    const { cx, cz } = worldToCell(x, z);
-    let n = this._revealCell(cx, cz);
-    if (neighbors) {
-      for (let dz = -1; dz <= 1; dz++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          if (dx || dz) n += this._revealCell(cx + dx, cz + dz);
-        }
-      }
-    }
+  revealAt(x,z,neighbors=true) {
+    if(!this.data||!this.world)return 0;const {cx,cz}=worldToCell(x,z);let n=0;
+    const r=neighbors?1:0;for(let dz=-r;dz<=r;dz++)for(let dx=-r;dx<=r;dx++)n+=this._revealCell(cx+dx,cz+dz);
     return n;
   }
-
-  revealRadius(x, z, radiusCells, source = "tower") {
-    if (!this.data || !this.world) return 0;
-    const { cx, cz } = worldToCell(x, z);
-    let n = 0;
-    const r = Math.max(1, radiusCells | 0);
-    for (let dz = -r; dz <= r; dz++) {
-      for (let dx = -r; dx <= r; dx++) {
-        if (dx * dx + dz * dz > r * r + 1) continue;
-        n += this._revealCell(cx + dx, cz + dz);
-      }
-    }
-    if (n > 0) {
-      events.emit("mapAreaRevealed", {
-        source,
-        centerX: x,
-        centerZ: z,
-        radius: r,
-        newCells: n,
-      });
-    }
-    return n;
+  revealRadius(x,z,radiusCells,source='tower') {
+    if(!this.data||!this.world)return 0;const {cx,cz}=worldToCell(x,z),r=Math.max(1,radiusCells|0);let n=0;
+    for(let dz=-r;dz<=r;dz++)for(let dx=-r;dx<=r;dx++)if(dx*dx+dz*dz<=r*r+1)n+=this._revealCell(cx+dx,cz+dz);
+    if(n)events.emit('mapAreaRevealed',{source,centerX:x,centerZ:z,radius:r,newCells:n});return n;
   }
-
-  _revealCell(cx, cz) {
-    const key = cellKey(cx, cz);
-    if (this.data.discoveredCells[key]) return 0;
-    const wx = cx * MAP_CELL + MAP_CELL / 2;
-    const wz = cz * MAP_CELL + MAP_CELL / 2;
-    const biomeId = this.world.biomeAt(wx, wz);
-    this.data.discoveredCells[key] = biomeId;
-    return 1;
-  }
-
   addMarker(p) {
-    if (!this.data || !p?.structureId || !MAP_MARKERS[p.structureType]) return;
-    const prev = this.data.markers[p.structureId];
-    this.data.markers[p.structureId] = {
-      id: p.structureId,
-      type: p.structureType,
-      x: p.x,
-      z: p.z,
-      y: p.y,
-      opened: prev?.opened ?? false,
-    };
+    if(!this.data||!p?.structureId||!MAP_MARKERS[p.structureType]||!finite(p))return;
+    const prev=this.data.markers[p.structureId];
+    this.knownMarkers.add(p.structureId);
+    this.data.markers[p.structureId]={id:p.structureId,type:p.structureType,x:p.x,z:p.z,y:p.y,opened:prev?.opened??false};
+    this.markerDirty=true;this.invalidate();
   }
-
+  rebuildMarkers() {
+    this.markerIndex.clear();
+    for(const id of this.knownMarkers){const m=this.data.markers[id];if(!finite(m)||!MAP_MARKERS[m.type])continue;indexItem(this.markerIndex,m);}
+    this.markerDirty=false;
+  }
+  cellKnown(x,z){const {cx,cz}=worldToCell(x,z);return !!this.data?.discoveredCells[cellKey(cx,cz)];}
   pollPlayer(player) {
-    if (!player || !this.data) return;
-    this.player = player;
-    const { cx, cz } = worldToCell(player.pos.x, player.pos.z);
-    const key = `${cx},${cz}`;
-    if (this.lastCell !== key) {
-      this.lastCell = key;
-      this.revealAt(player.pos.x, player.pos.z, true);
-    }
+    if(!player||!this.data)return;this.player=player;
+    const signature=`${player.pos.x},${player.pos.z},${player.yaw}`;
+    if(signature!==this.playerSignature){this.playerSignature=signature;this.invalidate();}
+    const {cx,cz}=worldToCell(player.pos.x,player.pos.z),key=cellKey(cx,cz);
+    if(key!==this.lastCell){this.lastCell=key;this.revealAt(player.pos.x,player.pos.z);}
+    // Deliberately never alter panX/panZ while polling.
   }
-
-  centerOnPlayer() {
-    if (!this.player) return;
-    this.panX = this.player.pos.x;
-    this.panZ = this.player.pos.z;
+  centerOnPlayer(){if(this.player){this.panX=this.player.pos.x;this.panZ=this.player.pos.z;this.frameMode='player';this.invalidate();}}
+  fitBounds(b,mode) {
+    if(!b)return false;
+    this.panX=(b.x0+b.x1)/2;this.panZ=(b.z0+b.z1)/2;
+    this.zoom=Math.min(MAX_ZOOM,Math.max(.000001,Math.min(Math.max(40,this.width-100)/Math.max(48,b.x1-b.x0),Math.max(40,this.height-100)/Math.max(48,b.z1-b.z0))));
+    this.frameMode=mode;this.invalidate();return true;
   }
-
-  show() {
-    this.open = true;
-    this.centerOnPlayer();
-    this.resize();
-    this.draw();
-  }
-
-  hide() {
-    this.open = false;
-    this.drag = null;
-  }
-
+  frameExplored(){return this.fitBounds(this.exploredBounds,'explored');}
+  currentRegion(){return this.player?getRegionAt(this.player.pos.x,this.player.pos.z):null;}
+  regionKnown(id){return !!id&&!!this.state?.regions?.discovered?.[id];}
+  frameRegion(){const id=this.currentRegion();return this.regionKnown(id)&&this.fitBounds(this.knownRegions.get(id)?.bounds,'region');}
+  minZoom(){const b=this.exploredBounds;if(!b)return .2;return Math.max(.000001,Math.min(.2,Math.min(Math.max(40,this.width-100)/(b.x1-b.x0+64),Math.max(40,this.height-100)/(b.z1-b.z0+64))*.8));}
+  show(){this.open=true;this.centerOnPlayer();this.resize();this.draw();}
+  hide(){this.open=false;this.drag=null;this.placingWaypoint=false;this.canvas?.classList.remove('placing');}
   resize() {
-    if (!this.canvas) return;
-    const wrap = this.canvas.parentElement;
-    const w = wrap?.clientWidth || window.innerWidth;
-    const h = wrap?.clientHeight || window.innerHeight - 80;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    this.canvas.width = Math.max(64, w * dpr);
-    this.canvas.height = Math.max(64, h * dpr);
-    this.canvas.style.width = `${w}px`;
-    this.canvas.style.height = `${h}px`;
-    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if(!this.canvas)return;
+    const r=this.canvas.parentElement.getBoundingClientRect(),w=Math.max(1,Math.floor(r.width)),h=Math.max(1,Math.floor(r.height)),dpr=Math.min(window.devicePixelRatio||1,2);
+    if(w===this.width&&h===this.height&&dpr===this.dpr)return;
+    this.width=w;this.height=h;this.dpr=dpr;this.canvas.width=Math.round(w*dpr);this.canvas.height=Math.round(h*dpr);this.ctx.setTransform(dpr,0,0,dpr,0,0);
+    if(this.frameMode==='explored')this.frameExplored();else if(this.frameMode==='region')this.frameRegion();
+    this.invalidate();
   }
-
-  worldToScreen(x, z, cssW, cssH) {
-    const px = cssW / 2 + (x - this.panX) * this.zoom;
-    const py = cssH / 2 + (z - this.panZ) * this.zoom;
-    return { px, py };
-  }
-
-  screenToWorld(px, py, cssW, cssH) {
-    return {
-      x: this.panX + (px - cssW / 2) / this.zoom,
-      z: this.panZ + (py - cssH / 2) / this.zoom,
-    };
-  }
-
+  worldToScreen(x,z,w=this.width,h=this.height){return {px:w/2+(x-this.panX)*this.zoom,py:h/2+(z-this.panZ)*this.zoom};}
+  screenToWorld(px,py,w=this.width,h=this.height){return {x:this.panX+(px-w/2)/this.zoom,z:this.panZ+(py-h/2)/this.zoom};}
+  worldFromEvent(e,rect){return this.screenToWorld(e.clientX-rect.left,e.clientY-rect.top,rect.width,rect.height);}
   onWheel(e) {
-    if (!this.open) return;
-    const dir = e.deltaY > 0 ? 0.9 : 1.1;
-    this.zoom = Math.max(1.2, Math.min(14, this.zoom * dir));
-    this.draw();
+    if(!this.open)return;const rect=this.canvas.getBoundingClientRect();
+    const x=Number.isFinite(e.clientX)?e.clientX-rect.left:this.width/2,y=Number.isFinite(e.clientY)?e.clientY-rect.top:this.height/2;
+    const anchor=this.screenToWorld(x,y);this.zoom=Math.max(this.minZoom(),Math.min(MAX_ZOOM,this.zoom*(e.deltaY>0?.9:1.1)));
+    this.panX=anchor.x-(x-this.width/2)/this.zoom;this.panZ=anchor.z-(y-this.height/2)/this.zoom;this.frameMode='manual';this.invalidate();this.draw();
   }
-
+  beginWaypoint(){this.placingWaypoint=!this.placingWaypoint;this.canvas?.classList.toggle('placing',this.placingWaypoint);this.invalidate();this.draw();}
+  setWaypoint(x,z){if(this.data&&Number.isFinite(x)&&Number.isFinite(z)){this.data.waypoint={x,z};this.placingWaypoint=false;this.canvas?.classList.remove('placing');this.invalidate();}}
+  removeWaypoint(){if(this.data){this.data.waypoint=null;this.invalidate();}}
+  centerWaypoint(){if(finite(this.data?.waypoint)){this.panX=this.data.waypoint.x;this.panZ=this.data.waypoint.z;this.frameMode='manual';this.invalidate();}}
   onPointerDown(e) {
-    if (!this.open) return;
-    if (e.button === 2) {
-      const rect = this.canvas.getBoundingClientRect();
-      const w = this.worldFromEvent(e, rect);
-      this.data.waypoint = { x: w.x, z: w.z };
-      this.draw();
-      return;
+    if(!this.open)return;
+    if(e.button===2||this.placingWaypoint){const p=this.worldFromEvent(e,this.canvas.getBoundingClientRect());this.setWaypoint(p.x,p.z);this.draw();return;}
+    if(e.button!==0)return;
+    this.drag={x:e.clientX,y:e.clientY,panX:this.panX,panZ:this.panZ};this.frameMode='manual';
+    if(e.pointerId!=null)this.canvas.setPointerCapture?.(e.pointerId);
+  }
+  onPointerMove(e){if(!this.open||!this.drag)return;this.panX=this.drag.panX-(e.clientX-this.drag.x)/this.zoom;this.panZ=this.drag.panZ-(e.clientY-this.drag.y)/this.zoom;this.invalidate();this.draw();}
+  onPointerUp(){this.drag=null;}
+  icon(name) {
+    if(!this.icons.has(name)){
+      const canvas=document.createElement('canvas');canvas.width=64;canvas.height=64;
+      const c=canvas.getContext('2d');c.scale(2,2);c.translate(16,16);
+      c.fillStyle='#182d36';c.beginPath();c.arc(0,0,14,0,Math.PI*2);c.fill();drawMapSymbol(c,name);
+      this.icons.set(name,{canvas,url:canvas.toDataURL()});
     }
-    this.drag = { x: e.clientX, y: e.clientY, panX: this.panX, panZ: this.panZ };
+    return this.icons.get(name);
   }
-
-  onPointerMove(e) {
-    if (!this.drag) return;
-    this.panX = this.drag.panX - (e.clientX - this.drag.x) / this.zoom;
-    this.panZ = this.drag.panZ - (e.clientY - this.drag.y) / this.zoom;
-    this.draw();
+  syncUI(legend,level) {
+    const id=this.currentRegion(),known=this.regionKnown(id);
+    const label=document.getElementById('map-region');if(label)label.textContent=known?`${getRegionName(id)} · Región ${id.slice(-1)}`:'Territorio sin registrar';
+    const regionButton=document.getElementById('btn-map-region');if(regionButton)regionButton.disabled=!known||!this.knownRegions.has(id);
+    const view=document.getElementById('map-view');if(view)view.textContent=['Vista general','Vista regional','Vista local'][level];
+    for(const button of ['btn-map-waypoint-center','btn-map-waypoint-remove']){const el=document.getElementById(button);if(el)el.disabled=!finite(this.data.waypoint);}
+    const place=document.getElementById('btn-map-waypoint');if(place){place.setAttribute('aria-pressed',String(this.placingWaypoint));place.textContent=this.placingWaypoint?'Toca el mapa…':'Marcar destino';}
+    const key=legend.join('|'),el=document.getElementById('map-legend');
+    if(el&&key!==this.legendKey){
+      el.replaceChildren();for(const name of legend){const item=document.createElement('span'),img=document.createElement('img');img.src=this.icon(name).url;img.alt='';item.append(img,document.createTextNode(MAP_LEGEND[name]));el.append(item);}
+      this.legendKey=key;
+    }
   }
-
-  onPointerUp() {
-    this.drag = null;
-  }
-
-  worldFromEvent(e, rect) {
-    return this.screenToWorld(e.clientX - rect.left, e.clientY - rect.top, rect.width, rect.height);
-  }
-
   draw() {
-    if (!this.canvas || !this.ctx || !this.data) return;
-    const ctx = this.ctx;
-    const rect = this.canvas.getBoundingClientRect();
-    const w = rect.width;
-    const h = rect.height;
-    ctx.fillStyle = "#0c0e14";
-    ctx.fillRect(0, 0, w, h);
-
-    const z = this.zoom;
-    const margin = MAP_CELL * 2;
-    const x0 = this.panX - w / (2 * z) - margin;
-    const x1 = this.panX + w / (2 * z) + margin;
-    const z0 = this.panZ - h / (2 * z) - margin;
-    const z1 = this.panZ + h / (2 * z) + margin;
-    const c0x = Math.floor(x0 / MAP_CELL);
-    const c1x = Math.floor(x1 / MAP_CELL);
-    const c0z = Math.floor(z0 / MAP_CELL);
-    const c1z = Math.floor(z1 / MAP_CELL);
-
-    for (let cz = c0z; cz <= c1z; cz++) {
-      for (let cx = c0x; cx <= c1x; cx++) {
-        const cell = this.data.discoveredCells[cellKey(cx, cz)];
-        const wx = cx * MAP_CELL;
-        const wz = cz * MAP_CELL;
-        const { px, py } = this.worldToScreen(wx, wz, w, h);
-        const s = MAP_CELL * z;
-        const biomeId = typeof cell === "string" ? cell : cell?.biomeId;
-        if (biomeId) {
-          ctx.fillStyle = MAP_PALETTE[biomeId] ?? MAP_PALETTE.plains;
-          ctx.globalAlpha = 0.92;
-          ctx.fillRect(px, py, s + 0.5, s + 0.5);
-          ctx.globalAlpha = 1;
-        } else {
-          ctx.fillStyle = "#141824";
-          ctx.fillRect(px, py, s + 0.5, s + 0.5);
-          if (z >= 5) {
-            ctx.strokeStyle = "rgba(255,255,255,0.04)";
-            ctx.strokeRect(px, py, s, s);
-          }
+    if(!this.open||!this.canvas||!this.ctx||!this.data||!this.dirty)return;
+    this.dirty=false;this.drawCount++;if(this.markerDirty)this.rebuildMarkers();
+    const c=this.ctx,w=this.width,h=this.height,z=this.zoom,level=semanticLevel(z);
+    const bounds={x0:this.panX-w/(2*z),x1:this.panX+w/(2*z),z0:this.panZ-h/(2*z),z1:this.panZ+h/(2*z)};
+    c.fillStyle='#101d27';c.fillRect(0,0,w,h);
+    visitBuckets(this.cellIndex,bounds,items=>{for(const cell of items){if(cell.x+16<bounds.x0||cell.x>bounds.x1||cell.z+16<bounds.z0||cell.z>bounds.z1)continue;
+      const p=this.worldToScreen(cell.x,cell.z);c.fillStyle=MAP_PALETTE[cell.biome]??MAP_PALETTE.unknown;c.globalAlpha=.7;c.fillRect(p.px,p.py,16*z+.2,16*z+.2);c.globalAlpha=1;
+      if(level===2){c.strokeStyle='#ffffff0a';c.strokeRect(p.px,p.py,16*z,16*z);}
+    }});
+    const visible=[];const legend=new Set();
+    visitBuckets(this.markerIndex,bounds,items=>{for(const m of items){const d=MAP_MARKERS[m.type];if(d.level>level||!this.cellKnown(m.x,m.z))continue;
+      const p=this.worldToScreen(m.x,m.z);if(p.px<18||p.py<18||p.px>w-18||p.py>h-18)continue;
+      visible.push({...m,...p,icon:d.icon,label:d.label,category:d.category,hierarchy:d.hierarchy,gymId:d.gymId});
+      if(level===2)for(const service of mapServices(m)){if(!this.cellKnown(service.x,service.z))continue;const a=this.worldToScreen(service.x,service.z);if(a.px>=18&&a.py>=18&&a.px<=w-18&&a.py<=h-18)visible.push({...service,...a,category:'SERVICE'});}
+    }});
+    // Resolve symbol collisions in screen space. Leader lines preserve the real anchor;
+    // this is cartographic displacement, never a change to saved/world coordinates.
+    const occupied=[{x0:w-92,x1:w,z0:0,z1:96},{x0:0,x1:166,z0:h-48,z1:h}];
+    const fits=box=>box.x0>=4&&box.x1<=w-4&&box.z0>=4&&box.z1<=h-4&&!occupied.some(b=>overlaps(b,box));
+    const rendered=[];
+    for(const m of visible){
+      const size=m.type==='service'?25:m.hierarchy==='CITY'?34:30;
+      const anchor={px:m.px,py:m.py};let position=null;
+      for(const radius of [0,32,64,96]){
+        for(let step=0;step<(radius?8:1);step++){
+          const angle=step*Math.PI/4,px=anchor.px+Math.cos(angle)*radius,py=anchor.py+Math.sin(angle)*radius;
+          const box={x0:px-size/2-2,x1:px+size/2+2,z0:py-size/2-2,z1:py+size/2+2};
+          if(fits(box)){position={px,py,box};break;}
         }
+        if(position)break;
       }
+      if(!position)continue;
+      occupied.push(position.box);m.px=position.px;m.py=position.py;m.anchor=anchor;rendered.push(m);
     }
-
-    const markers = Object.values(this.data.markers).sort(
-      (a, b) => (MAP_MARKERS[a.type]?.z ?? 0) - (MAP_MARKERS[b.type]?.z ?? 0)
-    );
-    for (const m of markers) {
-      const def = MAP_MARKERS[m.type];
-      if (!def) continue;
-      const { cx, cz } = worldToCell(m.x, m.z);
-      if (!this.data.discoveredCells[cellKey(cx, cz)]) continue;
-      const { px, py } = this.worldToScreen(m.x, m.z, w, h);
-      ctx.beginPath();
-      ctx.fillStyle = def.color;
-      ctx.arc(px, py, Math.max(4, z * 0.55), 0, Math.PI * 2);
-      ctx.fill();
-      if (m.type === "regional_gate") {
-        ctx.strokeStyle = m.opened || regions.isGateOpened("region_2") ? "#6ee86e" : "#c04040";
-        ctx.lineWidth = 2;
-        ctx.stroke();
+    c.strokeStyle='#c8d4c080';c.lineWidth=1;
+    for(const m of rendered){if(m.px===m.anchor.px&&m.py===m.anchor.py)continue;c.beginPath();c.moveTo(m.anchor.px,m.anchor.py);c.lineTo(m.px,m.py);c.stroke();}
+    for(const m of rendered){const size=m.type==='service'?25:m.hierarchy==='CITY'?34:30;
+      c.drawImage(this.icon(m.icon).canvas,m.px-size/2,m.py-size/2,size,size);legend.add(m.icon);
+      if(m.gymId){const badge={gym_verdant:'verdant_badge',gym_mist:'mist_badge',gym_crimson:'crimson_badge',gym_gale:'gale_badge',gym_tide:'tide_badge'}[m.gymId];if(gyms.isCompleted(m.gymId)||progression.hasBadge(badge)){c.fillStyle='#e9f6d2';c.font='bold 14px sans-serif';c.fillText('✓',m.px+9,m.py-9);}}
+      if(m.type==='regional_gate'){c.strokeStyle=m.opened||regions.isGateOpened('region_2')?'#b8e5a8':'#dba175';c.strokeRect(m.px-16,m.py-16,32,32);}
+    }
+    const label=(text,px,py,region=false)=>{
+      c.font=region?'600 13px sans-serif':'600 12px sans-serif';
+      const key=`${region}:${text}`;
+      if(!this.labelWidths.has(key))this.labelWidths.set(key,c.measureText(text).width);
+      const tw=this.labelWidths.get(key),width=tw+10;
+      const offsets=region?[[-width-28,-10],[28,-10],[-width-64,-10],[64,-10],[-width/2,-44],[-width/2,42]]:[[-width/2,19],[21,-9],[-width-21,-9],[-width/2,-37],[-width/2,42],[44,-9],[-width-44,-9],[-width/2,-60]];
+      for(const [dx,dy] of offsets){
+        const box={x0:px+dx,x1:px+dx+width,z0:py+dy,z1:py+dy+19};
+        if(!fits(box))continue;
+        occupied.push(box);
+        if(Math.abs(dx)>40||Math.abs(dy)>40){c.strokeStyle='#c8d4c060';c.lineWidth=1;c.beginPath();c.moveTo(px,py);c.lineTo(Math.max(box.x0,Math.min(box.x1,px)),box.z0+9);c.stroke();}
+        c.fillStyle='#101d27ed';c.fillRect(box.x0,box.z0,width,19);c.fillStyle=region?'#cbdcc3':'#f0efe1';c.fillText(text,box.x0+5,box.z0+14);return;
       }
-      if (m.type.startsWith("gym")) {
-        const gid = m.type === "gym" ? "gym_verdant" : m.type;
-        const badge = gid === "gym_verdant" ? "verdant_badge"
-          : gid === "gym_mist" ? "mist_badge"
-          : gid === "gym_crimson" ? "crimson_badge"
-          : gid === "gym_gale" ? "gale_badge"
-          : gid === "gym_tide" ? "tide_badge"
-          : null;
-        const done = gyms.isCompleted?.(gid) || (badge && progression.hasBadge(badge));
-        ctx.strokeStyle = done ? "#6ee86e" : "#f0d878";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-      if (z >= 3.2) {
-        ctx.fillStyle = "#f4f6ff";
-        ctx.font = `${Math.max(10, Math.min(16, z * 2.2))}px Figtree, sans-serif`;
-        ctx.fillText(def.icon, px + 6, py - 4);
-      }
-    }
-
-    if (this.data.waypoint) {
-      const { px, py } = this.worldToScreen(this.data.waypoint.x, this.data.waypoint.z, w, h);
-      ctx.strokeStyle = "#ffe08a";
-      ctx.beginPath();
-      ctx.moveTo(px, py - 10);
-      ctx.lineTo(px, py + 10);
-      ctx.moveTo(px - 10, py);
-      ctx.lineTo(px + 10, py);
-      ctx.stroke();
-    }
-
-    if (this.player) {
-      const { px, py } = this.worldToScreen(this.player.pos.x, this.player.pos.z, w, h);
-      ctx.save();
-      ctx.translate(px, py);
-      ctx.rotate(this.player.yaw);
-      ctx.fillStyle = "#fff";
-      ctx.strokeStyle = "#101018";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0, -9);
-      ctx.lineTo(6, 7);
-      ctx.lineTo(0, 3);
-      ctx.lineTo(-6, 7);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-
-  waypointHud(player) {
-    const wp = this.data?.waypoint;
-    if (!wp || !player) return null;
-    const dx = wp.x - player.pos.x;
-    const dz = wp.z - player.pos.z;
-    const dist = Math.hypot(dx, dz);
-    return { dist, dx, dz };
-  }
-
-  snapshot() {
-    const { cx, cz } = this.player ? worldToCell(this.player.pos.x, this.player.pos.z) : { cx: 0, cz: 0 };
-    return {
-      cell: `${cx},${cz}`,
-      discovered: this.discoveredCount(),
-      markers: Object.keys(this.data?.markers ?? {}).length,
-      markerTypes: Object.values(this.data?.markers ?? {}).map((m) => m.type),
-      approxBytes: this.approxSaveBytes(),
-      zoom: this.zoom,
-      open: this.open,
     };
+    // Names require both known cells and the region discovery flag. They share
+    // collision space with icons; no territory rectangle is ever revealed.
+    if(level===0)for(const [id,r] of this.knownRegions){if(!this.regionKnown(id))continue;const p=this.worldToScreen(r.anchor.x,r.anchor.z);if(p.px>=0&&p.py>=0&&p.px<=w&&p.py<=h)label(getRegionName(id),p.px,p.py,true);}
+    for(const hubsFirst of [true,false])for(const m of rendered){if(!!m.hierarchy!==hubsFirst||m.type==='service'||(level===0&&!m.hierarchy&&!m.gymId))continue;label(m.label,m.px,m.py);}
+    if(finite(this.data.waypoint)){const p=this.worldToScreen(this.data.waypoint.x,this.data.waypoint.z);if(p.px>=16&&p.py>=16&&p.px<=w-16&&p.py<=h-16){c.drawImage(this.icon('waypoint').canvas,p.px-16,p.py-16,32,32);legend.add('waypoint');}}
+    if(this.player){const p=this.worldToScreen(this.player.pos.x,this.player.pos.z);if(p.px>=12&&p.py>=12&&p.px<=w-12&&p.py<=h-12){c.save();c.translate(p.px,p.py);c.rotate(mapHeading(this.player.yaw));c.beginPath();c.moveTo(0,-11);c.lineTo(7,8);c.lineTo(0,4);c.lineTo(-7,8);c.closePath();c.fillStyle='#fffbd9';c.strokeStyle='#132632';c.lineWidth=2;c.fill();c.stroke();c.restore();legend.add('player');}}
+    // North-up compass and zoom-dependent graphic scale remain fixed in screen space.
+    c.fillStyle='#101d27ed';c.fillRect(w-88,10,78,82);c.fillRect(10,h-44,150,34);c.strokeStyle='#d8dedc';c.lineWidth=1.5;
+    c.beginPath();c.moveTo(w-49,26);c.lineTo(w-49,71);c.moveTo(w-70,49);c.lineTo(w-28,49);c.stroke();
+    c.font='bold 12px sans-serif';c.fillStyle='#fffbd9';c.textAlign='center';c.fillText('N',w-49,23);c.fillText('S',w-49,85);c.fillText('O',w-78,53);c.fillText('E',w-20,53);c.textAlign='left';
+    const scale=mapScale(z);c.beginPath();c.moveTo(20,h-32);c.lineTo(20,h-26);c.lineTo(20+scale.pixels,h-26);c.lineTo(20+scale.pixels,h-32);c.stroke();c.font='12px sans-serif';c.fillText(`${Number(scale.blocks.toPrecision(3))} bloques`,20,h-13);
+    this.visibleMarkers=rendered;this.legend=[...legend];this.syncUI(this.legend,level);
   }
-
-  /** Debug/cheat: revela un radio de celdas. No es gameplay. */
-  debugRevealRadius(n) {
-    if (!this.player) return 0;
-    return this.revealRadius(this.player.pos.x, this.player.pos.z, n, "debug");
-  }
-
-  debugFillCells(count) {
-    if (!this.player || !this.world) return 0;
-    const { cx, cz } = worldToCell(this.player.pos.x, this.player.pos.z);
-    let n = 0;
-    const side = Math.ceil(Math.sqrt(count));
-    for (let dz = 0; dz < side && n < count; dz++) {
-      for (let dx = 0; dx < side && n < count; dx++) {
-        n += this._revealCell(cx + dx, cz + dz);
-      }
-    }
-    return n;
-  }
+  waypointHud(player){const wp=this.data?.waypoint;if(!wp||!player)return null;const dx=wp.x-player.pos.x,dz=wp.z-player.pos.z;return {dist:Math.hypot(dx,dz),dx,dz};}
+  snapshot(){const {cx,cz}=this.player?worldToCell(this.player.pos.x,this.player.pos.z):{cx:0,cz:0};return {cell:cellKey(cx,cz),discovered:this.cellCount,markers:Object.keys(this.data?.markers??{}).length,markerTypes:Object.values(this.data?.markers??{}).map(m=>m.type),approxBytes:this.approxSaveBytes(),zoom:this.zoom,open:this.open,level:semanticLevel(this.zoom),frame:this.frameMode,visible:this.visibleMarkers.map(m=>m.id),legend:this.legend,drawCount:this.drawCount};}
+  debugRevealRadius(n){return this.player?this.revealRadius(this.player.pos.x,this.player.pos.z,n,'debug'):0;}
+  debugFillCells(count){if(!this.player||!this.world)return 0;const {cx,cz}=worldToCell(this.player.pos.x,this.player.pos.z);let n=0;const side=Math.ceil(Math.sqrt(count));for(let dz=0;dz<side&&n<count;dz++)for(let dx=0;dx<side&&n<count;dx++)n+=this._revealCell(cx+dx,cz+dz);return n;}
 }
-
-export const worldMap = new MapSystem();
-void getRegionName;
-void getBiomeName;
-void REGION_1;
+export const worldMap=new MapSystem();
