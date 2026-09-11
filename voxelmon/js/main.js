@@ -2731,6 +2731,15 @@ document.getElementById("btn-map-center")?.addEventListener("click", () => {
   worldMap.centerOnPlayer();
   worldMap.draw();
 });
+for (const [id, action] of [
+  ["btn-map-region", () => worldMap.frameRegion()],
+  ["btn-map-explored", () => worldMap.frameExplored()],
+  ["btn-map-waypoint", () => worldMap.beginWaypoint()],
+  ["btn-map-waypoint-center", () => worldMap.centerWaypoint()],
+  ["btn-map-waypoint-remove", () => worldMap.removeWaypoint()],
+]) {
+  document.getElementById(id)?.addEventListener("click", () => { action(); worldMap.draw(); });
+}
 const mapCanvasEl = document.getElementById("map-canvas");
 if (mapCanvasEl) {
   mapCanvasEl.addEventListener("wheel", (e) => {
@@ -2741,6 +2750,7 @@ if (mapCanvasEl) {
   mapCanvasEl.addEventListener("pointerdown", (e) => worldMap.onPointerDown(e));
   window.addEventListener("pointermove", (e) => worldMap.onPointerMove(e));
   window.addEventListener("pointerup", () => worldMap.onPointerUp());
+  window.addEventListener("pointercancel", () => worldMap.onPointerUp());
   mapCanvasEl.addEventListener("contextmenu", (e) => e.preventDefault());
 }
 

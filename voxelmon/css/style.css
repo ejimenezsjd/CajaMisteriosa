@@ -1068,14 +1068,45 @@ html, body {
   color: #8a96b0;
 }
 .map-actions { display: flex; gap: 8px; }
+.map-head { flex-shrink: 0; }
+#map-view { font: 0.74rem sans-serif; color: #afbec9; margin-left: 12px; }
+#map-region { margin-top: 4px; font-size: 0.9rem; color: #ecebdc; }
+.map-tools { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-bottom: 1px solid #ffffff12; flex-shrink: 0; }
+.map-tools .btn { padding: 7px 10px; font-size: 0.78rem; }
+.map-tools .btn:disabled { opacity: 0.4; cursor: default; }
+.map-tools .btn[aria-pressed="true"] { outline: 2px solid #d8dfac; }
+.map-tool-separator { width: 1px; background: #ffffff25; margin: 3px 4px; }
+.map-stage { flex: 1; min-height: 100px; position: relative; overflow: hidden; }
+.map-footer { flex-shrink: 0; padding: 8px 14px; border-top: 1px solid #ffffff16; }
+#map-legend { display: flex; flex-wrap: wrap; column-gap: 14px; row-gap: 3px; font-size: 0.75rem; color: #e1e8dd; }
+#map-legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+#map-legend img { width: 24px; height: 24px; }
+.map-footer #map-hint { margin-top: 5px; line-height: 1.4; }
 #map-canvas {
-  flex: 1;
+  position: absolute;
+  inset: 0;
   width: 100%;
-  min-height: 240px;
+  height: 100%;
+  display: block;
+  touch-action: none;
   cursor: grab;
   background: #0c0e14;
 }
 #map-canvas:active { cursor: grabbing; }
+#map-canvas.placing { cursor: crosshair; }
+@media (max-width: 600px) {
+  #map-ui { padding: 5px; }
+  .map-head { padding: 9px 10px; gap: 6px; }
+  #map-view { display: block; margin: 3px 0 0; }
+  #map-region { font-size: 0.8rem; }
+  .map-tools { padding: 6px; gap: 4px; }
+  .map-tools .btn { padding: 7px 8px; font-size: 0.72rem; flex: 1 1 auto; }
+  .map-tool-separator { display: none; }
+  .map-footer { padding: 6px 8px; }
+  #map-legend { column-gap: 8px; font-size: 0.7rem; }
+  #map-legend img { width: 21px; height: 21px; }
+  .map-footer #map-hint { font-size: 0.66rem; }
+}
 
 /* ---------- Fase 12.5: inventario / PC / Dex / inspect ---------- */
 

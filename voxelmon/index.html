@@ -244,15 +244,27 @@
     <div class="map-box">
       <div class="map-head">
         <div>
-          <div id="map-title">Mapa</div>
-          <p id="map-hint">Arrastra para mover · rueda para zoom · M o Esc para cerrar</p>
+          <div id="map-title">Mapa <span id="map-view">Vista local</span></div>
+          <div id="map-region">Territorio sin registrar</div>
         </div>
         <div class="map-actions">
-          <button id="btn-map-center" class="btn ghost">Centrar</button>
           <button id="btn-map-close" class="btn primary">Cerrar</button>
         </div>
       </div>
-      <canvas id="map-canvas"></canvas>
+      <div class="map-tools" aria-label="Encuadre del mapa">
+        <button id="btn-map-center" class="btn ghost">Centrar jugador</button>
+        <button id="btn-map-region" class="btn ghost">Ver región actual</button>
+        <button id="btn-map-explored" class="btn ghost">Ver explorado</button>
+        <span class="map-tool-separator" aria-hidden="true"></span>
+        <button id="btn-map-waypoint" class="btn ghost" aria-pressed="false">Marcar destino</button>
+        <button id="btn-map-waypoint-center" class="btn ghost" disabled>Ver destino</button>
+        <button id="btn-map-waypoint-remove" class="btn ghost" disabled>Quitar destino</button>
+      </div>
+      <div class="map-stage"><canvas id="map-canvas" aria-label="Mapa con norte arriba. Arrastra para mover, rueda para ampliar y clic derecho para marcar un destino."></canvas></div>
+      <div class="map-footer">
+        <div id="map-legend" aria-label="Leyenda de elementos visibles"></div>
+        <p id="map-hint">Arrastrar: mover · Rueda: zoom · Clic derecho: marcar/mover destino · M / Esc: cerrar</p>
+      </div>
     </div>
   </div>
 
@@ -328,7 +340,7 @@
     })();
   </script>
   <script type="module">
-    import("./js/main.js?v=f145").then(function () {
+    import("./js/main.js?v=w1a").then(function () {
       if (window.__vmBoot) window.__vmBoot.hideStatus();
     }).catch(function (err) {
       console.error(err);
