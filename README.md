@@ -2,6 +2,10 @@
 
 Roguelike de criaturas con tipos y evoluciones. Explora criptas procedurales, abre cajas misteriosas, combate con ventajas elementales y evoluciona tu equipo.
 
+## La Casa del Lobo (nuevo)
+
+En `la-casa-del-lobo/` vive **La Casa del Lobo**, un proyecto independiente: escape room físico + deducción social para casas rurales, orquestado por una PWA móvil. Actualmente en fase de diseño (GDD y arquitectura completos); ver su [README](la-casa-del-lobo/README.md).
+
 ## VoxelMon (nuevo)
 
 En `voxelmon/` vive **VoxelMon**, un juego 3D estilo Minecraft ambientado en el mismo universo: un mundo vóxel infinito y procedural (biomas, lagos, montañas, bosques, ciclo día/noche) donde puedes minar, construir y capturar a las criaturas salvajes de las 8 familias en combates por turnos.
