@@ -1,0 +1,174 @@
+/* La Casa del Lobo — misterio rural, terror psicológico ligero */
+:root {
+  --fondo: #0d0f14;
+  --fondo-carta: #161a22;
+  --borde: #2a2f3a;
+  --tinta: #e8e2d4;
+  --tinta-suave: #9a958a;
+  --ambar: #d9a441;
+  --sangre: #a63d3d;
+  --bosque: #4a6b52;
+  --espectro: #7fb4c9;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--fondo);
+  background-image: radial-gradient(ellipse at 50% -10%, #1a2030 0%, var(--fondo) 55%);
+  color: var(--tinta);
+  font-family: Georgia, 'Times New Roman', serif;
+  min-height: 100vh;
+  line-height: 1.45;
+}
+body.fantasma {
+  --ambar: var(--espectro);
+  background-image: radial-gradient(ellipse at 50% -10%, #122028 0%, #0a0e12 55%);
+  filter: saturate(.85);
+}
+#app { max-width: 560px; margin: 0 auto; padding: 12px 14px 90px; }
+
+h1, h2, h3 { font-weight: normal; letter-spacing: .04em; margin: .4em 0; }
+h1 { font-size: 1.7rem; color: var(--ambar); text-align: center; }
+h2 { font-size: 1.2rem; color: var(--ambar); }
+h3 { font-size: 1.02rem; color: var(--tinta); }
+p { margin: .5em 0; }
+.suave { color: var(--tinta-suave); font-size: .92rem; }
+.centro { text-align: center; }
+
+.carta {
+  background: var(--fondo-carta);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 12px 0;
+  box-shadow: 0 3px 14px rgba(0,0,0,.35);
+}
+.carta.destacada { border-color: var(--ambar); }
+.carta.peligro { border-color: var(--sangre); }
+
+button, .boton {
+  font-family: inherit;
+  font-size: 1rem;
+  background: linear-gradient(180deg, #232a38, #1a202c);
+  color: var(--tinta);
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  padding: 12px 16px;
+  width: 100%;
+  margin: 6px 0;
+  cursor: pointer;
+  transition: transform .06s ease, border-color .15s ease;
+}
+button:active { transform: scale(.985); }
+button.primario { background: linear-gradient(180deg, #8a6420, #6e4f18); border-color: var(--ambar); color: #fff4dd; }
+button.peligro { background: linear-gradient(180deg, #6e2d2d, #552222); border-color: var(--sangre); }
+button.mini { width: auto; padding: 7px 12px; font-size: .88rem; margin: 3px 4px 3px 0; }
+button:disabled { opacity: .45; cursor: default; }
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: 1rem;
+  width: 100%;
+  background: #0f1219;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  color: var(--tinta);
+  padding: 11px 12px;
+  margin: 5px 0;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--ambar); }
+label { font-size: .9rem; color: var(--tinta-suave); display: block; margin-top: 8px; }
+
+.cabecera {
+  position: sticky; top: 0; z-index: 10;
+  background: rgba(13,15,20,.92);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--borde);
+  margin: -12px -14px 10px;
+  padding: 10px 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.fase-chip {
+  border: 1px solid var(--ambar);
+  color: var(--ambar);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: .85rem;
+  white-space: nowrap;
+}
+.temporizador { font-size: 1.05rem; color: var(--tinta); font-variant-numeric: tabular-nums; }
+.temporizador.agotado { color: var(--sangre); }
+
+.codigo-sala {
+  font-size: 2.4rem; letter-spacing: .35em; text-align: center;
+  color: var(--ambar); margin: 8px 0; text-indent: .35em;
+}
+
+ul.lista { list-style: none; padding: 0; margin: 8px 0; }
+ul.lista li {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 9px 4px; border-bottom: 1px dashed var(--borde);
+}
+ul.lista li:last-child { border-bottom: none; }
+.punto { width: 9px; height: 9px; border-radius: 50%; background: #555; display: inline-block; margin-right: 8px; flex: none; }
+.punto.on { background: var(--bosque); box-shadow: 0 0 6px var(--bosque); }
+.etiqueta { font-size: .78rem; border: 1px solid var(--borde); border-radius: 6px; padding: 2px 7px; color: var(--tinta-suave); white-space: nowrap; }
+.etiqueta.fantasma { color: var(--espectro); border-color: var(--espectro); }
+.etiqueta.lobo { color: #e08f8f; border-color: var(--sangre); }
+.etiqueta.humano { color: #9fc3a6; border-color: var(--bosque); }
+
+.opcion {
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid var(--borde); border-radius: 10px;
+  padding: 12px; margin: 7px 0; cursor: pointer;
+}
+.opcion.elegida { border-color: var(--ambar); background: rgba(217,164,65,.08); }
+
+.registro { font-size: .9rem; }
+.registro .evento { padding: 7px 0; border-bottom: 1px dashed var(--borde); }
+.registro .evento time { color: var(--tinta-suave); font-size: .78rem; margin-right: 6px; }
+
+.notif-burbuja {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: 86px; z-index: 50;
+  background: #241c10; border: 1px solid var(--ambar); color: var(--tinta);
+  border-radius: 12px; padding: 12px 18px; max-width: 86%;
+  box-shadow: 0 6px 24px rgba(0,0,0,.6);
+  animation: aparecer .25s ease;
+}
+@keyframes aparecer { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+.barra-inferior {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+  background: rgba(13,15,20,.95); backdrop-filter: blur(6px);
+  border-top: 1px solid var(--borde);
+  display: flex; justify-content: space-around;
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+}
+.barra-inferior button {
+  width: auto; flex: 1; margin: 0 3px; padding: 9px 4px;
+  font-size: .82rem; background: none; border: none; color: var(--tinta-suave);
+}
+.barra-inferior button.activa { color: var(--ambar); }
+.contador {
+  background: var(--sangre); color: #fff; border-radius: 999px;
+  font-size: .7rem; padding: 1px 6px; margin-left: 4px;
+}
+
+.prueba { border-left: 3px solid var(--borde); padding-left: 10px; margin: 12px 0; }
+.prueba.completada { border-left-color: var(--bosque); opacity: .75; }
+.prueba.saboteada { border-left-color: var(--sangre); }
+
+.rol-oculto {
+  background: repeating-linear-gradient(45deg, #171b24, #171b24 8px, #141821 8px, #141821 16px);
+  border: 1px dashed var(--ambar); border-radius: 10px;
+  padding: 20px; text-align: center; color: var(--tinta-suave);
+  user-select: none; -webkit-user-select: none;
+}
+.separador { border: none; border-top: 1px dashed var(--borde); margin: 14px 0; }
+.error-texto { color: #e08f8f; font-size: .9rem; min-height: 1.2em; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+table.tabla { width: 100%; border-collapse: collapse; font-size: .88rem; }
+table.tabla td, table.tabla th { border-bottom: 1px dashed var(--borde); padding: 6px 4px; text-align: left; }
+details { margin: 8px 0; }
+summary { cursor: pointer; color: var(--ambar); padding: 6px 0; }

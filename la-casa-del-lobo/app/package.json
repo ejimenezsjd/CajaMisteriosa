@@ -1,0 +1,17 @@
+{
+  "name": "la-casa-del-lobo",
+  "version": "0.2.0",
+  "description": "La Casa del Lobo — escape room físico + deducción social. Prototipo Fase 2.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

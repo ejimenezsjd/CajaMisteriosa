@@ -1,0 +1,13 @@
+{
+  "name": "La Casa del Lobo",
+  "short_name": "Casa del Lobo",
+  "description": "Escape room físico + deducción social para casas rurales.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0f14",
+  "theme_color": "#0d0f14",
+  "lang": "es",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
