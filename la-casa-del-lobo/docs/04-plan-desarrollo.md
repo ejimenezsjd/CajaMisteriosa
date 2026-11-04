@@ -7,9 +7,11 @@
 **Entregables:** análisis y decisiones (`01`), GDD con reglas, roles, mecánicas y flujo (`02`), arquitectura y esquema de BD (`03`), este plan (`04`).
 **Criterio de salida:** diseño aprobado por el propietario del proyecto.
 
-## Fase 2 — Prototipo funcional (núcleo social)
+## Fase 2 — Prototipo funcional (núcleo social) ✅
 
 El corazón del juego sin escape room: una partida de deducción jugable de principio a fin.
+
+> **Estado: completada**, con una desviación deliberada: en lugar de Next.js + Supabase, el prototipo es un servidor Node autocontenido (`app/`) con el motor aislado en `src/engine.js`. Motivo: permite probar el juego de inmediato sin crear cuentas ni desplegar nada, y funciona sin internet en una casa rural. El camino Supabase de `03-arquitectura.md` queda como opción de producción; el motor se diseñó puro para poder migrarlo. Incluye además parte de la Fase 3 (pruebas con validación por código, sabotaje, editor del narrador y escenario demo).
 
 - Proyecto Next.js + TS + Tailwind; proyecto Supabase con migraciones del esquema (§9 de arquitectura) y RLS.
 - Auth anónima; crear partida, código de sala, QR, unirse, sala de espera.

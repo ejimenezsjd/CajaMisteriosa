@@ -6,7 +6,9 @@ Escape room físico + deducción social + rol en vivo para 6–20 jugadores en u
 
 ## Estado del proyecto
 
-**Fase 1 — Diseño: completada.** Todavía no hay código; el diseño completo está documentado y pendiente de aprobación antes de empezar la Fase 2 (prototipo funcional).
+**Fase 2 — Prototipo jugable: completada** (incluye parte de la Fase 3). Hay una aplicación funcional en [`app/`](app/) con el núcleo social completo (roles secretos, fases, noche, votaciones, fantasmas, panel del narrador) y el escape room básico (habitaciones, pruebas verificadas en servidor, sabotaje, escenario demo). 21 tests automatizados en verde.
+
+**Cómo probarla:** ver [`app/README.md`](app/README.md). Resumen: `cd app && npm install && npm start` y los móviles entran por la Wi‑Fi local en `http://IP_DEL_ORDENADOR:3000`.
 
 ## Documentación
 
